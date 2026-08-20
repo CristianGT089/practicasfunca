@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
+import { generarPassword } from "@/lib/passwords";
+
+export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const estudiantes = await prisma.usuario.findMany({
+    where: { rol: "ESTUDIANTE" },
+    orderBy: { creadoEn: "desc" },
+    select: { id: true, nombre: true, usuario: true, activo: true, creadoEn: true },
+  });
+
+  return NextResponse.json({ estudiantes });
+}
+
+export async function POST(req: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const body = await req.json().catch(() => null);
+  const nombre = (body?.nombre as string | undefined)?.trim();
+  const usuario = (body?.usuario as string | undefined)?.trim().toLowerCase();
+
+  if (!nombre || !usuario) {
+    return NextResponse.json({ error: "Nombre y usuario son requeridos" }, { status: 400 });
+  }
+
+  const existente = await prisma.usuario.findUnique({ where: { usuario } });
+  if (existente) {
+    return NextResponse.json({ error: "Ese nombre de usuario ya existe" }, { status: 409 });
+  }
+
+  const passwordTemporal = generarPassword();
+  const passwordHash = await bcrypt.hash(passwordTemporal, 10);
+
+  const creado = await prisma.usuario.create({
+    data: { nombre, usuario, passwordHash, rol: "ESTUDIANTE" },
+    select: { id: true, nombre: true, usuario: true, activo: true, creadoEn: true },
+  });
+
+  return NextResponse.json({ estudiante: creado, passwordTemporal });
+}

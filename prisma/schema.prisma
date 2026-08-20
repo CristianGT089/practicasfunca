@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ESTUDIANTE
+  ADMIN
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nombre       String
+  usuario      String   @unique
+  passwordHash String
+  rol          Rol      @default(ESTUDIANTE)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  intentos      Intento[]
+  intentosTurno IntentoTurno[]
+
+  @@map("usuarios")
+}
+
+// Catálogo de medicamentos del "software" simulado
+model Medicamento {
+  id              String    @id @default(cuid())
+  nombre          String
+  principioActivo String
+  presentacion    String // ej: "Tableta 500mg", "Jarabe 120ml"
+  requiereReceta  Boolean   @default(false)
+  esControlado    Boolean   @default(false) // requiere receta especial / registro extra
+  stock           Int       @default(0)
+  precio          Int // en pesos, entero
+  loteVencimiento DateTime?
+  tags            String[] // ej: ["antiinflamatorio", "penicilina"] para cruces de alergia
+  creadoEn        DateTime  @default(now())
+
+  movimientos         MovimientoInventario[]
+  itemsEscenario      ItemEscenario[]
+  recetasElectronicas RecetaElectronica[]
+
+  @@map("medicamentos")
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+model MovimientoInventario {
+  id            String         @id @default(cuid())
+  medicamentoId String
+  medicamento   Medicamento    @relation(fields: [medicamentoId], references: [id])
+  tipo          TipoMovimiento
+  cantidad      Int
+  motivo        String?
+  creadoEn      DateTime       @default(now())
+
+  @@map("movimientos_inventario")
+}
+
+// Pacientes ficticios usados dentro de los escenarios
+model Paciente {
+  id              String    @id @default(cuid())
+  nombre          String
+  cedula          String    @unique
+  edad            Int
+  alergias        String[] // tags que cruzan contra Medicamento.tags
+  antecedentes    String? // texto libre: enfermedades, medicación crónica
+  fechaNacimiento DateTime?
+  lugarNacimiento String?
+  tipoSangre      String?
+  creadoEn        DateTime  @default(now())
+
+  escenarios Escenario[]
+  recetas    RecetaElectronica[]
+
+  @@map("pacientes")
+}
+
+enum ActitudCedula {
+  ENTREGA
+  SE_REHUSA
+}
+
+// Historial de fórmulas electrónicas que el técnico puede consultar en línea
+// por cédula cuando el paciente no trae receta física.
+model RecetaElectronica {
+  id                 String      @id @default(cuid())
+  pacienteId         String
+  paciente           Paciente    @relation(fields: [pacienteId], references: [id])
+  medicamentoId      String
+  medicamento        Medicamento @relation(fields: [medicamentoId], references: [id])
+  medico             String
+  cantidadAutorizada Int
+  cantidadRedimida   Int         @default(0)
+  fechaEmision       DateTime
+  fechaVigencia      DateTime
+  creadoEn           DateTime    @default(now())
+
+  @@map("recetas_electronicas")
+}
+
+// Un caso práctico completo que el estudiante debe resolver
+model Escenario {
+  id                 String            @id @default(cuid())
+  titulo             String
+  descripcion        String // versión guiada (modo fácil): contexto con pistas explícitas
+  descripcionDificil String? // versión modo difícil: solo los datos mínimos, sin pistas. Si es null, se reusa `descripcion`.
+  soloTurno          Boolean           @default(false) // si es true, no aparece en la lista de práctica suelta, solo dentro de un Turno
+  pacienteId         String?
+  paciente           Paciente?         @relation(fields: [pacienteId], references: [id])
+  resultadoEsperado  ResultadoEsperado
+  recetaPresentada   Boolean           @default(false) // si el cliente trae una receta médica física para el medicamento solicitado
+  notaRecetaFisica   String? // nota adicional opcional (se muestra debajo del documento, ej. contexto de una irregularidad)
+  actitudCedula      ActitudCedula? // solo aplica cuando recetaPresentada es false: cómo reacciona el cliente al pedirle la cédula
+
+  // Datos impresos en la receta física, para renderizarla como documento en vez de una frase.
+  // recetaFisicaPacienteNombre puede diferir del nombre real del paciente (útil para casos de
+  // suplantación); si es null, se usa el nombre del paciente vinculado al escenario.
+  recetaFisicaPacienteNombre  String?
+  recetaFisicaMedicamento     String?
+  recetaFisicaPosologia       String?
+  recetaFisicaCantidad        String?
+  recetaFisicaCantidadTachada String? // si está presente, se muestra tachada antes de la cantidad final (corrección a mano)
+  recetaFisicaMedico          String?
+  recetaFisicaRegistroMedico  String?
+  recetaFisicaFechaEmision    DateTime?
+  recetaFisicaDiasVigencia    Int?
+  recetaFisicaControlado      Boolean   @default(false) // si debe mostrar el sello de "control especial"
+
+  activo   Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  pasos      PasoEsperado[]
+  items      ItemEscenario[] // medicamento(s) que se espera que se dispensen o rechacen
+  intentos   Intento[]
+  turnoItems TurnoItem[]
+
+  @@map("escenarios")
+}
+
+// Secuencia de varios escenarios encadenados con un solo pool de 3 vidas compartido
+// entre todos — la "prueba final": simula la fatiga de atender clientes uno tras otro.
+model Turno {
+  id                 String   @id @default(cuid())
+  titulo             String
+  descripcion        String
+  umbralDesbloqueo   Int      @default(70) // % mínimo (puntajeFinal) que se exige en cada caso normal para desbloquear
+  requiereDesbloqueo Boolean  @default(false) // mientras esté en false, se muestra a todos sin exigir el umbral (para QA)
+  activo             Boolean  @default(true)
+  creadoEn           DateTime @default(now())
+
+  items    TurnoItem[]
+  intentos IntentoTurno[]
+
+  @@map("turnos")
+}
+
+// Un escenario dentro de la secuencia de un turno, con su posición (orden).
+model TurnoItem {
+  id          String    @id @default(cuid())
+  turnoId     String
+  turno       Turno     @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+  escenarioId String
+  escenario   Escenario @relation(fields: [escenarioId], references: [id])
+  orden       Int
+
+  @@map("turno_items")
+}
+
+enum EstadoIntentoTurno {
+  EN_PROGRESO
+  COMPLETADO
+  PERDIDO
+}
+
+// Una corrida de un estudiante a través de un Turno completo. Las vidas viven acá
+// (no en cada Intento individual) y se reflejan en el Intento activo mientras dura.
+model IntentoTurno {
+  id           String             @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario            @relation(fields: [usuarioId], references: [id])
+  turnoId      String
+  turno        Turno              @relation(fields: [turnoId], references: [id])
+  estado       EstadoIntentoTurno @default(EN_PROGRESO)
+  modo         ModoJuego          @default(FACIL) // se elige una vez al iniciar el turno; aplica a los 5 casos
+  vidas        Int                @default(3)
+  indice       Int                @default(0) // posición actual dentro de la secuencia (0-based)
+  puntajeFinal Float? // promedio de los puntajeFinal de cada caso completado dentro del turno
+  iniciadoEn   DateTime           @default(now())
+  finalizadoEn DateTime?
+
+  intentos Intento[]
+
+  @@map("intentos_turno")
+}
+
+// Medicamento(s) implicados en el escenario y la cantidad esperada si aplica
+model ItemEscenario {
+  id               String      @id @default(cuid())
+  escenarioId      String
+  escenario        Escenario   @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+  medicamentoId    String
+  medicamento      Medicamento @relation(fields: [medicamentoId], references: [id])
+  cantidadEsperada Int?
+
+  @@map("items_escenario")
+}
+
+enum ResultadoEsperado {
+  VENTA_CORRECTA // debía completar la venta
+  RECHAZO_CORRECTO // debía negarse a vender (sin receta, alergia, controlado, vencido, etc)
+}
+
+// Un paso obligatorio dentro del checklist de calificación de un escenario
+model PasoEsperado {
+  id          String     @id @default(cuid())
+  escenarioId String
+  escenario   Escenario  @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+  orden       Int // posición esperada (para bonificar/penalizar orden)
+  tipoAccion  TipoAccion
+  descripcion String // texto humano, ej: "Verificó la receta antes de vender"
+  parametros  Json? // condiciones específicas a matchear contra la Accion registrada
+  obligatorio Boolean    @default(true)
+  peso        Int        @default(1) // ponderación relativa dentro del puntaje de "proceso"
+
+  @@map("pasos_esperados")
+}
+
+enum TipoAccion {
+  BUSCAR_MEDICAMENTO
+  VER_FICHA_PACIENTE
+  VERIFICAR_RECETA
+  VERIFICAR_ALERGIA
+  VERIFICAR_STOCK
+  VERIFICAR_VENCIMIENTO
+  REGISTRAR_CONTROLADO
+  SOLICITAR_CEDULA
+  BUSCAR_RECETA_ONLINE
+  ESCALAR_A_SUPERVISOR
+  AGREGAR_A_VENTA
+  QUITAR_DE_VENTA
+  COMPLETAR_VENTA
+  RECHAZAR_VENTA
+  AJUSTAR_INVENTARIO
+}
+
+enum EstadoIntento {
+  EN_PROGRESO
+  COMPLETADO
+  PERDIDO // se quedó sin corazones, debe reiniciar
+}
+
+enum ModoJuego {
+  FACIL
+  DIFICIL
+}
+
+// Una corrida de un estudiante sobre un escenario específico
+model Intento {
+  id           String        @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id])
+  escenarioId  String
+  escenario    Escenario     @relation(fields: [escenarioId], references: [id])
+  estado       EstadoIntento @default(EN_PROGRESO)
+  modo         ModoJuego     @default(FACIL)
+  vidas        Int           @default(3)
+  iniciadoEn   DateTime      @default(now())
+  finalizadoEn DateTime?
+
+  puntajeProceso   Float? // 0-100, basado en checklist de pasos
+  puntajeResultado Float? // 0-100, basado en si el resultado final fue correcto
+  puntajeFinal     Float? // ponderado: 60% proceso + 40% resultado
+
+  intentoTurnoId String? // si no es null, este Intento es un caso dentro de un Turno (vidas compartidas)
+  intentoTurno   IntentoTurno? @relation(fields: [intentoTurnoId], references: [id])
+
+  acciones Accion[]
+
+  @@map("intentos")
+}
+
+// Log crudo de cada acción que el estudiante realiza dentro de un intento
+model Accion {
+  id         String     @id @default(cuid())
+  intentoId  String
+  intento    Intento    @relation(fields: [intentoId], references: [id], onDelete: Cascade)
+  tipo       TipoAccion
+  payload    Json? // datos de la acción, ej: {"medicamentoId": "...", "cantidad": 2}
+  esCorrecta Boolean? // evaluado contra el checklist al finalizar
+  esError    Boolean    @default(false) // si esta acción costó un corazón en el momento
+  creadoEn   DateTime   @default(now())
+
+  @@map("acciones")
+}

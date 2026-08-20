@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: farmacia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-farmacia_dev}
+      POSTGRES_DB: farmacia_sim
+    ports:
+      - "5433:5432"
+    volumes:
+      - farmacia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmacia -d farmacia_sim"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://farmacia:${POSTGRES_PASSWORD:-farmacia_dev}@db:5432/farmacia_sim?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?Define AUTH_SECRET en tu .env antes de desplegar}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  farmacia_pgdata:
