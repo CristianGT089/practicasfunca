@@ -18,6 +18,8 @@ type Medicamento = {
   stock: number;
 };
 
+type ItemCarrito = { medicamento: Medicamento; cantidad: number };
+
 function formatearFecha(iso: string | null) {
   if (!iso) return "Sin registrar";
   return new Date(iso).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
@@ -30,6 +32,11 @@ export default function CatalogoRealPage() {
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [seleccionado, setSeleccionado] = useState<Medicamento | null>(null);
+
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [errorVenta, setErrorVenta] = useState<string | null>(null);
+  const [confirmacion, setConfirmacion] = useState<string | null>(null);
+  const [vendiendo, setVendiendo] = useState(false);
 
   useEffect(() => {
     const controlador = new AbortController();
@@ -70,10 +77,72 @@ export default function CatalogoRealPage() {
     return Array.from(mapa.entries());
   }, [medicamentos]);
 
+  function enCarrito(medicamentoId: string) {
+    return carrito.find((i) => i.medicamento.id === medicamentoId);
+  }
+
+  function agregarAVenta(med: Medicamento) {
+    setConfirmacion(null);
+    if (med.stock <= 0) return;
+    setCarrito((prev) => {
+      const existente = prev.find((i) => i.medicamento.id === med.id);
+      if (existente) {
+        if (existente.cantidad >= med.stock) return prev;
+        return prev.map((i) => (i.medicamento.id === med.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+      }
+      return [...prev, { medicamento: med, cantidad: 1 }];
+    });
+  }
+
+  function cambiarCantidad(medicamentoId: string, cantidad: number) {
+    setCarrito((prev) =>
+      prev.map((i) => {
+        if (i.medicamento.id !== medicamentoId) return i;
+        const tope = Math.min(Math.max(cantidad, 1), i.medicamento.stock);
+        return { ...i, cantidad: tope };
+      })
+    );
+  }
+
+  function quitarDeVenta(medicamentoId: string) {
+    setCarrito((prev) => prev.filter((i) => i.medicamento.id !== medicamentoId));
+  }
+
+  async function completarVenta() {
+    if (carrito.length === 0) return;
+    setVendiendo(true);
+    setErrorVenta(null);
+    setConfirmacion(null);
+    try {
+      const res = await fetch("/api/modulos/farmacia/catalogo/venta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: carrito.map((i) => ({ medicamentoId: i.medicamento.id, cantidad: i.cantidad })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorVenta(data.error ?? "No se pudo completar la venta");
+        return;
+      }
+      // Refleja el stock descontado en la lista sin recargar toda la página.
+      const nuevosStocks = new Map<string, number>(data.medicamentos.map((m: { id: string; stock: number }) => [m.id, m.stock]));
+      setMedicamentos((prev) => prev.map((m) => (nuevosStocks.has(m.id) ? { ...m, stock: nuevosStocks.get(m.id)! } : m)));
+      setSeleccionado((prev) => (prev && nuevosStocks.has(prev.id) ? { ...prev, stock: nuevosStocks.get(prev.id)! } : prev));
+      setConfirmacion(`Venta registrada: ${carrito.length} medicamento(s).`);
+      setCarrito([]);
+    } finally {
+      setVendiendo(false);
+    }
+  }
+
+  const totalUnidades = carrito.reduce((sum, i) => sum + i.cantidad, 0);
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <header className="bg-blue-900 px-6 py-4">
-        <div className="mx-auto max-w-5xl flex items-center justify-between">
+        <div className="mx-auto max-w-6xl flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
             <span className="font-heading text-sm font-semibold text-white">Catálogo real de medicamentos</span>
@@ -85,11 +154,11 @@ export default function CatalogoRealPage() {
       </header>
 
       <div className="px-6 py-10">
-        <div className="mx-auto max-w-5xl">
-          <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Expediente de medicamentos</h1>
+        <div className="mx-auto max-w-6xl">
+          <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Expediente y venta de medicamentos</h1>
           <p className="text-sm text-slate-500 mb-6">
-            Consulta libre del inventario real: principio activo, laboratorio, forma farmacéutica, lote y
-            vencimiento. No tiene calificación, es un recurso de referencia.
+            Consulta el inventario real y practica el flujo de venta: agrega medicamentos al carrito y completa la
+            venta para descontar existencias. No tiene checklist ni calificación.
           </p>
 
           <input
@@ -106,27 +175,38 @@ export default function CatalogoRealPage() {
             <p className="text-sm text-slate-500">No se encontraron medicamentos con ese criterio.</p>
           )}
 
-          <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
+          <div className="grid gap-6 md:grid-cols-[1fr_1fr_0.9fr]">
             <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden max-h-[65vh] overflow-y-auto">
               {agrupados.map(([principioActivo, lotes]) => (
                 <div key={principioActivo} className="border-b border-slate-100 last:border-0">
                   <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide">
                     {principioActivo}
                   </div>
-                  {lotes.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setSeleccionado(m)}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        seleccionado?.id === m.id ? "bg-blue-50" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="text-slate-800 font-medium">{m.nombre}</div>
-                      <div className="text-xs text-slate-500">
-                        {m.laboratorio ?? "Laboratorio N/A"} · Lote {m.numeroLote ?? "N/A"}
+                  {lotes.map((m) => {
+                    const itemCarrito = enCarrito(m.id);
+                    return (
+                      <div
+                        key={m.id}
+                        className={`px-4 py-2.5 text-sm flex items-center justify-between gap-2 transition-colors ${
+                          seleccionado?.id === m.id ? "bg-blue-50" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        <button onClick={() => setSeleccionado(m)} className="text-left min-w-0 flex-1">
+                          <div className="text-slate-800 font-medium truncate">{m.nombre}</div>
+                          <div className="text-xs text-slate-500">
+                            {m.laboratorio ?? "Laboratorio N/A"} · Lote {m.numeroLote ?? "N/A"} · Stock {m.stock}
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => agregarAVenta(m)}
+                          disabled={m.stock <= 0 || (itemCarrito != null && itemCarrito.cantidad >= m.stock)}
+                          className="shrink-0 text-xs font-semibold text-white bg-blue-800 hover:bg-blue-900 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg px-2.5 py-1.5"
+                        >
+                          {m.stock <= 0 ? "Sin stock" : "Vender"}
+                        </button>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -173,8 +253,62 @@ export default function CatalogoRealPage() {
                       <dd className="text-slate-800">{seleccionado.stock}</dd>
                     </div>
                   </dl>
+
+                  <button
+                    onClick={() => agregarAVenta(seleccionado)}
+                    disabled={seleccionado.stock <= 0}
+                    className="mt-4 w-full rounded-lg bg-blue-800 hover:bg-blue-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2"
+                  >
+                    {seleccionado.stock <= 0 ? "Sin existencias" : "Agregar a la venta"}
+                  </button>
                 </div>
               )}
+            </div>
+
+            <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-5 h-fit sticky top-4">
+              <h2 className="font-heading text-sm font-semibold text-blue-900 mb-3">Venta en curso</h2>
+
+              {carrito.length === 0 ? (
+                <p className="text-sm text-slate-400">Agrega medicamentos para armar la venta.</p>
+              ) : (
+                <div className="space-y-3 mb-4">
+                  {carrito.map((item) => (
+                    <div key={item.medicamento.id} className="border-b border-slate-100 pb-3 last:border-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm text-slate-800 font-medium truncate">{item.medicamento.nombre}</span>
+                        <button
+                          onClick={() => quitarDeVenta(item.medicamento.id)}
+                          className="text-xs text-red-600 hover:underline shrink-0"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={item.medicamento.stock}
+                          value={item.cantidad}
+                          onChange={(e) => cambiarCantidad(item.medicamento.id, Number(e.target.value))}
+                          className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        />
+                        <span className="text-xs text-slate-400">de {item.medicamento.stock} disponibles</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {errorVenta && <p className="text-sm text-red-600 mb-3">{errorVenta}</p>}
+              {confirmacion && <p className="text-sm text-emerald-600 mb-3">{confirmacion}</p>}
+
+              <button
+                onClick={completarVenta}
+                disabled={carrito.length === 0 || vendiendo}
+                className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2"
+              >
+                {vendiendo ? "Procesando..." : `Completar venta (${totalUnidades} unid.)`}
+              </button>
             </div>
           </div>
         </div>
