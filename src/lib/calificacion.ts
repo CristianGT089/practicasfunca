@@ -1,5 +1,5 @@
-import { PasoEsperado, Accion, ResultadoEsperado } from "@prisma/client";
-import { coincideParametrosConMotivos } from "./peligros";
+import { PasoEsperado, Accion } from "@prisma/client";
+import { coincideParametrosConMotivos } from "./modulos/checklist";
 
 /**
  * Compara los parámetros esperados de un paso contra el payload real de una
@@ -33,8 +33,8 @@ const PESO_RESULTADO = 0.4;
 export function calificarIntento(
   pasosEsperados: PasoEsperado[],
   acciones: Accion[],
-  resultadoEsperado: ResultadoEsperado,
-  resultadoObtenido: ResultadoEsperado | null
+  resultadoEsperado: string,
+  resultadoObtenido: string | null
 ): ResultadoCalificacion {
   const accionesOrdenadas = [...acciones].sort(
     (a, b) => a.creadoEn.getTime() - b.creadoEn.getTime()

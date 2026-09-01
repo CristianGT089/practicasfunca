@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { calcularDesbloqueo } from "@/lib/turnos";
 
-export async function GET() {
+export async function GET(req: Request) {
   const usuario = await requireUser();
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const moduloId = searchParams.get("moduloId");
+  if (!moduloId) return NextResponse.json({ error: "Falta moduloId" }, { status: 400 });
+
   const turnos = await prisma.turno.findMany({
-    where: { activo: true },
+    where: { activo: true, moduloId },
     orderBy: { creadoEn: "asc" },
     include: { items: true },
   });

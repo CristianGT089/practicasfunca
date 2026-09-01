@@ -8,9 +8,12 @@ import { useEffect, useState } from "react";
 const TABS = [
   { href: "/admin/calificaciones", label: "Calificaciones" },
   { href: "/admin/estudiantes", label: "Estudiantes" },
-  { href: "/admin/medicamentos", label: "Medicamentos" },
-  { href: "/admin/pacientes", label: "Pacientes" },
+  { href: "/admin/matriculas", label: "Matrículas" },
+  { href: "/admin/modulos", label: "Módulos" },
   { href: "/admin/escenarios", label: "Escenarios" },
+  { href: "/admin/medicamentos", label: "Medicamentos (Farmacia)" },
+  { href: "/admin/catalogo-real", label: "Catálogo real (Farmacia)" },
+  { href: "/admin/pacientes", label: "Pacientes (Farmacia)" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

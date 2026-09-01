@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { calificarIntento } from "@/lib/calificacion";
-import { ResultadoEsperado } from "@prisma/client";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();
@@ -21,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const body = await req.json().catch(() => null);
-  const resultadoObtenido = body?.resultado as ResultadoEsperado | undefined;
+  const resultadoObtenido = body?.resultado as string | undefined;
 
   const resultado = calificarIntento(
     intento.escenario.pasos,
@@ -45,6 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       puntajeProceso: resultado.puntajeProceso,
       puntajeResultado: resultado.puntajeResultado,
       puntajeFinal: resultado.puntajeFinal,
+      resultadoObtenido: resultadoObtenido ?? null,
     },
   });
 

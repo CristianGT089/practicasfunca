@@ -13,12 +13,12 @@ export function esTutorial(titulo: string): boolean {
  */
 export async function calcularDesbloqueo(
   usuarioId: string,
-  turno: { requiereDesbloqueo: boolean; umbralDesbloqueo: number }
+  turno: { moduloId: string; requiereDesbloqueo: boolean; umbralDesbloqueo: number }
 ): Promise<boolean> {
   if (!turno.requiereDesbloqueo) return true;
 
   const escenarios = await prisma.escenario.findMany({
-    where: { activo: true, soloTurno: false },
+    where: { activo: true, soloTurno: false, moduloId: turno.moduloId },
     select: { id: true, titulo: true },
   });
   const evaluables = escenarios.filter((e) => !esTutorial(e.titulo));

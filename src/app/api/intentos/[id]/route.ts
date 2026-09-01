@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { contarPasosCumplidos } from "@/lib/peligros";
+import { contarPasosCumplidos } from "@/lib/modulos/checklist";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();
@@ -11,7 +11,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const intento = await prisma.intento.findUnique({
     where: { id },
     include: {
-      escenario: true,
+      escenario: {
+        include: {
+          modulo: true,
+          farmacia: true,
+          enfermeria: { include: { paciente: true } },
+          infancia: { include: { nino: { include: { registrosCrecimiento: { orderBy: { fecha: "asc" } } } } } },
+        },
+      },
       acciones: { orderBy: { creadoEn: "asc" } },
     },
   });
@@ -37,10 +44,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  const medicamentos = await prisma.medicamento.findMany({
-    orderBy: { nombre: "asc" },
-  });
-
   // Los pasos esperados nunca se exponen al cliente (revelarían el checklist);
   // solo se usan aquí para calcular el conteo de progreso.
   const pasos = await prisma.pasoEsperado.findMany({ where: { escenarioId: intento.escenarioId } });
@@ -51,20 +54,42 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       ? Math.round(((intento.acciones.length - erroresTotales) / intento.acciones.length) * 100)
       : 100;
 
+  const { descripcionDificil, farmacia, enfermeria, infancia, ...escenarioBase } = intento.escenario;
+  const descripcion = intento.modo === "DIFICIL" && descripcionDificil ? descripcionDificil : escenarioBase.descripcion;
+
   // No se envía el pacienteId ni la actitud ante la cédula: eso solo se revela cuando el
   // estudiante la solicita y busca al paciente en el sistema, para que la ficha no llegue
   // "gratis" con la carga inicial de la página.
-  const { pacienteId: _pacienteId, actitudCedula, descripcionDificil, ...escenarioSeguro } = intento.escenario;
-  void _pacienteId;
+  const escenarioSeguro =
+    escenarioBase.modulo.slug === "farmacia"
+      ? (() => {
+          const { id: _fid, escenarioId: _feid, pacienteId: _pid, ...recetaFisica } = farmacia ?? ({} as NonNullable<typeof farmacia>);
+          void _fid;
+          void _feid;
+          void _pid;
+          return {
+            ...escenarioBase,
+            ...recetaFisica,
+            descripcion,
+            mostrarIdentidad: farmacia?.pacienteId !== null || farmacia?.actitudCedula !== null,
+          };
+        })()
+      : {
+          ...escenarioBase,
+          descripcion,
+          enfermeria: enfermeria ? { paciente: enfermeria.paciente, contexto: enfermeria.contexto } : null,
+          infancia: infancia
+            ? { nino: infancia.nino, contexto: infancia.contexto, hitosEsperados: infancia.hitosEsperados }
+            : null,
+        };
+
+  const medicamentos =
+    escenarioBase.modulo.slug === "farmacia" ? await prisma.medicamento.findMany({ orderBy: { nombre: "asc" } }) : [];
 
   return NextResponse.json({
     intento: {
       ...intento,
-      escenario: {
-        ...escenarioSeguro,
-        descripcion: intento.modo === "DIFICIL" && descripcionDificil ? descripcionDificil : escenarioSeguro.descripcion,
-        mostrarIdentidad: intento.escenario.pacienteId !== null || actitudCedula !== null,
-      },
+      escenario: escenarioSeguro,
       intentoTurno: intentoTurnoInfo,
     },
     medicamentos,

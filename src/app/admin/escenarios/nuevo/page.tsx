@@ -49,8 +49,8 @@ export default function NuevoEscenarioPage() {
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/medicamentos").then((r) => r.json()).then((d) => setMedicamentos(d.medicamentos ?? []));
-    fetch("/api/admin/pacientes").then((r) => r.json()).then((d) => setPacientes(d.pacientes ?? []));
+    fetch("/api/modulos/farmacia/admin/medicamentos").then((r) => r.json()).then((d) => setMedicamentos(d.medicamentos ?? []));
+    fetch("/api/modulos/farmacia/admin/pacientes").then((r) => r.json()).then((d) => setPacientes(d.pacientes ?? []));
   }, []);
 
   function actualizarPaso(idx: number, cambios: Partial<Paso>) {

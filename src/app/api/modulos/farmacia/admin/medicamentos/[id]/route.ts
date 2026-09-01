@@ -33,7 +33,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { id } = await params;
-  const usado = await prisma.itemEscenario.findFirst({ where: { medicamentoId: id } });
+  const usado = await prisma.farmaciaItemEscenario.findFirst({ where: { medicamentoId: id } });
   if (usado) {
     return NextResponse.json(
       { error: "No se puede eliminar: está usado en al menos un escenario" },

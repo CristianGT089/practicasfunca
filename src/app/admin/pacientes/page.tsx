@@ -20,7 +20,7 @@ export default function PacientesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    const res = await fetch("/api/admin/pacientes");
+    const res = await fetch("/api/modulos/farmacia/admin/pacientes");
     const data = await res.json();
     setPacientes(data.pacientes ?? []);
     setCargando(false);
@@ -33,7 +33,7 @@ export default function PacientesPage() {
   async function crear(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await fetch("/api/admin/pacientes", {
+    const res = await fetch("/api/modulos/farmacia/admin/pacientes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
@@ -48,7 +48,7 @@ export default function PacientesPage() {
   }
 
   async function eliminar(id: string) {
-    const res = await fetch(`/api/admin/pacientes/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/modulos/farmacia/admin/pacientes/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
       alert(data.error ?? "No se pudo eliminar");

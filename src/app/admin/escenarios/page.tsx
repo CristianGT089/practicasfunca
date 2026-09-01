@@ -7,11 +7,11 @@ type Escenario = {
   id: string;
   titulo: string;
   descripcion: string;
-  resultadoEsperado: "VENTA_CORRECTA" | "RECHAZO_CORRECTO";
+  resultadoEsperado: string;
   activo: boolean;
-  paciente: { nombre: string } | null;
+  modulo: { slug: string; nombre: string };
+  farmacia: { paciente: { nombre: string } | null; items: { medicamento: { nombre: string } }[] } | null;
   pasos: { id: string }[];
-  items: { medicamento: { nombre: string } }[];
   _count: { intentos: number };
 };
 
@@ -76,11 +76,14 @@ export default function EscenariosPage() {
                     {esc.pasos.length} paso(s)
                   </span>
                   <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                    {esc.resultadoEsperado === "VENTA_CORRECTA" ? "Debe vender" : "Debe rechazar"}
+                    {esc.modulo.nombre}
                   </span>
-                  {esc.paciente && (
+                  <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                    {esc.resultadoEsperado}
+                  </span>
+                  {esc.farmacia?.paciente && (
                     <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                      Paciente: {esc.paciente.nombre}
+                      Paciente: {esc.farmacia.paciente.nombre}
                     </span>
                   )}
                   <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">

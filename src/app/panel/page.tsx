@@ -33,6 +33,8 @@ type TurnoResumen = {
   } | null;
 };
 
+type Modulo = { id: string; slug: string; nombre: string; colorTema: string | null };
+
 export default function PanelPage() {
   const router = useRouter();
   const [escenarios, setEscenarios] = useState<EscenarioResumen[]>([]);
@@ -40,9 +42,28 @@ export default function PanelPage() {
   const [cargando, setCargando] = useState(true);
   const [perfil, setPerfil] = useState<{ nombre: string; usuario: string } | null>(null);
   const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [modulos, setModulos] = useState<Modulo[]>([]);
+  const [moduloActivo, setModuloActivo] = useState<Modulo | null>(null);
 
   useEffect(() => {
-    fetch("/api/escenarios")
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        setPerfil(data.usuario ?? null);
+        const lista: Modulo[] = data.modulos ?? [];
+        setModulos(lista);
+        setModuloActivo((actual) => actual ?? lista[0] ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!moduloActivo) {
+      setCargando(false);
+      return;
+    }
+    setCargando(true);
+    fetch(`/api/escenarios?moduloId=${moduloActivo.id}`)
       .then((res) => {
         if (res.status === 401) {
           router.push("/");
@@ -54,16 +75,11 @@ export default function PanelPage() {
       .catch(() => {})
       .finally(() => setCargando(false));
 
-    fetch("/api/turnos")
+    fetch(`/api/turnos?moduloId=${moduloActivo.id}`)
       .then((res) => res.json())
       .then((data) => setTurnos(data.turnos ?? []))
       .catch(() => {});
-
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => setPerfil(data.usuario ?? null))
-      .catch(() => {});
-  }, [router]);
+  }, [moduloActivo, router]);
 
   async function descargarInforme() {
     if (!perfil) return;
@@ -217,10 +233,44 @@ export default function PanelPage() {
 
       <div className="px-6 py-10">
         <div className="mx-auto max-w-3xl">
-          <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Casos prácticos</h1>
-          <p className="text-sm text-slate-500 mb-6">
-            Resuelve cada caso como lo harías en una farmacia real. Tu desempeño se califica automáticamente.
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <h1 className="font-heading text-2xl font-bold text-blue-900">Casos prácticos</h1>
+            {moduloActivo?.slug === "farmacia" && (
+              <button
+                onClick={() => router.push("/panel/catalogo")}
+                className="shrink-0 rounded-lg border border-blue-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors"
+              >
+                Ver expediente de medicamentos
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-slate-500 mb-4">
+            Resuelve cada caso como lo harías en el trabajo real. Tu desempeño se califica automáticamente.
           </p>
+
+          {modulos.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {modulos.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setModuloActivo(m)}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                    moduloActivo?.id === m.id
+                      ? "text-white"
+                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                  style={moduloActivo?.id === m.id ? { backgroundColor: m.colorTema ?? "#1b3a6b" } : undefined}
+                >
+                  {m.nombre}
+                </button>
+              ))}
+            </div>
+          )}
+          {modulos.length === 0 && !cargando && (
+            <p className="text-sm text-gold-700 bg-gold-50 rounded-lg p-3 mb-6">
+              No estás matriculado en ningún módulo todavía. Pídele a tu profesor que te matricule.
+            </p>
+          )}
 
           {!cargando && (
             <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">

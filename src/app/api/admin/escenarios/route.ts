@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { TipoAccion, ResultadoEsperado } from "@prisma/client";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -10,9 +9,14 @@ export async function GET() {
   const escenarios = await prisma.escenario.findMany({
     orderBy: { creadoEn: "desc" },
     include: {
-      paciente: { select: { nombre: true } },
+      modulo: { select: { slug: true, nombre: true } },
+      farmacia: {
+        include: {
+          paciente: { select: { nombre: true } },
+          items: { include: { medicamento: { select: { nombre: true } } } },
+        },
+      },
       pasos: true,
-      items: { include: { medicamento: { select: { nombre: true } } } },
       _count: { select: { intentos: true } },
     },
   });
@@ -22,7 +26,7 @@ export async function GET() {
 
 type PasoEntrada = {
   orden: number;
-  tipoAccion: TipoAccion;
+  tipoAccion: string;
   descripcion: string;
   medicamentoId?: string;
   obligatorio?: boolean;
@@ -36,12 +40,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const titulo = (body?.titulo as string | undefined)?.trim();
   const descripcion = (body?.descripcion as string | undefined)?.trim();
-  const resultadoEsperado = body?.resultadoEsperado as ResultadoEsperado | undefined;
+  const resultadoEsperado = (body?.resultadoEsperado as string | undefined)?.trim();
+  const moduloSlug = (body?.moduloSlug as string | undefined)?.trim() || "farmacia";
   const pacienteId = (body?.pacienteId as string | undefined)?.trim() || null;
   const medicamentoIds = (body?.medicamentoIds as string[] | undefined) ?? [];
   const pasos = (body?.pasos as PasoEntrada[] | undefined) ?? [];
 
-  if (!titulo || !descripcion || !resultadoEsperado || !(resultadoEsperado in ResultadoEsperado)) {
+  if (!titulo || !descripcion || !resultadoEsperado) {
     return NextResponse.json(
       { error: "Título, descripción y resultado esperado son requeridos" },
       { status: 400 }
@@ -51,20 +56,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "El escenario debe tener al menos un paso esperado" }, { status: 400 });
   }
   for (const p of pasos) {
-    if (!p.tipoAccion || !(p.tipoAccion in TipoAccion) || !p.descripcion?.trim()) {
+    if (!p.tipoAccion?.trim() || !p.descripcion?.trim()) {
       return NextResponse.json({ error: "Cada paso necesita tipo de acción y descripción" }, { status: 400 });
     }
   }
 
+  const modulo = await prisma.modulo.findUnique({ where: { slug: moduloSlug } });
+  if (!modulo) {
+    return NextResponse.json({ error: `Módulo '${moduloSlug}' no existe` }, { status: 400 });
+  }
+
   const escenario = await prisma.escenario.create({
     data: {
+      moduloId: modulo.id,
       titulo,
       descripcion,
       resultadoEsperado,
-      pacienteId,
-      items: {
-        create: medicamentoIds.map((medicamentoId) => ({ medicamentoId })),
-      },
       pasos: {
         create: pasos.map((p, i) => ({
           orden: p.orden ?? i + 1,
@@ -75,8 +82,18 @@ export async function POST(req: NextRequest) {
           peso: p.peso ?? 1,
         })),
       },
+      ...(moduloSlug === "farmacia"
+        ? {
+            farmacia: {
+              create: {
+                pacienteId,
+                items: { create: medicamentoIds.map((medicamentoId) => ({ medicamentoId })) },
+              },
+            },
+          }
+        : {}),
     },
-    include: { pasos: true, items: true },
+    include: { pasos: true, farmacia: { include: { items: true } } },
   });
 
   return NextResponse.json({ escenario });

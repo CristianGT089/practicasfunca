@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { TipoAccion } from "@prisma/client";
-import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/peligros";
+import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/modulos/farmacia/reglas";
 import { perderCorazon } from "@/lib/vidas";
 import type { RetratoId } from "@/components/CedulaCard";
 
@@ -23,7 +22,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id: intentoId } = await params;
   const intento = await prisma.intento.findUnique({
     where: { id: intentoId },
-    include: { escenario: { include: { paciente: true, pasos: true } }, acciones: true },
+    include: { escenario: { include: { farmacia: { include: { paciente: true } }, pasos: true } }, acciones: true },
   });
   if (!intento || intento.usuarioId !== usuario.id) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
@@ -32,16 +31,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Este intento ya fue finalizado" }, { status: 400 });
   }
 
-  const entregada = intento.escenario.actitudCedula !== "SE_REHUSA";
+  const entregada = intento.escenario.farmacia?.actitudCedula !== "SE_REHUSA";
   const payload = { entregada };
 
   let fueraDeChecklist = false;
   if (intento.modo === "DIFICIL") {
-    fueraDeChecklist = estaFueraDeChecklist(TipoAccion.SOLICITAR_CEDULA, payload, intento.escenario.pasos);
+    fueraDeChecklist = estaFueraDeChecklist("SOLICITAR_CEDULA", payload, intento.escenario.pasos);
   }
 
   const accion = await prisma.accion.create({
-    data: { intentoId, tipo: TipoAccion.SOLICITAR_CEDULA, payload, esError: fueraDeChecklist },
+    data: { intentoId, tipo: "SOLICITAR_CEDULA", payload, esError: fueraDeChecklist },
   });
 
   let vidas = intento.vidas;
@@ -50,7 +49,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     ({ vidas, estado } = await perderCorazon(intentoId, intento));
   }
 
-  const paciente = intento.escenario.paciente;
+  const paciente = intento.escenario.farmacia?.paciente ?? null;
   const todasLasAcciones = [...intento.acciones, accion];
   const progreso = contarPasosCumplidos(intento.escenario.pasos, todasLasAcciones);
   const erroresTotales = todasLasAcciones.filter((a) => a.esError).length;

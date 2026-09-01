@@ -12,6 +12,38 @@ enum Rol {
   ADMIN
 }
 
+// Un área/programa (Farmacia, Enfermería, Primera Infancia, ...). Tabla en vez de enum
+// para poder agregar/desactivar módulos sin migración de schema.
+model Modulo {
+  id          String   @id @default(cuid())
+  slug        String   @unique // ej: "farmacia", "enfermeria", "primera_infancia"
+  nombre      String
+  descripcion String?
+  colorTema   String? // ej: "#2563eb", para diferenciar la UI por módulo
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+
+  matriculas Matricula[]
+  escenarios Escenario[]
+  turnos     Turno[]
+
+  @@map("modulos")
+}
+
+// Inscripción de un usuario (estudiante o admin) a un módulo. Un usuario puede estar
+// matriculado en varios módulos a la vez con una sola cuenta.
+model Matricula {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  moduloId  String
+  modulo    Modulo   @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  creadoEn  DateTime @default(now())
+
+  @@unique([usuarioId, moduloId])
+  @@map("matriculas")
+}
+
 model Usuario {
   id           String   @id @default(cuid())
   nombre       String
@@ -23,26 +55,50 @@ model Usuario {
 
   intentos      Intento[]
   intentosTurno IntentoTurno[]
+  matriculas    Matricula[]
 
   @@map("usuarios")
 }
 
-// Catálogo de medicamentos del "software" simulado
+enum OrigenMedicamento {
+  PRACTICA // dato ficticio, usado en los escenarios/checklist calificados
+  CATALOGO_REAL // importado del inventario real (Excel), solo para consulta libre del estudiante
+}
+
+// Catálogo de medicamentos del "software" simulado de Farmacia. Un mismo modelo cubre
+// tanto los medicamentos ficticios de los escenarios calificados como el catálogo real
+// importado del inventario (ver `origen`), para no duplicar el resto del esquema.
 model Medicamento {
-  id              String    @id @default(cuid())
+  id              String            @id @default(cuid())
+  origen          OrigenMedicamento @default(PRACTICA)
   nombre          String
   principioActivo String
   presentacion    String // ej: "Tableta 500mg", "Jarabe 120ml"
-  requiereReceta  Boolean   @default(false)
-  esControlado    Boolean   @default(false) // requiere receta especial / registro extra
-  stock           Int       @default(0)
+  requiereReceta  Boolean           @default(false)
+  esControlado    Boolean           @default(false) // requiere receta especial / registro extra
+  stock           Int               @default(0)
   precio          Int // en pesos, entero
   loteVencimiento DateTime?
   tags            String[] // ej: ["antiinflamatorio", "penicilina"] para cruces de alergia
-  creadoEn        DateTime  @default(now())
+  creadoEn        DateTime          @default(now())
+
+  // Campos de ficha técnica, propios del catálogo real (origen = CATALOGO_REAL), tal como
+  // vienen en el inventario importado. Quedan opcionales porque el catálogo de práctica no
+  // los usa.
+  laboratorio      String?
+  formaFarmaceutica String?
+  concentracion    String?
+  registroInvima   String?
+  numeroLote       String?
+
+  // Clave de deduplicación del catálogo real: principioActivo + presentacion + numeroLote,
+  // normalizados (trim + mayúsculas) para que "Amoxicilina" y "AMOXICILINA " no cuenten como
+  // medicamentos distintos. Solo se llena para origen = CATALOGO_REAL; el índice único de abajo
+  // es parcial (ver migración) para no afectar los medicamentos de práctica.
+  claveUnica String?
 
   movimientos         MovimientoInventario[]
-  itemsEscenario      ItemEscenario[]
+  itemsEscenario      FarmaciaItemEscenario[]
   recetasElectronicas RecetaElectronica[]
 
   @@map("medicamentos")
@@ -66,7 +122,7 @@ model MovimientoInventario {
   @@map("movimientos_inventario")
 }
 
-// Pacientes ficticios usados dentro de los escenarios
+// Pacientes ficticios usados dentro de los escenarios de Farmacia
 model Paciente {
   id              String    @id @default(cuid())
   nombre          String
@@ -79,7 +135,7 @@ model Paciente {
   tipoSangre      String?
   creadoEn        DateTime  @default(now())
 
-  escenarios Escenario[]
+  escenarios EscenarioFarmacia[]
   recetas    RecetaElectronica[]
 
   @@map("pacientes")
@@ -108,19 +164,48 @@ model RecetaElectronica {
   @@map("recetas_electronicas")
 }
 
-// Un caso práctico completo que el estudiante debe resolver
+// Un caso práctico completo que el estudiante debe resolver. Genérico: no sabe nada del
+// dominio de un módulo específico — lo específico vive en una tabla de extensión 1-a-1
+// (EscenarioFarmacia, EscenarioEnfermeria, EscenarioPrimeraInfancia, ...).
 model Escenario {
-  id                 String            @id @default(cuid())
+  id                 String  @id @default(cuid())
+  moduloId           String
+  modulo             Modulo  @relation(fields: [moduloId], references: [id])
   titulo             String
   descripcion        String // versión guiada (modo fácil): contexto con pistas explícitas
   descripcionDificil String? // versión modo difícil: solo los datos mínimos, sin pistas. Si es null, se reusa `descripcion`.
-  soloTurno          Boolean           @default(false) // si es true, no aparece en la lista de práctica suelta, solo dentro de un Turno
-  pacienteId         String?
-  paciente           Paciente?         @relation(fields: [pacienteId], references: [id])
-  resultadoEsperado  ResultadoEsperado
-  recetaPresentada   Boolean           @default(false) // si el cliente trae una receta médica física para el medicamento solicitado
-  notaRecetaFisica   String? // nota adicional opcional (se muestra debajo del documento, ej. contexto de una irregularidad)
-  actitudCedula      ActitudCedula? // solo aplica cuando recetaPresentada es false: cómo reacciona el cliente al pedirle la cédula
+  soloTurno          Boolean @default(false) // si es true, no aparece en la lista de práctica suelta, solo dentro de un Turno
+
+  // Código del resultado esperado, definido por el vocabulario del módulo (ej. Farmacia:
+  // "VENTA_CORRECTA" / "RECHAZO_CORRECTO"; Enfermería: "ADMINISTRAR_CORRECTO" / "NO_ADMINISTRAR_CORRECTO").
+  resultadoEsperado String
+
+  activo   Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  pasos      PasoEsperado[]
+  intentos   Intento[]
+  turnoItems TurnoItem[]
+
+  farmacia   EscenarioFarmacia?
+  enfermeria EscenarioEnfermeria?
+  infancia   EscenarioPrimeraInfancia?
+
+  @@map("escenarios")
+}
+
+// Extensión de Escenario específica del módulo Farmacia: todo lo que antes vivía
+// directamente en Escenario (paciente, receta física/online, cédula).
+model EscenarioFarmacia {
+  id          String    @id @default(cuid())
+  escenarioId String    @unique
+  escenario   Escenario @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+
+  pacienteId       String?
+  paciente         Paciente?      @relation(fields: [pacienteId], references: [id])
+  recetaPresentada Boolean        @default(false) // si el cliente trae una receta médica física para el medicamento solicitado
+  notaRecetaFisica String? // nota adicional opcional (se muestra debajo del documento, ej. contexto de una irregularidad)
+  actitudCedula    ActitudCedula? // solo aplica cuando recetaPresentada es false: cómo reacciona el cliente al pedirle la cédula
 
   // Datos impresos en la receta física, para renderizarla como documento en vez de una frase.
   // recetaFisicaPacienteNombre puede diferir del nombre real del paciente (útil para casos de
@@ -136,21 +221,136 @@ model Escenario {
   recetaFisicaDiasVigencia    Int?
   recetaFisicaControlado      Boolean   @default(false) // si debe mostrar el sello de "control especial"
 
-  activo   Boolean  @default(true)
-  creadoEn DateTime @default(now())
+  items FarmaciaItemEscenario[]
 
-  pasos      PasoEsperado[]
-  items      ItemEscenario[] // medicamento(s) que se espera que se dispensen o rechacen
-  intentos   Intento[]
-  turnoItems TurnoItem[]
+  @@map("escenarios_farmacia")
+}
 
-  @@map("escenarios")
+// Medicamento(s) implicados en el escenario de Farmacia y la cantidad esperada si aplica
+model FarmaciaItemEscenario {
+  id                  String            @id @default(cuid())
+  escenarioFarmaciaId String
+  escenarioFarmacia   EscenarioFarmacia @relation(fields: [escenarioFarmaciaId], references: [id], onDelete: Cascade)
+  medicamentoId       String
+  medicamento         Medicamento       @relation(fields: [medicamentoId], references: [id])
+  cantidadEsperada    Int?
+
+  @@map("items_escenario_farmacia")
+}
+
+// ---------- Módulo Enfermería ----------
+
+// Pacientes ficticios propios del módulo de Enfermería (contexto hospitalario/clínico,
+// distinto del paciente de mostrador de Farmacia).
+model PacienteEnfermeria {
+  id           String   @id @default(cuid())
+  nombre       String
+  edad         Int
+  alergias     String[]
+  antecedentes String?
+  habitacion   String? // ej: "302-B"
+  creadoEn     DateTime @default(now())
+
+  ordenes    OrdenMedica[]
+  escenarios EscenarioEnfermeria[]
+
+  @@map("pacientes_enfermeria")
+}
+
+// Orden médica que el estudiante debe verificar antes de administrar (los "5 correctos":
+// paciente, medicamento, dosis, vía, hora).
+model OrdenMedica {
+  id            String             @id @default(cuid())
+  pacienteId    String
+  paciente      PacienteEnfermeria @relation(fields: [pacienteId], references: [id])
+  medicamento   String
+  dosis         String // ej: "500mg"
+  via           String // ej: "Oral", "Intravenosa"
+  frecuencia    String // ej: "Cada 8 horas"
+  medico        String
+  fechaEmision  DateTime
+  fechaVigencia DateTime
+  creadoEn      DateTime           @default(now())
+
+  escenarios EscenarioEnfermeria[]
+
+  @@map("ordenes_medicas")
+}
+
+// Extensión de Escenario específica del módulo Enfermería.
+model EscenarioEnfermeria {
+  id          String    @id @default(cuid())
+  escenarioId String    @unique
+  escenario   Escenario @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+
+  pacienteId    String
+  paciente      PacienteEnfermeria @relation(fields: [pacienteId], references: [id])
+  ordenMedicaId String?
+  ordenMedica   OrdenMedica?       @relation(fields: [ordenMedicaId], references: [id])
+  contexto      String? // texto libre: turno, hallazgos al llegar al paciente, etc.
+
+  @@map("escenarios_enfermeria")
+}
+
+// ---------- Módulo Primera Infancia ----------
+
+// Niño ficticio evaluado en los casos de Primera Infancia.
+model Nino {
+  id     String   @id @default(cuid())
+  nombre String
+  // Edad real se deriva de fechaNacimiento. semanasGestacionNacimiento permite detectar
+  // prematurez (<37 semanas) y calcular edad corregida en los casos que lo requieren.
+  fechaNacimiento            DateTime
+  semanasGestacionNacimiento Int?
+  cuidadorNombre             String?
+  antecedentes               String?
+  esquemaVacunacionAlDia     Boolean  @default(true)
+  vacunasPendientes          String[] @default([])
+  creadoEn                   DateTime @default(now())
+
+  registrosCrecimiento RegistroCrecimiento[]
+  escenarios           EscenarioPrimeraInfancia[]
+
+  @@map("ninos")
+}
+
+// Historial de peso/talla de un niño, para poder mostrar una tendencia (curva de
+// crecimiento simplificada) en vez de un solo valor puntual.
+model RegistroCrecimiento {
+  id      String   @id @default(cuid())
+  ninoId  String
+  nino    Nino     @relation(fields: [ninoId], references: [id], onDelete: Cascade)
+  fecha   DateTime
+  pesoKg  Float
+  tallaCm Float
+
+  @@map("registros_crecimiento")
+}
+
+// Extensión de Escenario específica del módulo Primera Infancia.
+model EscenarioPrimeraInfancia {
+  id          String    @id @default(cuid())
+  escenarioId String    @unique
+  escenario   Escenario @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+
+  ninoId   String
+  nino     Nino    @relation(fields: [ninoId], references: [id])
+  contexto String? // texto libre: motivo de consulta, hallazgos de la valoración
+
+  // Lista de hitos a valorar en este caso: [{ "dominio": "Motricidad gruesa", "hito": "Camina solo" }, ...].
+  // JSON en vez de tabla de catálogo aparte para mantener la siembra y calificación simples;
+  // el checklist genérico matchea contra estos mismos pares vía PasoEsperado.parametros.
+  hitosEsperados Json?
+
+  @@map("escenarios_primera_infancia")
 }
 
 // Secuencia de varios escenarios encadenados con un solo pool de 3 vidas compartido
-// entre todos — la "prueba final": simula la fatiga de atender clientes uno tras otro.
+// entre todos — la "prueba final": simula la fatiga de atender casos uno tras otro.
 model Turno {
   id                 String   @id @default(cuid())
+  moduloId           String
+  modulo             Modulo   @relation(fields: [moduloId], references: [id])
   titulo             String
   descripcion        String
   umbralDesbloqueo   Int      @default(70) // % mínimo (puntajeFinal) que se exige en cada caso normal para desbloquear
@@ -191,7 +391,7 @@ model IntentoTurno {
   turnoId      String
   turno        Turno              @relation(fields: [turnoId], references: [id])
   estado       EstadoIntentoTurno @default(EN_PROGRESO)
-  modo         ModoJuego          @default(FACIL) // se elige una vez al iniciar el turno; aplica a los 5 casos
+  modo         ModoJuego          @default(FACIL) // se elige una vez al iniciar el turno; aplica a todos los casos
   vidas        Int                @default(3)
   indice       Int                @default(0) // posición actual dentro de la secuencia (0-based)
   puntajeFinal Float? // promedio de los puntajeFinal de cada caso completado dentro del turno
@@ -203,54 +403,22 @@ model IntentoTurno {
   @@map("intentos_turno")
 }
 
-// Medicamento(s) implicados en el escenario y la cantidad esperada si aplica
-model ItemEscenario {
-  id               String      @id @default(cuid())
-  escenarioId      String
-  escenario        Escenario   @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
-  medicamentoId    String
-  medicamento      Medicamento @relation(fields: [medicamentoId], references: [id])
-  cantidadEsperada Int?
-
-  @@map("items_escenario")
-}
-
-enum ResultadoEsperado {
-  VENTA_CORRECTA // debía completar la venta
-  RECHAZO_CORRECTO // debía negarse a vender (sin receta, alergia, controlado, vencido, etc)
-}
-
-// Un paso obligatorio dentro del checklist de calificación de un escenario
+// Un paso obligatorio dentro del checklist de calificación de un escenario. `tipoAccion`
+// es un código de texto libre definido por el vocabulario del módulo del escenario
+// (ej. Farmacia: "AGREGAR_A_VENTA"; Enfermería: "VERIFICAR_ORDEN_MEDICA"), no un enum de
+// Postgres, para que cada módulo pueda definir sus propios verbos sin migración de schema.
 model PasoEsperado {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   escenarioId String
-  escenario   Escenario  @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+  escenario   Escenario @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
   orden       Int // posición esperada (para bonificar/penalizar orden)
-  tipoAccion  TipoAccion
+  tipoAccion  String
   descripcion String // texto humano, ej: "Verificó la receta antes de vender"
   parametros  Json? // condiciones específicas a matchear contra la Accion registrada
-  obligatorio Boolean    @default(true)
-  peso        Int        @default(1) // ponderación relativa dentro del puntaje de "proceso"
+  obligatorio Boolean   @default(true)
+  peso        Int       @default(1) // ponderación relativa dentro del puntaje de "proceso"
 
   @@map("pasos_esperados")
-}
-
-enum TipoAccion {
-  BUSCAR_MEDICAMENTO
-  VER_FICHA_PACIENTE
-  VERIFICAR_RECETA
-  VERIFICAR_ALERGIA
-  VERIFICAR_STOCK
-  VERIFICAR_VENCIMIENTO
-  REGISTRAR_CONTROLADO
-  SOLICITAR_CEDULA
-  BUSCAR_RECETA_ONLINE
-  ESCALAR_A_SUPERVISOR
-  AGREGAR_A_VENTA
-  QUITAR_DE_VENTA
-  COMPLETAR_VENTA
-  RECHAZAR_VENTA
-  AJUSTAR_INVENTARIO
 }
 
 enum EstadoIntento {
@@ -281,6 +449,10 @@ model Intento {
   puntajeResultado Float? // 0-100, basado en si el resultado final fue correcto
   puntajeFinal     Float? // ponderado: 60% proceso + 40% resultado
 
+  // Código del resultado que efectivamente obtuvo el estudiante al finalizar (mismo
+  // vocabulario que Escenario.resultadoEsperado); null mientras está EN_PROGRESO.
+  resultadoObtenido String?
+
   intentoTurnoId String? // si no es null, este Intento es un caso dentro de un Turno (vidas compartidas)
   intentoTurno   IntentoTurno? @relation(fields: [intentoTurnoId], references: [id])
 
@@ -289,16 +461,17 @@ model Intento {
   @@map("intentos")
 }
 
-// Log crudo de cada acción que el estudiante realiza dentro de un intento
+// Log crudo de cada acción que el estudiante realiza dentro de un intento. `tipo` es el
+// mismo vocabulario de texto libre del módulo que PasoEsperado.tipoAccion.
 model Accion {
-  id         String     @id @default(cuid())
+  id         String   @id @default(cuid())
   intentoId  String
-  intento    Intento    @relation(fields: [intentoId], references: [id], onDelete: Cascade)
-  tipo       TipoAccion
+  intento    Intento  @relation(fields: [intentoId], references: [id], onDelete: Cascade)
+  tipo       String
   payload    Json? // datos de la acción, ej: {"medicamentoId": "...", "cantidad": 2}
   esCorrecta Boolean? // evaluado contra el checklist al finalizar
-  esError    Boolean    @default(false) // si esta acción costó un corazón en el momento
-  creadoEn   DateTime   @default(now())
+  esError    Boolean  @default(false) // si esta acción costó un corazón en el momento
+  creadoEn   DateTime @default(now())
 
   @@map("acciones")
 }

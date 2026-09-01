@@ -6,7 +6,13 @@ export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const medicamentos = await prisma.medicamento.findMany({ orderBy: { nombre: "asc" } });
+  // Esta pantalla administra los medicamentos ficticios de los escenarios calificados.
+  // El catálogo real importado del Excel (origen CATALOGO_REAL) es de solo consulta para
+  // el estudiante en /panel/catalogo y no se edita acá.
+  const medicamentos = await prisma.medicamento.findMany({
+    where: { origen: "PRACTICA" },
+    orderBy: { nombre: "asc" },
+  });
   return NextResponse.json({ medicamentos });
 }
 

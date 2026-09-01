@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { TipoAccion } from "@prisma/client";
-import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/peligros";
+import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/modulos/farmacia/reglas";
 import { perderCorazon } from "@/lib/vidas";
 
 // La ficha del paciente (nombre, alergias, antecedentes) nunca se entrega de gratis: se busca
@@ -27,7 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const cedulaEntregada = intento.acciones.some(
-    (a) => a.tipo === TipoAccion.SOLICITAR_CEDULA && (a.payload as { entregada?: boolean } | null)?.entregada
+    (a) => a.tipo === "SOLICITAR_CEDULA" && (a.payload as { entregada?: boolean } | null)?.entregada
   );
   if (!cedulaEntregada) {
     return NextResponse.json(
@@ -47,11 +46,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   let fueraDeChecklist = false;
   if (intento.modo === "DIFICIL") {
-    fueraDeChecklist = estaFueraDeChecklist(TipoAccion.VER_FICHA_PACIENTE, payload, intento.escenario.pasos);
+    fueraDeChecklist = estaFueraDeChecklist("VER_FICHA_PACIENTE", payload, intento.escenario.pasos);
   }
 
   const accion = await prisma.accion.create({
-    data: { intentoId, tipo: TipoAccion.VER_FICHA_PACIENTE, payload, esError: fueraDeChecklist },
+    data: { intentoId, tipo: "VER_FICHA_PACIENTE", payload, esError: fueraDeChecklist },
   });
 
   let vidas = intento.vidas;

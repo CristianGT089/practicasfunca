@@ -1,4 +1,4 @@
-import { PrismaClient, TipoAccion, ResultadoEsperado, ActitudCedula } from "@prisma/client";
+import { PrismaClient, ActitudCedula } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -19,7 +19,7 @@ async function main() {
     create: { nombre: "Administrador", usuario: "admin", passwordHash: hashAdmin, rol: "ADMIN" },
   });
 
-  await prisma.usuario.upsert({
+  const estudiante1 = await prisma.usuario.upsert({
     where: { usuario: "estudiante1" },
     update: {},
     create: {
@@ -481,16 +481,98 @@ async function main() {
   });
 
   // ---------- Escenarios ----------
-  async function crearEscenarioSiNoExiste(
-    titulo: string,
-    datos: Parameters<typeof prisma.escenario.create>[0]["data"]
-  ) {
+  const moduloFarmacia = await prisma.modulo.upsert({
+    where: { slug: "farmacia" },
+    update: {},
+    create: { slug: "farmacia", nombre: "Farmacia", descripcion: "Simulador de auxiliar en farmacia", colorTema: "#2563eb" },
+  });
+
+  // Forma "plana" (compatible con el shape anterior a la migración multi-módulo): mezcla
+  // los campos genéricos de Escenario con los específicos de Farmacia (pacienteId, receta
+  // física/online, cédula). El helper se encarga de repartirlos en la tabla de extensión.
+  type DatosEscenarioFarmaciaSeed = {
+    titulo: string;
+    descripcion: string;
+    descripcionDificil?: string;
+    soloTurno?: boolean;
+    resultadoEsperado: string;
+    pasos?: {
+      create: {
+        orden: number;
+        tipoAccion: string;
+        descripcion: string;
+        parametros?: object;
+        peso?: number;
+        obligatorio?: boolean;
+      }[];
+    };
+    pacienteId?: string | null;
+    recetaPresentada?: boolean;
+    notaRecetaFisica?: string | null;
+    actitudCedula?: "ENTREGA" | "SE_REHUSA" | null;
+    recetaFisicaPacienteNombre?: string | null;
+    recetaFisicaMedicamento?: string | null;
+    recetaFisicaPosologia?: string | null;
+    recetaFisicaCantidad?: string | null;
+    recetaFisicaCantidadTachada?: string | null;
+    recetaFisicaMedico?: string | null;
+    recetaFisicaRegistroMedico?: string | null;
+    recetaFisicaFechaEmision?: Date | null;
+    recetaFisicaDiasVigencia?: number | null;
+    recetaFisicaControlado?: boolean;
+    items?: { create: { medicamentoId: string; cantidadEsperada?: number }[] };
+  };
+
+  async function crearEscenarioSiNoExiste(titulo: string, datos: DatosEscenarioFarmaciaSeed) {
     const existe = await prisma.escenario.findFirst({ where: { titulo } });
     if (existe) {
       console.log("Ya existe, se omite:", titulo);
       return;
     }
-    const creado = await prisma.escenario.create({ data: datos });
+    const {
+      pacienteId,
+      recetaPresentada,
+      notaRecetaFisica,
+      actitudCedula,
+      recetaFisicaPacienteNombre,
+      recetaFisicaMedicamento,
+      recetaFisicaPosologia,
+      recetaFisicaCantidad,
+      recetaFisicaCantidadTachada,
+      recetaFisicaMedico,
+      recetaFisicaRegistroMedico,
+      recetaFisicaFechaEmision,
+      recetaFisicaDiasVigencia,
+      recetaFisicaControlado,
+      items,
+      ...generico
+    } = datos;
+
+    const creado = await prisma.escenario.create({
+      data: {
+        ...generico,
+        moduloId: moduloFarmacia.id,
+        farmacia: {
+          create: {
+            pacienteId,
+            recetaPresentada,
+            notaRecetaFisica,
+            actitudCedula,
+            recetaFisicaPacienteNombre,
+            recetaFisicaMedicamento,
+            recetaFisicaPosologia,
+            recetaFisicaCantidad,
+            recetaFisicaCantidadTachada,
+            recetaFisicaMedico,
+            recetaFisicaRegistroMedico,
+            recetaFisicaFechaEmision,
+            recetaFisicaDiasVigencia,
+            recetaFisicaControlado,
+            items,
+          },
+        },
+      },
+    });
     console.log("Escenario creado:", titulo, "-", creado.id);
   }
 
@@ -511,59 +593,59 @@ async function main() {
       "10. Haz clic en 'Completar venta' para terminar.\n" +
       "Al final verás tu resultado con una lista de todo lo que hiciste bien — esa es la misma pantalla que verás en los casos reales.",
     pacienteId: paraPractica.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     items: { create: [{ medicamentoId: multivitaminico.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitaste la cédula del paciente",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscaste la ficha del paciente en el sistema por su cédula",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Probaste el botón de verificar receta",
           peso: 1,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.REGISTRAR_CONTROLADO,
+          tipoAccion: "REGISTRAR_CONTROLADO",
           descripcion: "Probaste el botón de registrar un medicamento controlado (con Diazepam)",
           parametros: { medicamentoId: diazepam.id },
           peso: 1,
         },
         {
           orden: 6,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregaste el Multivitamínico a la venta por primera vez",
           parametros: { medicamentoId: multivitaminico.id },
           peso: 1,
         },
         {
           orden: 7,
-          tipoAccion: TipoAccion.QUITAR_DE_VENTA,
+          tipoAccion: "QUITAR_DE_VENTA",
           descripcion: "Practicaste cómo quitar un producto de la venta",
           parametros: { medicamentoId: multivitaminico.id },
           peso: 1,
         },
         {
           orden: 8,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Volviste a agregar el Multivitamínico a la venta",
           parametros: { medicamentoId: multivitaminico.id },
           peso: 1,
         },
         {
           orden: 9,
-          tipoAccion: TipoAccion.COMPLETAR_VENTA,
+          tipoAccion: "COMPLETAR_VENTA",
           descripcion: "Completaste la venta",
           peso: 2,
         },
@@ -577,18 +659,18 @@ async function main() {
     descripcion:
       "Un cliente llega pidiendo Acetaminofén para el dolor de cabeza. No requiere receta. Atiéndelo y completa la venta correctamente.",
     descripcionDificil: "Un cliente pide Acetaminofén.",
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     items: { create: [{ medicamentoId: acetaminofen.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta (el stock disponible ya se ve junto al nombre, sin necesidad de un botón aparte)",
           parametros: { medicamentoId: acetaminofen.id },
           peso: 1,
         },
-        { orden: 3, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 3, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -600,32 +682,32 @@ async function main() {
       "María Gómez llega a la farmacia pidiendo Amoxicilina para una infección. No trae receta médica en mano, solo dice que 'el médico se la mandó por teléfono'. Antes de vender, revisa su ficha de paciente y valida su identidad.",
     descripcionDificil: "María Gómez pide Amoxicilina. No trae receta física.",
     pacienteId: maria.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: amoxicilina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula antes que nada para validar la identidad",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (penicilina en su lista de alergias — hay que cruzarlo con la familia de la Amoxicilina)",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea (no se encontró ninguna a su nombre para este medicamento)",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta señalando ambos motivos: sin receta válida y alergia",
           parametros: { motivos: ["sin_receta", "alergia"] },
           peso: 3,
@@ -641,7 +723,7 @@ async function main() {
       "Jorge Pérez llega con una receta médica física para Amoxicilina, indicada por una infección respiratoria. No tiene alergias registradas. Verifica todo y completa la venta.",
     descripcionDificil: "Jorge Pérez pide Amoxicilina. Trae una receta física.",
     pacienteId: jorge.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     recetaPresentada: true,
     recetaFisicaPacienteNombre: "Jorge Pérez",
     recetaFisicaMedicamento: "Amoxicilina 500mg",
@@ -656,30 +738,30 @@ async function main() {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad, aunque ya traiga receta física",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (sin alergias registradas — Amoxicilina es penicilina, pero este paciente no tiene esa alergia)",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Verificó la receta médica presentada",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta",
           parametros: { medicamentoId: amoxicilina.id },
           peso: 1,
         },
-        { orden: 6, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 6, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -690,26 +772,26 @@ async function main() {
     descripcion:
       "Un cliente pide Tramadol 'para un dolor fuerte de espalda' pero no presenta ninguna receta médica. Es un medicamento controlado. Al pedirle la cédula para intentar validar una receta electrónica, se niega a mostrarla. Decide qué hacer.",
     descripcionDificil: "Un cliente pide Tramadol. No trae receta física.",
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.SE_REHUSA,
     items: { create: [{ medicamentoId: tramadol.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Intentó verificar la receta médica física",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para intentar validar identidad (el cliente se negó a mostrarla)",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta sin buscar atajos: sin receta y sin poder validar identidad",
           parametros: { motivos: ["sin_receta", "identidad_no_validada"] },
           peso: 3,
@@ -725,7 +807,7 @@ async function main() {
       "Pedro Martínez presenta una receta médica vigente para Diazepam, formulada por su médico tratante. Verifica todo el proceso y regístralo como corresponde a un medicamento controlado.",
     descripcionDificil: "Pedro Martínez pide Diazepam. Trae una receta física.",
     pacienteId: pedro.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     recetaPresentada: true,
     recetaFisicaPacienteNombre: "Pedro Martínez",
     recetaFisicaMedicamento: "Diazepam 10mg",
@@ -741,37 +823,37 @@ async function main() {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad antes de vender un controlado",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (sin alergias registradas)",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Verificó la receta médica presentada",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.REGISTRAR_CONTROLADO,
+          tipoAccion: "REGISTRAR_CONTROLADO",
           descripcion: "Registró la venta como medicamento controlado",
           parametros: { medicamentoId: diazepam.id },
           peso: 2,
         },
         {
           orden: 6,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta",
           parametros: { medicamentoId: diazepam.id },
           peso: 1,
         },
-        { orden: 7, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 7, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -783,25 +865,25 @@ async function main() {
       "Carlos Ruiz llega pidiendo Ibuprofeno para un dolor muscular. Revisa su ficha antes de vender, ya que tiene antecedentes de gastritis.",
     descripcionDificil: "Carlos Ruiz pide Ibuprofeno.",
     pacienteId: carlos.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     items: { create: [{ medicamentoId: ibuprofeno.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad y poder revisar su ficha",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (alérgico a AINE — hay que reconocer que el Ibuprofeno pertenece a esa familia, aunque no pida receta)",
           peso: 3,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta explicando el motivo",
           parametros: { motivos: ["alergia"] },
           peso: 2,
@@ -817,32 +899,32 @@ async function main() {
       "Lucía Fernández pide Ciprofloxacina para una infección urinaria. No trae receta física. Valida su identidad, revisa su ficha y busca si tiene alguna receta electrónica antes de decidir.",
     descripcionDificil: "Lucía Fernández pide Ciprofloxacina. No trae receta física.",
     pacienteId: lucia.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: ciprofloxacina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad y poder revisar su ficha",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (alérgica a quinolonas — hay que reconocer que la Ciprofloxacina pertenece a esa familia)",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea (no se encontró ninguna a su nombre)",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta señalando ambos motivos: sin receta válida y alergia",
           parametros: { motivos: ["alergia", "sin_receta"] },
           peso: 3,
@@ -857,13 +939,13 @@ async function main() {
     descripcion:
       "Un cliente pide Ciprofloxacina. Antes de prometer nada, revisa si hay unidades disponibles en el inventario.",
     descripcionDificil: "Un cliente pide Ciprofloxacina.",
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     items: { create: [{ medicamentoId: ciprofloxacina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Vio la etiqueta de 'Sin stock' junto al medicamento e informó que no hay disponibilidad, sin completar la venta",
           parametros: { motivos: ["sin_stock"] },
           peso: 3,
@@ -878,13 +960,13 @@ async function main() {
     descripcion:
       "Un cliente pide Omeprazol. El lote disponible en el sistema tiene fecha de vencimiento próxima o pasada. Verifícalo antes de vender.",
     descripcionDificil: "Un cliente pide Omeprazol.",
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     items: { create: [{ medicamentoId: omeprazol.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Vio la etiqueta de 'Lote vencido' junto al medicamento y rechazó la venta",
           parametros: { motivos: ["lote_vencido"] },
           peso: 3,
@@ -900,44 +982,44 @@ async function main() {
       "Diego Salazar pide Tramadol para un dolor fuerte de espalda. No trae receta física, pero al pedirle la cédula la entrega sin problema. Busca si tiene una receta electrónica registrada antes de decidir.",
     descripcionDificil: "Diego Salazar pide Tramadol. No trae receta física.",
     pacienteId: diego.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: tramadol.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (sin alergias registradas)",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea y encontró una vigente para este medicamento",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.REGISTRAR_CONTROLADO,
+          tipoAccion: "REGISTRAR_CONTROLADO",
           descripcion: "Registró la venta como medicamento controlado",
           parametros: { medicamentoId: tramadol.id },
           peso: 2,
         },
         {
           orden: 6,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta",
           parametros: { medicamentoId: tramadol.id },
           peso: 1,
         },
-        { orden: 7, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 7, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -949,37 +1031,37 @@ async function main() {
       "Ana Torres pide Amoxicilina para una infección. No trae receta física, dice que se la formularon por telemedicina. Pídele la cédula y busca si tiene una receta electrónica registrada antes de decidir.",
     descripcionDificil: "Ana Torres pide Amoxicilina. No trae receta física.",
     pacienteId: ana.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: amoxicilina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (sin alergias registradas)",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea y encontró una vigente para este medicamento",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta",
           parametros: { medicamentoId: amoxicilina.id },
           peso: 1,
         },
-        { orden: 6, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 6, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -991,26 +1073,26 @@ async function main() {
       "Rafael Ibarra pide Amoxicilina y asegura que un médico se la recetó. No trae receta física. Entrega su cédula sin problema, pero al buscar en el sistema no aparece ninguna receta electrónica a su nombre para este medicamento.",
     descripcionDificil: "Rafael Ibarra pide Amoxicilina. No trae receta física.",
     pacienteId: rafael.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: amoxicilina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea (no se encontró ninguna a su nombre)",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta: 'no encontrado' no es lo mismo que 'autorizado'",
           parametros: { motivos: ["sin_receta"] },
           peso: 3,
@@ -1027,32 +1109,32 @@ async function main() {
       "Sofía Ramírez pide Cefalexina para una infección. Al preguntarle su número de cédula, lo dice de memoria y se equivoca en un dígito — no asumas nada, pídele la cédula física para leer el número correcto antes de buscar su receta en línea. Revisa bien la fecha de vigencia, no solo si aparece un registro.",
     descripcionDificil: "Sofía Ramírez pide Cefalexina. No trae receta física.",
     pacienteId: sofia.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: cefalexina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Pidió la cédula física en vez de confiar en el número dicho de palabra",
           peso: 2,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema con el número correcto (sin alergias registradas)",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea y revisó la fecha de vigencia, no solo si existía",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta: la receta ya venció por fecha, aunque aparezca registrada",
           parametros: { motivos: ["receta_vencida"] },
           peso: 3,
@@ -1068,26 +1150,26 @@ async function main() {
       "Camilo Herrera pide Cefalexina. No trae receta física, entrega su cédula sin problema. Al buscar en línea aparece una receta a su nombre, pero revisa bien cuánta cantidad le queda disponible antes de decidir.",
     descripcionDificil: "Camilo Herrera pide Cefalexina. No trae receta física.",
     pacienteId: camilo.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.ENTREGA,
     items: { create: [{ medicamentoId: cefalexina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.BUSCAR_RECETA_ONLINE,
+          tipoAccion: "BUSCAR_RECETA_ONLINE",
           descripcion: "Buscó la receta en línea y revisó cuánta cantidad quedaba disponible",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta: la receta ya se redimió por completo, aunque seguía vigente por fecha",
           parametros: { motivos: ["receta_agotada"] },
           peso: 3,
@@ -1103,7 +1185,7 @@ async function main() {
       "Beatriz Núñez presenta una receta física para Diazepam. Al revisarla con cuidado, algo no cuadra. No te corresponde decidir solo/a en estos casos: escala la situación a tu supervisor en vez de aprobar o rechazar la venta por tu cuenta.",
     descripcionDificil: "Beatriz Núñez pide Diazepam. Trae una receta física.",
     pacienteId: beatriz.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     recetaPresentada: true,
     recetaFisicaPacienteNombre: "Beatriz Núñez",
     recetaFisicaMedicamento: "Diazepam 10mg",
@@ -1120,25 +1202,25 @@ async function main() {
       create: [
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad, aunque ya traiga receta física",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula",
           peso: 1,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Verificó la receta física y notó la irregularidad",
           peso: 2,
         },
         {
           orden: 5,
-          tipoAccion: TipoAccion.ESCALAR_A_SUPERVISOR,
+          tipoAccion: "ESCALAR_A_SUPERVISOR",
           descripcion: "Escaló la decisión al supervisor en vez de decidir por su cuenta",
           peso: 3,
         },
@@ -1155,18 +1237,18 @@ async function main() {
     descripcionDificil: "Natalia Rendón pide Loratadina.",
     soloTurno: true,
     pacienteId: natalia.id,
-    resultadoEsperado: ResultadoEsperado.VENTA_CORRECTA,
+    resultadoEsperado: "VENTA_CORRECTA",
     items: { create: [{ medicamentoId: loratadina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 1,
-          tipoAccion: TipoAccion.AGREGAR_A_VENTA,
+          tipoAccion: "AGREGAR_A_VENTA",
           descripcion: "Agregó el medicamento a la venta",
           parametros: { medicamentoId: loratadina.id },
           peso: 1,
         },
-        { orden: 2, tipoAccion: TipoAccion.COMPLETAR_VENTA, descripcion: "Completó la venta", peso: 2 },
+        { orden: 2, tipoAccion: "COMPLETAR_VENTA", descripcion: "Completó la venta", peso: 2 },
       ],
     },
   });
@@ -1179,25 +1261,25 @@ async function main() {
     descripcionDificil: "Marta Suárez pide Loratadina.",
     soloTurno: true,
     pacienteId: marta.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     items: { create: [{ medicamentoId: loratadina.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 1,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad y poder revisar su ficha",
           peso: 1,
         },
         {
           orden: 2,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula (alérgica a antihistamínicos — hay que reconocer que la Loratadina pertenece a esa familia)",
           peso: 3,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta explicando el motivo",
           parametros: { motivos: ["alergia"] },
           peso: 2,
@@ -1214,25 +1296,25 @@ async function main() {
     descripcionDificil: "Julián Cárdenas pide Omeprazol.",
     soloTurno: true,
     pacienteId: julian.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     items: { create: [{ medicamentoId: omeprazol.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 1,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad",
           peso: 1,
         },
         {
           orden: 2,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Vio la etiqueta de 'Lote vencido' junto al medicamento y rechazó la venta",
           parametros: { motivos: ["lote_vencido"] },
           peso: 3,
@@ -1248,26 +1330,26 @@ async function main() {
       "Un cliente pide Diazepam 'para dormir mejor' pero no presenta ninguna receta médica. Es un medicamento controlado. Al pedirle la cédula, se niega a mostrarla. Decide qué hacer.",
     descripcionDificil: "Un cliente pide Diazepam. No trae receta física.",
     soloTurno: true,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     actitudCedula: ActitudCedula.SE_REHUSA,
     items: { create: [{ medicamentoId: diazepam.id, cantidadEsperada: 1 }] },
     pasos: {
       create: [
         {
           orden: 1,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Intentó verificar la receta médica física",
           peso: 1,
         },
         {
           orden: 2,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para intentar validar identidad (el cliente se negó a mostrarla)",
           peso: 2,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.RECHAZAR_VENTA,
+          tipoAccion: "RECHAZAR_VENTA",
           descripcion: "Rechazó la venta sin buscar atajos: sin receta y sin poder validar identidad",
           parametros: { motivos: ["sin_receta", "identidad_no_validada"] },
           peso: 3,
@@ -1284,7 +1366,7 @@ async function main() {
     descripcionDificil: "Rodrigo Peña pide Tramadol. Trae una receta física.",
     soloTurno: true,
     pacienteId: rodrigo.id,
-    resultadoEsperado: ResultadoEsperado.RECHAZO_CORRECTO,
+    resultadoEsperado: "RECHAZO_CORRECTO",
     recetaPresentada: true,
     recetaFisicaPacienteNombre: "Rodrigo Peña",
     recetaFisicaMedicamento: "Tramadol 50mg",
@@ -1301,25 +1383,25 @@ async function main() {
       create: [
         {
           orden: 1,
-          tipoAccion: TipoAccion.SOLICITAR_CEDULA,
+          tipoAccion: "SOLICITAR_CEDULA",
           descripcion: "Solicitó la cédula para validar identidad, aunque ya traiga receta física",
           peso: 1,
         },
         {
           orden: 2,
-          tipoAccion: TipoAccion.VER_FICHA_PACIENTE,
+          tipoAccion: "VER_FICHA_PACIENTE",
           descripcion: "Buscó su ficha en el sistema por la cédula",
           peso: 1,
         },
         {
           orden: 3,
-          tipoAccion: TipoAccion.VERIFICAR_RECETA,
+          tipoAccion: "VERIFICAR_RECETA",
           descripcion: "Verificó la receta física y notó la irregularidad",
           peso: 2,
         },
         {
           orden: 4,
-          tipoAccion: TipoAccion.ESCALAR_A_SUPERVISOR,
+          tipoAccion: "ESCALAR_A_SUPERVISOR",
           descripcion: "Escaló la decisión al supervisor en vez de decidir por su cuenta",
           peso: 3,
         },
@@ -1345,6 +1427,7 @@ async function main() {
     );
     const turno = await prisma.turno.create({
       data: {
+        moduloId: moduloFarmacia.id,
         titulo: tituloTurno,
         descripcion:
           "Atiende 5 clientes seguidos, uno detrás de otro, con las mismas 3 vidas de principio a fin — sin resetear entre casos. Son casos nuevos, distintos a los que ya practicaste. Así se siente el desgaste de un turno real.",
@@ -1361,16 +1444,670 @@ async function main() {
   }
 
   // Asegura recetaPresentada correcto aunque el escenario ya existiera de una corrida previa del seed.
-  await prisma.escenario.updateMany({
-    where: { titulo: "Jorge Pérez pide Amoxicilina" },
+  await prisma.escenarioFarmacia.updateMany({
+    where: { escenario: { titulo: "Jorge Pérez pide Amoxicilina" } },
     data: { recetaPresentada: true },
   });
-  await prisma.escenario.updateMany({
-    where: { titulo: "Pedro Martínez pide Diazepam" },
+  await prisma.escenarioFarmacia.updateMany({
+    where: { escenario: { titulo: "Pedro Martínez pide Diazepam" } },
     data: { recetaPresentada: true },
   });
 
   console.log("Fecha usada como referencia para vencimientos:", { enElPasado, enElFuturo });
+
+  // ========== Módulo Enfermería (piloto) ==========
+  const moduloEnfermeria = await prisma.modulo.upsert({
+    where: { slug: "enfermeria" },
+    update: {},
+    create: {
+      slug: "enfermeria",
+      nombre: "Enfermería",
+      descripcion: "Simulador de administración segura de medicamentos",
+      colorTema: "#059669",
+    },
+  });
+
+  // Matricula al estudiante de prueba y al admin en ambos módulos.
+  const admin = await prisma.usuario.findUniqueOrThrow({ where: { usuario: "admin" } });
+  for (const usuarioId of [estudiante1.id, admin.id]) {
+    for (const moduloId of [moduloFarmacia.id, moduloEnfermeria.id]) {
+      await prisma.matricula.upsert({
+        where: { usuarioId_moduloId: { usuarioId, moduloId } },
+        update: {},
+        create: { usuarioId, moduloId },
+      });
+    }
+  }
+
+  const pacienteRosa = await prisma.pacienteEnfermeria.upsert({
+    where: { id: "pac-enf-rosa" },
+    update: {},
+    create: {
+      id: "pac-enf-rosa",
+      nombre: "Rosa Delgado",
+      edad: 68,
+      alergias: ["penicilina"],
+      antecedentes: "Hipertensión, diabetes tipo 2",
+      habitacion: "204-A",
+    },
+  });
+
+  const pacienteEsteban = await prisma.pacienteEnfermeria.upsert({
+    where: { id: "pac-enf-esteban" },
+    update: {},
+    create: {
+      id: "pac-enf-esteban",
+      nombre: "Esteban Molina",
+      edad: 45,
+      alergias: [],
+      antecedentes: "Postoperatorio de apendicectomía",
+      habitacion: "310-C",
+    },
+  });
+
+  const ordenRosa = await prisma.ordenMedica.upsert({
+    where: { id: "orden-enf-rosa-amoxi" },
+    update: {},
+    create: {
+      id: "orden-enf-rosa-amoxi",
+      pacienteId: pacienteRosa.id,
+      medicamento: "Amoxicilina",
+      dosis: "500mg",
+      via: "Oral",
+      frecuencia: "Cada 8 horas",
+      medico: "Dr. Felipe Castaño",
+      fechaEmision: enElPasado,
+      fechaVigencia: enElFuturo,
+    },
+  });
+
+  const ordenEsteban = await prisma.ordenMedica.upsert({
+    where: { id: "orden-enf-esteban-tramadol" },
+    update: {},
+    create: {
+      id: "orden-enf-esteban-tramadol",
+      pacienteId: pacienteEsteban.id,
+      medicamento: "Tramadol",
+      dosis: "50mg",
+      via: "Intravenosa",
+      frecuencia: "Cada 6 horas",
+      medico: "Dra. Natalia Vergara",
+      fechaEmision: enElPasado,
+      fechaVigencia: enElFuturo,
+    },
+  });
+
+  async function crearEscenarioEnfermeriaSiNoExiste(
+    titulo: string,
+    datos: {
+      descripcion: string;
+      descripcionDificil?: string;
+      soloTurno?: boolean;
+      resultadoEsperado: string;
+      pacienteId: string;
+      ordenMedicaId?: string;
+      contexto?: string;
+      pasos: {
+        orden: number;
+        tipoAccion: string;
+        descripcion: string;
+        parametros?: object;
+        peso?: number;
+      }[];
+    }
+  ) {
+    const existe = await prisma.escenario.findFirst({ where: { titulo } });
+    if (existe) {
+      console.log("Ya existe, se omite:", titulo);
+      return;
+    }
+    const { pacienteId, ordenMedicaId, contexto, pasos, ...generico } = datos;
+    const creado = await prisma.escenario.create({
+      data: {
+        ...generico,
+        titulo,
+        moduloId: moduloEnfermeria.id,
+        pasos: { create: pasos },
+        enfermeria: { create: { pacienteId, ordenMedicaId, contexto } },
+      },
+    });
+    console.log("Escenario creado:", titulo, "-", creado.id);
+  }
+
+  await crearEscenarioEnfermeriaSiNoExiste("Tutorial: cómo usar el simulador de Enfermería", {
+    descripcion:
+      "Este caso no es real, es para que conozcas la pantalla antes de resolver los casos que sí califican: verifica la ficha del paciente, la orden médica y registra la administración.",
+    resultadoEsperado: "ADMINISTRAR_CORRECTO",
+    pacienteId: pacienteRosa.id,
+    ordenMedicaId: ordenRosa.id,
+    contexto: "Turno de la mañana. Rosa está estable y pide su medicamento de rutina.",
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_PACIENTE", descripcion: "Consultó la ficha del paciente", peso: 1 },
+      { orden: 2, tipoAccion: "VERIFICAR_ORDEN_MEDICA", descripcion: "Verificó la orden médica vigente", peso: 1 },
+      { orden: 3, tipoAccion: "VERIFICAR_ALERGIA", descripcion: "Revisó alergias registradas", peso: 1 },
+      {
+        orden: 4,
+        tipoAccion: "REGISTRAR_ADMINISTRACION",
+        descripcion: "Registró la administración correcta (medicamento, dosis y vía según la orden)",
+        parametros: { medicamento: "Amoxicilina", dosis: "500mg", via: "Oral" },
+        peso: 2,
+      },
+    ],
+  });
+
+  await crearEscenarioEnfermeriaSiNoExiste("Rosa Delgado — administración de Amoxicilina", {
+    descripcion:
+      "Rosa Delgado (204-A) solicita su medicamento de las 2pm. Verifica su orden médica y sus alergias antes de administrar.",
+    descripcionDificil: "Rosa Delgado pide su medicamento de las 2pm.",
+    resultadoEsperado: "ADMINISTRAR_CORRECTO",
+    pacienteId: pacienteRosa.id,
+    ordenMedicaId: ordenRosa.id,
+    contexto: "Rosa es alérgica a la penicilina, pero su orden es de Amoxicilina — un antibiótico distinto, sin reacción cruzada relevante en este caso.",
+    pasos: [
+      { orden: 1, tipoAccion: "VERIFICAR_ORDEN_MEDICA", descripcion: "Verificó la orden médica vigente", peso: 2 },
+      { orden: 2, tipoAccion: "VERIFICAR_ALERGIA", descripcion: "Revisó alergias registradas", peso: 2 },
+      {
+        orden: 3,
+        tipoAccion: "REGISTRAR_ADMINISTRACION",
+        descripcion: "Registró la administración correcta (Amoxicilina 500mg oral)",
+        parametros: { medicamento: "Amoxicilina", dosis: "500mg", via: "Oral" },
+        peso: 3,
+      },
+    ],
+  });
+
+  await crearEscenarioEnfermeriaSiNoExiste("Esteban Molina — dosis distinta a la orden", {
+    descripcion:
+      "Esteban Molina (310-C) está en postoperatorio y su familiar pide 'algo más fuerte para el dolor'. Su orden autoriza Tramadol 50mg IV cada 6 horas.",
+    descripcionDificil: "Esteban Molina pide un analgésico más fuerte del que indica su orden.",
+    resultadoEsperado: "NO_ADMINISTRAR_CORRECTO",
+    pacienteId: pacienteEsteban.id,
+    ordenMedicaId: ordenEsteban.id,
+    contexto: "El familiar insiste, pero administrar una dosis mayor a la ordenada sin autorización médica es un error de los '5 correctos'.",
+    pasos: [
+      { orden: 1, tipoAccion: "VERIFICAR_ORDEN_MEDICA", descripcion: "Verificó la orden médica vigente", peso: 2 },
+      {
+        orden: 2,
+        tipoAccion: "RECHAZAR_ADMINISTRACION",
+        descripcion: "Rechazó administrar una dosis distinta a la ordenada",
+        peso: 2,
+      },
+      {
+        orden: 3,
+        tipoAccion: "ESCALAR_A_SUPERVISOR",
+        descripcion: "Escaló la solicitud del familiar al médico/supervisor en vez de decidir por su cuenta",
+        peso: 3,
+      },
+    ],
+  });
+
+  // ---------- Módulo Primera Infancia ----------
+  const moduloInfancia = await prisma.modulo.upsert({
+    where: { slug: "primera_infancia" },
+    update: {},
+    create: {
+      slug: "primera_infancia",
+      nombre: "Primera Infancia",
+      descripcion: "Simulador de valoración del desarrollo infantil",
+      colorTema: "#b45309",
+    },
+  });
+
+  for (const usuarioId of [estudiante1.id, admin.id]) {
+    await prisma.matricula.upsert({
+      where: { usuarioId_moduloId: { usuarioId, moduloId: moduloInfancia.id } },
+      update: {},
+      create: { usuarioId, moduloId: moduloInfancia.id },
+    });
+  }
+
+  function fechaNacimientoHace(meses: number): Date {
+    const f = new Date(hoy);
+    f.setMonth(f.getMonth() - meses);
+    return f;
+  }
+
+  async function crearNinoSiNoExiste(
+    id: string,
+    datos: {
+      nombre: string;
+      edadMeses: number;
+      semanasGestacionNacimiento?: number;
+      cuidadorNombre?: string;
+      antecedentes?: string;
+      esquemaVacunacionAlDia?: boolean;
+      vacunasPendientes?: string[];
+      registros?: { diasAtras: number; pesoKg: number; tallaCm: number }[];
+    }
+  ) {
+    const nino = await prisma.nino.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
+        nombre: datos.nombre,
+        fechaNacimiento: fechaNacimientoHace(datos.edadMeses),
+        semanasGestacionNacimiento: datos.semanasGestacionNacimiento,
+        cuidadorNombre: datos.cuidadorNombre,
+        antecedentes: datos.antecedentes,
+        esquemaVacunacionAlDia: datos.esquemaVacunacionAlDia ?? true,
+        vacunasPendientes: datos.vacunasPendientes ?? [],
+      },
+    });
+    if (datos.registros) {
+      for (const r of datos.registros) {
+        await prisma.registroCrecimiento.upsert({
+          where: { id: `${id}-reg-${r.diasAtras}` },
+          update: {},
+          create: {
+            id: `${id}-reg-${r.diasAtras}`,
+            ninoId: nino.id,
+            fecha: new Date(hoy.getTime() - r.diasAtras * DIA),
+            pesoKg: r.pesoKg,
+            tallaCm: r.tallaCm,
+          },
+        });
+      }
+    }
+    return nino;
+  }
+
+  const ninoSofia = await crearNinoSiNoExiste("nino-sofia", {
+    nombre: "Sofía Ramírez",
+    edadMeses: 6,
+    cuidadorNombre: "Marcela Ramírez (madre)",
+    antecedentes: "Embarazo y parto sin complicaciones.",
+  });
+
+  const ninoJuan = await crearNinoSiNoExiste("nino-juan", {
+    nombre: "Juan Esteban Torres",
+    edadMeses: 18,
+    cuidadorNombre: "Diana Torres (madre)",
+    antecedentes: "Ninguno relevante.",
+  });
+
+  const ninoCamila = await crearNinoSiNoExiste("nino-camila", {
+    nombre: "Camila Rojas",
+    edadMeses: 18,
+    cuidadorNombre: "Padre y abuela",
+    antecedentes: "Hermano mayor caminó a los 20 meses.",
+  });
+
+  const ninoMateo = await crearNinoSiNoExiste("nino-mateo", {
+    nombre: "Mateo Higuera",
+    edadMeses: 10,
+    cuidadorNombre: "Laura Higuera (madre)",
+    antecedentes: "Lactancia suspendida hace 2 meses.",
+    registros: [
+      { diasAtras: 60, pesoKg: 8.2, tallaCm: 68 },
+      { diasAtras: 5, pesoKg: 7.9, tallaCm: 69 },
+    ],
+  });
+
+  const ninoValentina = await crearNinoSiNoExiste("nino-valentina", {
+    nombre: "Valentina Suárez",
+    edadMeses: 24,
+    cuidadorNombre: "Cuidadora primeriza, muy ansiosa",
+    antecedentes: "Sin antecedentes de riesgo.",
+  });
+
+  const ninoSamuel = await crearNinoSiNoExiste("nino-samuel", {
+    nombre: "Samuel Castaño",
+    edadMeses: 30,
+    cuidadorNombre: "Padres",
+    antecedentes: "Sin antecedentes perinatales relevantes.",
+  });
+
+  const ninoEmma = await crearNinoSiNoExiste("nino-emma", {
+    nombre: "Emma Gutiérrez",
+    edadMeses: 8,
+    semanasGestacionNacimiento: 32,
+    cuidadorNombre: "Padres",
+    antecedentes: "Prematura, 3 semanas en UCI neonatal.",
+  });
+
+  const ninoNicolas = await crearNinoSiNoExiste("nino-nicolas", {
+    nombre: "Nicolás Peña",
+    edadMeses: 12,
+    cuidadorNombre: "Abuela materna",
+    antecedentes: "Se han cambiado de ciudad dos veces este año.",
+    esquemaVacunacionAlDia: false,
+    vacunasPendientes: ["Triple viral", "Refuerzo DPT"],
+  });
+
+  const ninoIsabella = await crearNinoSiNoExiste("nino-isabella", {
+    nombre: "Isabella Marín",
+    edadMeses: 14,
+    cuidadorNombre: "Padrastro (cuidador principal reportado)",
+    antecedentes: "Consulta previa hace 1 mes por hematomas en brazo, sin seguimiento.",
+  });
+
+  const ninoTomas = await crearNinoSiNoExiste("nino-tomas", {
+    nombre: "Tomás Vélez",
+    edadMeses: 20,
+    cuidadorNombre: "Jardín infantil comunitario 'Semillitas'",
+    antecedentes: "Asiste al hogar comunitario desde los 8 meses.",
+  });
+
+  async function crearEscenarioInfanciaSiNoExiste(
+    titulo: string,
+    datos: {
+      descripcion: string;
+      descripcionDificil?: string;
+      soloTurno?: boolean;
+      resultadoEsperado: string;
+      ninoId: string;
+      contexto?: string;
+      hitosEsperados: { dominio: string; hito: string }[];
+      pasos: {
+        orden: number;
+        tipoAccion: string;
+        descripcion: string;
+        parametros?: object;
+        peso?: number;
+      }[];
+    }
+  ) {
+    const existe = await prisma.escenario.findFirst({ where: { titulo } });
+    if (existe) {
+      console.log("Ya existe, se omite:", titulo);
+      return;
+    }
+    const { ninoId, contexto, hitosEsperados, pasos, ...generico } = datos;
+    const creado = await prisma.escenario.create({
+      data: {
+        ...generico,
+        titulo,
+        moduloId: moduloInfancia.id,
+        pasos: { create: pasos },
+        infancia: { create: { ninoId, contexto, hitosEsperados } },
+      },
+    });
+    console.log("Escenario creado:", titulo, "-", creado.id);
+  }
+
+  await crearEscenarioInfanciaSiNoExiste("Tutorial: cómo usar el simulador de Primera Infancia", {
+    descripcion:
+      "Este caso no es real, es para que conozcas la ficha de valoración antes de resolver los casos que sí califican: consulta la ficha, valora los hitos y registra el seguimiento.",
+    resultadoEsperado: "SEGUIMIENTO_NORMAL",
+    ninoId: ninoSofia.id,
+    contexto: "Control de crecimiento y desarrollo de rutina a los 6 meses.",
+    hitosEsperados: [
+      { dominio: "Motricidad gruesa", hito: "Sostén cefálico firme" },
+      { dominio: "Lenguaje", hito: "Balbucea (ej. 'bababa')" },
+    ],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el sostén cefálico",
+        parametros: { dominio: "Motricidad gruesa", hito: "Sostén cefálico firme" },
+        peso: 1,
+      },
+      {
+        orden: 3,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el balbuceo",
+        parametros: { dominio: "Lenguaje", hito: "Balbucea (ej. 'bababa')" },
+        peso: 1,
+      },
+      { orden: 4, tipoAccion: "REGISTRAR_SEGUIMIENTO", descripcion: "Registró seguimiento normal", peso: 2 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Juan Esteban Torres — sin palabras a los 18 meses", {
+    descripcion:
+      "Juan Esteban (18 meses) llega a control. Su madre cuenta que aún no dice ninguna palabra con intención comunicativa, solo balbucea.",
+    descripcionDificil: "Juan Esteban (18 meses) todavía no dice palabras con intención comunicativa.",
+    resultadoEsperado: "DERIVAR_ESPECIALISTA",
+    ninoId: ninoJuan.id,
+    contexto: "Sin antecedentes de riesgo, pero el retraso de lenguaje a esta edad es una señal de alarma que no debe esperarse a que 'madure sola'.",
+    hitosEsperados: [{ dominio: "Lenguaje", hito: "Dice al menos 3 palabras con intención comunicativa" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el hito de lenguaje esperado (ausente)",
+        parametros: { dominio: "Lenguaje", hito: "Dice al menos 3 palabras con intención comunicativa" },
+        peso: 2,
+      },
+      {
+        orden: 3,
+        tipoAccion: "DETECTAR_SEÑAL_ALARMA",
+        descripcion: "Identificó la ausencia de lenguaje como señal de alarma",
+        parametros: { motivos: ["sin_palabras_18m"] },
+        peso: 2,
+      },
+      { orden: 4, tipoAccion: "DERIVAR_A_ESPECIALISTA", descripcion: "Derivó a fonoaudiología/pediatría", peso: 3 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Camila Rojas — no camina a los 18 meses", {
+    descripcion:
+      "Camila (18 meses) no camina sola todavía. Su papá comenta: 'no se preocupe, el hermano también caminó tarde'.",
+    descripcionDificil: "Camila (18 meses) no camina sola. El papá minimiza la observación.",
+    resultadoEsperado: "DERIVAR_ESPECIALISTA",
+    ninoId: ninoCamila.id,
+    contexto: "El antecedente familiar no descarta un retraso motor real: a los 18 meses la mayoría de niños ya camina solo.",
+    hitosEsperados: [{ dominio: "Motricidad gruesa", hito: "Camina solo sin apoyo" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró la marcha independiente (ausente)",
+        parametros: { dominio: "Motricidad gruesa", hito: "Camina solo sin apoyo" },
+        peso: 2,
+      },
+      {
+        orden: 3,
+        tipoAccion: "DETECTAR_SEÑAL_ALARMA",
+        descripcion: "No se dejó guiar por el comentario del padre y marcó la señal de alarma",
+        parametros: { motivos: ["no_camina_18m"] },
+        peso: 2,
+      },
+      { orden: 4, tipoAccion: "DERIVAR_A_ESPECIALISTA", descripcion: "Derivó a fisioterapia/pediatría", peso: 3 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Mateo Higuera — curva de peso descendente", {
+    descripcion:
+      "Mateo (10 meses) viene a control. Su último registro de peso está por debajo del anterior, y la lactancia se suspendió hace 2 meses.",
+    descripcionDificil: "Mateo (10 meses) viene a control de rutina.",
+    resultadoEsperado: "DERIVAR_ESPECIALISTA",
+    ninoId: ninoMateo.id,
+    contexto: "El peso bajó respecto al control anterior — hay que leer la tendencia, no solo el valor de hoy.",
+    hitosEsperados: [{ dominio: "Motricidad gruesa", hito: "Se sienta sin apoyo" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      { orden: 2, tipoAccion: "REGISTRAR_PESO_TALLA", descripcion: "Registró el peso y talla de hoy", peso: 1 },
+      {
+        orden: 3,
+        tipoAccion: "DETECTAR_SEÑAL_ALARMA",
+        descripcion: "Detectó la curva de peso descendente",
+        parametros: { motivos: ["curva_peso_descendente"] },
+        peso: 2,
+      },
+      { orden: 4, tipoAccion: "DERIVAR_A_ESPECIALISTA", descripcion: "Derivó a nutrición", peso: 3 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Valentina Suárez — cuidadora ansiosa, desarrollo normal", {
+    descripcion:
+      "Valentina (24 meses) tiene un desarrollo dentro de rango normal en la valoración. Su cuidadora, muy ansiosa, insiste en que 'algo anda mal' y pide una remisión urgente.",
+    descripcionDificil: "La cuidadora de Valentina (24 meses) insiste en pedir una remisión urgente.",
+    resultadoEsperado: "SEGUIMIENTO_NORMAL",
+    ninoId: ninoValentina.id,
+    contexto: "No hay hallazgos objetivos en la valoración. Derivar sin hallazgos clínicos sobrecarga el sistema y genera ansiedad innecesaria — corresponde educar a la cuidadora y programar el control de rutina.",
+    hitosEsperados: [
+      { dominio: "Lenguaje", hito: "Usa frases de 2-3 palabras" },
+      { dominio: "Socioafectivo", hito: "Juega en paralelo con otros niños" },
+    ],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el lenguaje (presente)",
+        parametros: { dominio: "Lenguaje", hito: "Usa frases de 2-3 palabras" },
+        peso: 1,
+      },
+      {
+        orden: 3,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró lo socioafectivo (presente)",
+        parametros: { dominio: "Socioafectivo", hito: "Juega en paralelo con otros niños" },
+        peso: 1,
+      },
+      {
+        orden: 4,
+        tipoAccion: "REGISTRAR_SEGUIMIENTO",
+        descripcion: "Registró seguimiento normal en vez de derivar sin hallazgos",
+        peso: 3,
+      },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Samuel Castaño — señales de alerta en interacción social", {
+    descripcion:
+      "Samuel (30 meses) casi no sostiene contacto visual y no participa en juego simbólico (no 'juega a que...'), aunque su motricidad es normal.",
+    descripcionDificil: "Samuel (30 meses) evita el contacto visual y no juega de forma simbólica.",
+    resultadoEsperado: "DERIVAR_ESPECIALISTA",
+    ninoId: ninoSamuel.id,
+    contexto: "La combinación de ausencia de contacto visual y de juego simbólico a esta edad es una señal de alerta del desarrollo que requiere valoración especializada.",
+    hitosEsperados: [
+      { dominio: "Socioafectivo", hito: "Sostiene contacto visual" },
+      { dominio: "Cognición", hito: "Realiza juego simbólico" },
+    ],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el contacto visual (ausente)",
+        parametros: { dominio: "Socioafectivo", hito: "Sostiene contacto visual" },
+        peso: 1,
+      },
+      {
+        orden: 3,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el juego simbólico (ausente)",
+        parametros: { dominio: "Cognición", hito: "Realiza juego simbólico" },
+        peso: 1,
+      },
+      {
+        orden: 4,
+        tipoAccion: "DETECTAR_SEÑAL_ALARMA",
+        descripcion: "Registró ambas señales de alerta",
+        parametros: { motivos: ["sin_contacto_visual", "sin_juego_simbolico"] },
+        peso: 2,
+      },
+      { orden: 5, tipoAccion: "DERIVAR_A_ESPECIALISTA", descripcion: "Derivó a valoración especializada", peso: 3 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Emma Gutiérrez — valoración con edad corregida", {
+    descripcion:
+      "Emma tiene 8 meses de edad cronológica pero nació prematura, a las 32 semanas de gestación. Antes de valorar sus hitos, hay que calcular su edad corregida.",
+    descripcionDificil: "Emma tiene 8 meses. Nació a las 32 semanas de gestación.",
+    resultadoEsperado: "SEGUIMIENTO_NORMAL",
+    ninoId: ninoEmma.id,
+    contexto: "Con edad corregida (~5-6 meses), el sostén cefálico y el alcance de objetos son hitos esperados y están presentes: el desarrollo es normal para su edad corregida, aunque parecería 'atrasado' si se usara la edad cronológica.",
+    hitosEsperados: [{ dominio: "Motricidad gruesa", hito: "Sostén cefálico firme" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      { orden: 2, tipoAccion: "CALCULAR_EDAD_CORREGIDA", descripcion: "Calculó la edad corregida antes de valorar", peso: 2 },
+      {
+        orden: 3,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el hito según edad corregida (presente)",
+        parametros: { dominio: "Motricidad gruesa", hito: "Sostén cefálico firme" },
+        peso: 2,
+      },
+      { orden: 4, tipoAccion: "REGISTRAR_SEGUIMIENTO", descripcion: "Registró seguimiento normal", peso: 2 },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Nicolás Peña — esquema de vacunación incompleto", {
+    descripcion:
+      "Nicolás (12 meses) tiene un desarrollo normal, pero la familia se ha mudado dos veces y no está claro si está al día con las vacunas.",
+    descripcionDificil: "Nicolás (12 meses) viene a control de rutina.",
+    resultadoEsperado: "DERIVAR_ESPECIALISTA",
+    ninoId: ninoNicolas.id,
+    contexto: "Aunque el desarrollo esté bien, verificar y remitir el esquema de vacunación pendiente es parte obligatoria del control — no se puede dar de alta sin resolverlo.",
+    hitosEsperados: [{ dominio: "Motricidad gruesa", hito: "Se pone de pie con apoyo" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el hito motor (presente)",
+        parametros: { dominio: "Motricidad gruesa", hito: "Se pone de pie con apoyo" },
+        peso: 1,
+      },
+      {
+        orden: 3,
+        tipoAccion: "VERIFICAR_ESQUEMA_VACUNACION",
+        descripcion: "Verificó el esquema de vacunación y encontró vacunas pendientes",
+        peso: 2,
+      },
+      {
+        orden: 4,
+        tipoAccion: "DERIVAR_A_ESPECIALISTA",
+        descripcion: "Remitió al programa de vacunación para ponerse al día",
+        peso: 3,
+      },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Isabella Marín — señales de negligencia", {
+    descripcion:
+      "Isabella (14 meses) llega con higiene deficiente persistente y hematomas en el brazo sin una explicación coherente por parte del cuidador. Ya hubo una consulta similar hace un mes sin seguimiento.",
+    descripcionDificil: "Isabella (14 meses) presenta higiene deficiente y hematomas sin explicación clara.",
+    resultadoEsperado: "ACTIVAR_RUTA_PROTECCION",
+    ninoId: ninoIsabella.id,
+    contexto: "La combinación de higiene deficiente, hematomas no justificados y miedo excesivo al cuidador, más el antecedente sin seguimiento, obliga a activar la ruta de protección — no basta con derivar a un especialista clínico.",
+    hitosEsperados: [{ dominio: "Motricidad gruesa", hito: "Camina solo sin apoyo" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "DETECTAR_SEÑAL_ALARMA",
+        descripcion: "Identificó las señales de negligencia/maltrato",
+        parametros: { motivos: ["higiene_deficiente", "hematomas_no_justificados", "miedo_excesivo_adulto"] },
+        peso: 3,
+      },
+      {
+        orden: 3,
+        tipoAccion: "ACTIVAR_RUTA_PROTECCION",
+        descripcion: "Activó la ruta de protección en vez de solo derivar clínicamente",
+        peso: 4,
+      },
+    ],
+  });
+
+  await crearEscenarioInfanciaSiNoExiste("Tomás Vélez — vínculo socioafectivo en hogar comunitario", {
+    descripcion:
+      "Tomás (20 meses) asiste a un hogar comunitario desde los 8 meses. Se observa su vínculo de apego y su regulación emocional ante la separación de su cuidadora al llegar.",
+    descripcionDificil: "Tomás (20 meses) asiste a un hogar comunitario. Se observa su comportamiento al llegar.",
+    resultadoEsperado: "SEGUIMIENTO_NORMAL",
+    ninoId: ninoTomas.id,
+    contexto: "Tomás busca a su cuidadora al despedirse pero se calma rápido y explora el entorno: apego seguro, dentro de lo esperado para su edad y contexto.",
+    hitosEsperados: [{ dominio: "Socioafectivo", hito: "Se calma tras la separación y explora el entorno" }],
+    pasos: [
+      { orden: 1, tipoAccion: "VER_FICHA_NINO", descripcion: "Consultó la ficha del niño", peso: 1 },
+      {
+        orden: 2,
+        tipoAccion: "VALORAR_HITO",
+        descripcion: "Valoró el vínculo socioafectivo (presente)",
+        parametros: { dominio: "Socioafectivo", hito: "Se calma tras la separación y explora el entorno" },
+        peso: 2,
+      },
+      { orden: 3, tipoAccion: "REGISTRAR_SEGUIMIENTO", descripcion: "Registró seguimiento normal", peso: 3 },
+    ],
+  });
 }
 
 main()
