@@ -19,6 +19,13 @@ export async function GET() {
 
   return NextResponse.json({
     usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol },
-    modulos: modulos.map((m) => ({ id: m.id, slug: m.slug, nombre: m.nombre, colorTema: m.colorTema })),
+    modulos: modulos.map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      nombre: m.nombre,
+      colorTema: m.colorTema,
+      tipo: m.tipo,
+      rutaSimulador: m.rutaSimulador,
+    })),
   });
 }

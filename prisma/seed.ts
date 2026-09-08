@@ -2108,6 +2108,146 @@ async function main() {
       { orden: 3, tipoAccion: "REGISTRAR_SEGUIMIENTO", descripcion: "Registró seguimiento normal", peso: 3 },
     ],
   });
+
+  // ==================== Módulo Dispensación (servicio farmacéutico) ====================
+  // Herramienta de práctica libre, sin nota: el estudiante atiende pacientes que llegan con
+  // fórmulas, busca al paciente y coteja contra lo autorizado antes de entregar.
+  const moduloDispensacion = await prisma.modulo.upsert({
+    where: { slug: "dispensacion" },
+    update: { tipo: "SIMULADOR", rutaSimulador: "/panel/dispensacion" },
+    create: {
+      slug: "dispensacion",
+      nombre: "Dispensación",
+      descripcion: "Simulador de dispensación en servicio farmacéutico (medicamentos por fórmula, sin costo)",
+      colorTema: "#0f766e",
+      tipo: "SIMULADOR",
+      rutaSimulador: "/panel/dispensacion",
+    },
+  });
+
+  for (const usuarioId of [estudiante1.id, admin.id]) {
+    await prisma.matricula.upsert({
+      where: { usuarioId_moduloId: { usuarioId, moduloId: moduloDispensacion.id } },
+      update: {},
+      create: { usuarioId, moduloId: moduloDispensacion.id },
+    });
+  }
+
+  // Pacientes propios de la práctica de dispensación (cédulas 12000000xx).
+  async function pacienteDisp(cedula: string, nombre: string, edad: number, alergias: string[], antecedentes: string) {
+    return prisma.paciente.upsert({
+      where: { cedula },
+      update: { nombre, edad, alergias, antecedentes },
+      create: { cedula, nombre, edad, alergias, antecedentes },
+    });
+  }
+  const dGloria = await pacienteDisp("1200000001", "Gloria Herrera", 41, [], "Ninguno relevante");
+  const dHernan = await pacienteDisp("1200000002", "Hernán Díaz", 58, [], "Gastritis crónica, HTA");
+  const dRocio = await pacienteDisp("1200000003", "Rocío Vargas", 33, [], "Infección urinaria en tratamiento");
+  const dMiguel = await pacienteDisp("1200000004", "Miguel Ángel Soto", 47, ["penicilina"], "Rinitis alérgica");
+  const dEsperanza = await pacienteDisp("1200000005", "Esperanza Rojas", 62, [], "Lumbalgia crónica, ansiedad");
+  const dAlvaro = await pacienteDisp("1200000006", "Álvaro Mejía", 55, [], "Ninguno relevante");
+  const dispPacientes = [dGloria, dHernan, dRocio, dMiguel, dEsperanza, dAlvaro];
+
+  // Limpieza para re-siembra (respeta las FK: primero sesiones/entregas, luego casos y autorizaciones).
+  await prisma.sesionDispensacion.deleteMany({});
+  await prisma.casoDispensacion.deleteMany({});
+  await prisma.recetaElectronica.deleteMany({ where: { pacienteId: { in: dispPacientes.map((p) => p.id) } } });
+
+  // Autorizaciones "en el sistema" (lo que el estudiante debe cotejar contra el papel).
+  await prisma.recetaElectronica.createMany({
+    data: [
+      // Caso 1 — todo correcto
+      { pacienteId: dGloria.id, medicamentoId: acetaminofen.id, medico: "Dr. Óscar Rivera", cantidadAutorizada: 20, cantidadRedimida: 0, fechaEmision: new Date(hoy.getTime() - 3 * DIA), fechaVigencia: new Date(hoy.getTime() + 27 * DIA) },
+      // Caso 2 — ya redimió parte, viene por el saldo
+      { pacienteId: dHernan.id, medicamentoId: omeprazol.id, medico: "Dra. Claudia Ariza", cantidadAutorizada: 30, cantidadRedimida: 10, fechaEmision: new Date(hoy.getTime() - 18 * DIA), fechaVigencia: new Date(hoy.getTime() + 12 * DIA) },
+      // Caso 3 — autorización vencida
+      { pacienteId: dRocio.id, medicamentoId: cefalexina.id, medico: "Dra. Marcela Ospina", cantidadAutorizada: 14, cantidadRedimida: 0, fechaEmision: new Date(hoy.getTime() - 50 * DIA), fechaVigencia: new Date(hoy.getTime() - 20 * DIA) },
+      // Caso 4 — loratadina OK (la amoxicilina de la 2ª fórmula NO está en sistema a propósito)
+      { pacienteId: dMiguel.id, medicamentoId: loratadina.id, medico: "Dr. Julián González", cantidadAutorizada: 30, cantidadRedimida: 0, fechaEmision: new Date(hoy.getTime() - 4 * DIA), fechaVigencia: new Date(hoy.getTime() + 26 * DIA) },
+      // Caso 5 — ibuprofeno autorizado por 20 (el papel fue alterado a 30); diazepam NO autorizado
+      { pacienteId: dEsperanza.id, medicamentoId: ibuprofeno.id, medico: "Dr. Fabián Nieto", cantidadAutorizada: 20, cantidadRedimida: 0, fechaEmision: new Date(hoy.getTime() - 6 * DIA), fechaVigencia: new Date(hoy.getTime() + 24 * DIA) },
+      // Caso 6 — todo OK en el sistema; el problema es la identidad de quien reclama
+      { pacienteId: dAlvaro.id, medicamentoId: acetaminofen.id, medico: "Dra. Liliana Parra", cantidadAutorizada: 30, cantidadRedimida: 0, fechaEmision: new Date(hoy.getTime() - 2 * DIA), fechaVigencia: new Date(hoy.getTime() + 28 * DIA) },
+    ],
+  });
+
+  async function casoDisp(
+    orden: number,
+    titulo: string,
+    contexto: string,
+    pacienteId: string,
+    documentoPresentado: string | null,
+    formulas: {
+      medico: string;
+      registroMedico: string;
+      ips?: string;
+      diasEmision: number;
+      diasVigencia: number;
+      cargadaEnSistema?: boolean;
+      nota?: string;
+      renglones: { medicamentoId: string; cantidad: number; cantidadTachada?: number; posologia?: string }[];
+    }[]
+  ) {
+    await prisma.casoDispensacion.create({
+      data: {
+        orden,
+        titulo,
+        contexto,
+        pacienteId,
+        documentoPresentado,
+        formulas: {
+          create: formulas.map((f) => ({
+            medico: f.medico,
+            registroMedico: f.registroMedico,
+            ips: f.ips ?? "IPS Central FUNCA",
+            fechaEmision: new Date(hoy.getTime() - f.diasEmision * DIA),
+            diasVigencia: f.diasVigencia,
+            cargadaEnSistema: f.cargadaEnSistema ?? true,
+            nota: f.nota ?? null,
+            renglones: {
+              create: f.renglones.map((r) => ({
+                medicamentoId: r.medicamentoId,
+                cantidad: r.cantidad,
+                cantidadTachada: r.cantidadTachada ?? null,
+                posologia: r.posologia ?? null,
+              })),
+            },
+          })),
+        },
+      },
+    });
+  }
+
+  await casoDisp(1, "Fórmula sencilla, todo en regla", "Llega Gloria Herrera con una fórmula de control del dolor.", dGloria.id, null, [
+    { medico: "Dr. Óscar Rivera", registroMedico: "RM-20455", diasEmision: 3, diasVigencia: 30, renglones: [{ medicamentoId: acetaminofen.id, cantidad: 20, posologia: "1 tableta cada 8 horas" }] },
+  ]);
+
+  await casoDisp(2, "Viene por el saldo de una fórmula", "Hernán Díaz ya reclamó parte del omeprazol el mes pasado y viene por lo que falta.", dHernan.id, null, [
+    { medico: "Dra. Claudia Ariza", registroMedico: "RM-31288", diasEmision: 18, diasVigencia: 30, renglones: [{ medicamentoId: omeprazol.id, cantidad: 30, posologia: "1 cápsula diaria en ayunas" }] },
+  ]);
+
+  await casoDisp(3, "Fórmula vencida", "Rocío Vargas trae una fórmula de hace más de un mes y pide que se la despachen.", dRocio.id, null, [
+    { medico: "Dra. Marcela Ospina", registroMedico: "RM-11902", diasEmision: 50, diasVigencia: 30, nota: "La fórmula está arrugada y con la fecha poco legible.", renglones: [{ medicamentoId: cefalexina.id, cantidad: 14, posologia: "1 cada 6 horas por 7 días" }] },
+  ]);
+
+  await casoDisp(4, "Dos fórmulas, una de médico particular", "Miguel Ángel Soto entrega dos fórmulas: una de la EPS y otra de un médico particular.", dMiguel.id, null, [
+    { medico: "Dr. Julián González", registroMedico: "RM-40771", diasEmision: 4, diasVigencia: 30, renglones: [{ medicamentoId: loratadina.id, cantidad: 30, posologia: "1 tableta diaria" }] },
+    { medico: "Dr. Consultorio Particular", registroMedico: "RM-99001", ips: "Consultorio privado", diasEmision: 2, diasVigencia: 30, cargadaEnSistema: false, nota: "Fórmula en papelería de un consultorio particular, sin sello de la EPS.", renglones: [{ medicamentoId: amoxicilina.id, cantidad: 21, posologia: "1 cápsula cada 8 horas" }] },
+  ]);
+
+  await casoDisp(5, "Cantidad corregida a mano y un medicamento de más", "Esperanza Rojas trae una fórmula con una cifra tachada y pide también un ansiolítico.", dEsperanza.id, null, [
+    { medico: "Dr. Fabián Nieto", registroMedico: "RM-52630", diasEmision: 6, diasVigencia: 30, nota: "En 'ibuprofeno' se ve 20 tachado y 30 escrito encima a mano.", renglones: [
+      { medicamentoId: ibuprofeno.id, cantidad: 30, cantidadTachada: 20, posologia: "1 cada 12 horas" },
+      { medicamentoId: diazepam.id, cantidad: 10, posologia: "1 en la noche" },
+    ] },
+  ]);
+
+  await casoDisp(6, "Otra persona viene a reclamar", "Se acerca alguien con la fórmula de Álvaro Mejía, pero el documento que muestra es otro y no trae autorización.", dAlvaro.id, "9999999999", [
+    { medico: "Dra. Liliana Parra", registroMedico: "RM-60418", diasEmision: 2, diasVigencia: 30, renglones: [{ medicamentoId: acetaminofen.id, cantidad: 30, posologia: "1 cada 8 horas si hay dolor" }] },
+  ]);
+
+  console.log("Módulo Dispensación sembrado:", 6, "casos.");
 }
 
 main()

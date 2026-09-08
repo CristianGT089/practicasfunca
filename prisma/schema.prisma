@@ -14,14 +14,21 @@ enum Rol {
 
 // Un área/programa (Farmacia, Enfermería, Primera Infancia, ...). Tabla en vez de enum
 // para poder agregar/desactivar módulos sin migración de schema.
+enum TipoModulo {
+  CASOS // usa el motor de escenarios calificados (checklist, vidas, informe)
+  SIMULADOR // herramienta de práctica libre, sin nota; abre su propia pantalla
+}
+
 model Modulo {
-  id          String   @id @default(cuid())
-  slug        String   @unique // ej: "farmacia", "enfermeria", "primera_infancia"
-  nombre      String
-  descripcion String?
-  colorTema   String? // ej: "#2563eb", para diferenciar la UI por módulo
-  activo      Boolean  @default(true)
-  creadoEn    DateTime @default(now())
+  id            String     @id @default(cuid())
+  slug          String     @unique // ej: "farmacia", "enfermeria", "primera_infancia"
+  nombre        String
+  descripcion   String?
+  colorTema     String? // ej: "#2563eb", para diferenciar la UI por módulo
+  tipo          TipoModulo @default(CASOS)
+  rutaSimulador String? // solo para tipo SIMULADOR: a dónde lleva "Abrir" en /panel
+  activo        Boolean    @default(true)
+  creadoEn      DateTime   @default(now())
 
   matriculas Matricula[]
   escenarios Escenario[]
@@ -53,9 +60,10 @@ model Usuario {
   activo       Boolean  @default(true)
   creadoEn     DateTime @default(now())
 
-  intentos      Intento[]
-  intentosTurno IntentoTurno[]
-  matriculas    Matricula[]
+  intentos            Intento[]
+  intentosTurno       IntentoTurno[]
+  matriculas          Matricula[]
+  sesionesDispensacion SesionDispensacion[]
 
   @@map("usuarios")
 }
@@ -97,9 +105,11 @@ model Medicamento {
   // es parcial (ver migración) para no afectar los medicamentos de práctica.
   claveUnica String?
 
-  movimientos         MovimientoInventario[]
-  itemsEscenario      FarmaciaItemEscenario[]
-  recetasElectronicas RecetaElectronica[]
+  movimientos          MovimientoInventario[]
+  itemsEscenario       FarmaciaItemEscenario[]
+  recetasElectronicas  RecetaElectronica[]
+  renglonesFormula     RenglonFormula[]      @relation("MedicamentoRenglonesFormula")
+  entregasDispensacion EntregaDispensacion[] @relation("MedicamentoEntregasDispensacion")
 
   @@map("medicamentos")
 }
@@ -135,8 +145,9 @@ model Paciente {
   tipoSangre      String?
   creadoEn        DateTime  @default(now())
 
-  escenarios EscenarioFarmacia[]
-  recetas    RecetaElectronica[]
+  escenarios        EscenarioFarmacia[]
+  recetas           RecetaElectronica[]
+  casosDispensacion CasoDispensacion[] @relation("PacienteCasosDispensacion")
 
   @@map("pacientes")
 }
@@ -160,6 +171,8 @@ model RecetaElectronica {
   fechaEmision       DateTime
   fechaVigencia      DateTime
   creadoEn           DateTime    @default(now())
+
+  entregas EntregaDispensacion[] @relation("RecetaEntregas")
 
   @@map("recetas_electronicas")
 }
@@ -572,4 +585,105 @@ model Ticket {
 
   @@index([sesionId, estado])
   @@map("tickets_turnero")
+}
+
+// ==================== Dispensación (servicio farmacéutico) ====================
+// Módulo-herramienta de práctica libre (NO calificado): el estudiante atiende una
+// secuencia de pacientes que llegan a la ventanilla con fórmulas médicas físicas,
+// busca al paciente en el sistema, coteja contra lo autorizado (RecetaElectronica) y
+// dispensa (total o parcial). Sin escenarios, checklist, vidas ni nota. Ver docs/dispensacion.md.
+
+// Un paciente que llega a la ventanilla con una o varias fórmulas en mano.
+model CasoDispensacion {
+  id                  String   @id @default(cuid())
+  titulo              String
+  contexto            String? // qué dice / pide el paciente
+  pacienteId          String
+  paciente            Paciente @relation("PacienteCasosDispensacion", fields: [pacienteId], references: [id])
+  // Documento que muestra la persona en la ventanilla. Si difiere de paciente.cedula → suplantación.
+  documentoPresentado String?
+  orden               Int      @default(0)
+  activo              Boolean  @default(true)
+  creadoEn            DateTime @default(now())
+
+  formulas FormulaPresentada[]
+  entregas EntregaDispensacion[]
+
+  @@map("casos_dispensacion")
+}
+
+// Una fórmula médica física que el paciente entrega. Se renderiza como documento.
+model FormulaPresentada {
+  id             String   @id @default(cuid())
+  casoId         String
+  caso           CasoDispensacion @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  medico         String
+  registroMedico String
+  ips            String?
+  fechaEmision   DateTime
+  diasVigencia   Int      @default(30)
+  // false = receta de médico particular / no cargada al sistema de la EPS: no se dispensa por acá.
+  cargadaEnSistema Boolean @default(true)
+  nota           String? // contexto de una irregularidad ("cantidad corregida a mano", etc.)
+
+  renglones RenglonFormula[]
+
+  @@map("formulas_presentadas")
+}
+
+// Un renglón (medicamento) dentro de una fórmula física.
+model RenglonFormula {
+  id              String            @id @default(cuid())
+  formulaId       String
+  formula         FormulaPresentada @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  medicamentoId   String
+  medicamento     Medicamento       @relation("MedicamentoRenglonesFormula", fields: [medicamentoId], references: [id])
+  cantidad        Int // cantidad escrita en el papel
+  cantidadTachada Int? // corrección a mano visible antes de la cantidad final
+  posologia       String?
+
+  entregas EntregaDispensacion[]
+
+  @@map("renglones_formula")
+}
+
+// Una corrida de práctica de un estudiante: aísla su estado (qué ya entregó) del resto.
+model SesionDispensacion {
+  id         String   @id @default(cuid())
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  indiceCaso Int      @default(0) // en qué caso de la secuencia va
+  iniciadaEn DateTime @default(now())
+
+  entregas EntregaDispensacion[]
+
+  @@map("sesiones_dispensacion")
+}
+
+enum ResultadoEntrega {
+  ENTREGADO
+  RECHAZADO
+}
+
+// Lo que el estudiante hizo con un medicamento: entregó N unidades, o rechazó (con motivo).
+model EntregaDispensacion {
+  id                  String             @id @default(cuid())
+  sesionId            String
+  sesion              SesionDispensacion @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  casoId              String
+  caso                CasoDispensacion   @relation(fields: [casoId], references: [id])
+  renglonFormulaId    String?
+  renglonFormula      RenglonFormula?    @relation(fields: [renglonFormulaId], references: [id])
+  medicamentoId       String
+  medicamento         Medicamento        @relation("MedicamentoEntregasDispensacion", fields: [medicamentoId], references: [id])
+  cantidad            Int
+  resultado           ResultadoEntrega
+  motivo              String?
+  // Autorización del sistema contra la que se hizo la entrega (para descontar saldo).
+  recetaElectronicaId String?
+  recetaElectronica   RecetaElectronica? @relation("RecetaEntregas", fields: [recetaElectronicaId], references: [id])
+  creadoEn            DateTime           @default(now())
+
+  @@index([sesionId])
+  @@map("entregas_dispensacion")
 }
