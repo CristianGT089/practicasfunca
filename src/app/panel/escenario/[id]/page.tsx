@@ -2,9 +2,9 @@
 
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
-import FarmaciaSoftware from "./_modulos/FarmaciaSoftware";
-import EnfermeriaSoftware from "./_modulos/EnfermeriaSoftware";
-import PrimeraInfanciaSoftware from "./_modulos/PrimeraInfanciaSoftware";
+import FarmaciaSoftware from "./_modulos/farmacia/Software";
+import EnfermeriaSoftware from "./_modulos/enfermeria/Software";
+import PrimeraInfanciaSoftware from "./_modulos/primera-infancia/Software";
 
 /**
  * Shell genérico: decide qué "software simulado" mostrar según el módulo del escenario.

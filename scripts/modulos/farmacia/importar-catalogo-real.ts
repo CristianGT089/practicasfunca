@@ -1,14 +1,14 @@
 // Carga el catálogo real de medicamentos (consulta libre del estudiante en
-// /panel/catalogo) a partir de scripts/data/catalogo-real.json. No depende de los Excel
+// /panel/catalogo) a partir de scripts/modulos/farmacia/data/catalogo-real.json. No depende de los Excel
 // originales ni de ninguna librería para leerlos — pensado para correr en el VPS con solo
-// `npx prisma migrate deploy && npx tsx scripts/importar-catalogo-real.ts`.
+// `npx prisma migrate deploy && npx tsx scripts/modulos/farmacia/importar-catalogo-real.ts`.
 //
-// Uso: npx tsx scripts/importar-catalogo-real.ts
+// Uso: npx tsx scripts/modulos/farmacia/importar-catalogo-real.ts
 
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
-import { normalizarClaveUnica } from "../src/lib/modulos/farmacia/catalogoReal";
+import { normalizarClaveUnica } from "../../../src/lib/modulos/farmacia/catalogoReal";
 
 const prisma = new PrismaClient();
 
@@ -26,7 +26,7 @@ type RegistroCatalogo = {
 };
 
 async function main() {
-  const ruta = path.join(process.cwd(), "scripts/data/catalogo-real.json");
+  const ruta = path.join(process.cwd(), "scripts/modulos/farmacia/data/catalogo-real.json");
   const registros: RegistroCatalogo[] = JSON.parse(fs.readFileSync(ruta, "utf-8"));
 
   let total = 0;

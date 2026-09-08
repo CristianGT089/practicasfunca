@@ -8,11 +8,15 @@ import { TIPOS_ACCION_FARMACIA, RESULTADOS_FARMACIA } from "./farmacia/acciones"
 import { TIPOS_ACCION_ENFERMERIA, RESULTADOS_ENFERMERIA } from "./enfermeria/acciones";
 import { TIPOS_ACCION_INFANCIA, RESULTADOS_INFANCIA } from "./primera-infancia/acciones";
 
+export type SeccionAdmin = { href: string; label: string };
+
 export type DefinicionModulo = {
   slug: string;
   nombre: string;
   tiposAccion: readonly string[];
   resultados: Record<string, string>;
+  /** Pestañas del panel de administración propias de este módulo (datos maestros). */
+  seccionesAdmin: SeccionAdmin[];
 };
 
 export const MODULOS: Record<string, DefinicionModulo> = {
@@ -21,21 +25,35 @@ export const MODULOS: Record<string, DefinicionModulo> = {
     nombre: "Farmacia",
     tiposAccion: TIPOS_ACCION_FARMACIA,
     resultados: RESULTADOS_FARMACIA,
+    seccionesAdmin: [
+      { href: "/admin/modulos/farmacia/medicamentos", label: "Medicamentos" },
+      { href: "/admin/modulos/farmacia/catalogo-real", label: "Catálogo real" },
+      { href: "/admin/modulos/farmacia/pacientes", label: "Pacientes" },
+    ],
   },
   enfermeria: {
     slug: "enfermeria",
     nombre: "Enfermería",
     tiposAccion: TIPOS_ACCION_ENFERMERIA,
     resultados: RESULTADOS_ENFERMERIA,
+    seccionesAdmin: [],
   },
   primera_infancia: {
     slug: "primera_infancia",
     nombre: "Primera Infancia",
     tiposAccion: TIPOS_ACCION_INFANCIA,
     resultados: RESULTADOS_INFANCIA,
+    seccionesAdmin: [],
   },
 };
 
 export function obtenerDefinicionModulo(slug: string): DefinicionModulo | undefined {
   return MODULOS[slug];
+}
+
+/** Todas las secciones de admin específicas de módulo, con el nombre del módulo como prefijo. */
+export function seccionesAdminModulos(): SeccionAdmin[] {
+  return Object.values(MODULOS).flatMap((m) =>
+    m.seccionesAdmin.map((s) => ({ href: s.href, label: `${s.label} (${m.nombre})` }))
+  );
 }

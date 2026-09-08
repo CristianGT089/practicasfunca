@@ -4,16 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { seccionesAdminModulos } from "@/lib/modulos/registro";
 
+// Pestañas del núcleo (no dependen de ningún módulo) + las que cada módulo aporta.
 const TABS = [
   { href: "/admin/calificaciones", label: "Calificaciones" },
   { href: "/admin/estudiantes", label: "Estudiantes" },
   { href: "/admin/matriculas", label: "Matrículas" },
   { href: "/admin/modulos", label: "Módulos" },
   { href: "/admin/escenarios", label: "Escenarios" },
-  { href: "/admin/medicamentos", label: "Medicamentos (Farmacia)" },
-  { href: "/admin/catalogo-real", label: "Catálogo real (Farmacia)" },
-  { href: "/admin/pacientes", label: "Pacientes (Farmacia)" },
+  ...seccionesAdminModulos(),
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +40,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!verificado) return <div className="p-8 text-slate-500 text-sm">Cargando...</div>;
 
+  // Pestaña activa = la de prefijo más largo que coincide (evita que "/admin/modulos"
+  // se marque a la vez que "/admin/modulos/farmacia/medicamentos").
+  const hrefActivo = TABS.map((t) => t.href)
+    .filter((h) => pathname === h || pathname.startsWith(h + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <header className="bg-blue-900 px-6">
@@ -57,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="mx-auto max-w-5xl">
           <nav className="flex gap-1">
             {TABS.map((tab) => {
-              const activo = pathname === tab.href || pathname.startsWith(tab.href + "/");
+              const activo = tab.href === hrefActivo;
               return (
                 <Link
                   key={tab.href}
