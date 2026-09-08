@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/modulos/farmacia/reglas";
-import { perderCorazon } from "@/lib/vidas";
-import { serializarReceta } from "@/lib/recetaOnline";
+import { perderCorazon } from "@/lib/nucleo/vidas";
+import { serializarReceta } from "@/lib/modulos/farmacia/recetaOnline";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();

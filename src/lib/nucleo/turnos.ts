@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/nucleo/prisma";
 
 /** Mismo criterio que usa el panel para distinguir el caso tutorial del resto. */
 export function esTutorial(titulo: string): boolean {

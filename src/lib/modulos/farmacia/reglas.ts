@@ -1,8 +1,8 @@
 import { Accion, Medicamento, Paciente } from "@prisma/client";
-import { estaFueraDeChecklist as estaFueraDeChecklistGenerico } from "../checklist";
+import { estaFueraDeChecklist as estaFueraDeChecklistGenerico } from "../../nucleo/checklist";
 import { PasoEsperado } from "@prisma/client";
 
-export { coincideParametrosConMotivos, contarPasosCumplidos } from "../checklist";
+export { coincideParametrosConMotivos, contarPasosCumplidos } from "../../nucleo/checklist";
 
 export type ContextoEscenario = {
   recetaPresentada: boolean;

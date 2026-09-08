@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/modulos/farmacia/reglas";
-import { perderCorazon } from "@/lib/vidas";
+import { perderCorazon } from "@/lib/nucleo/vidas";
 
 // La ficha del paciente (nombre, alergias, antecedentes) nunca se entrega de gratis: se busca
 // en el sistema por el número de cédula que el estudiante leyó en la identificación física, no

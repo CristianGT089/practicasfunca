@@ -1,8 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/nucleo/prisma";
 
-const COOKIE_NAME = "farmacia_session";
+const COOKIE_NAME = "funca_session";
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? "dev-secret-change-in-production-please-use-a-long-random-string"
 );

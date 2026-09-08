@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 import * as farmacia from "@/lib/modulos/farmacia/reglas";
 import * as enfermeria from "@/lib/modulos/enfermeria/reglas";
 import * as infancia from "@/lib/modulos/primera-infancia/reglas";
-import { perderCorazon } from "@/lib/vidas";
+import { perderCorazon } from "@/lib/nucleo/vidas";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { generarInformePDF } from "@/lib/informePdf";
+import { generarInformePDF } from "@/lib/nucleo/informePdf";
 
 type Intento = {
   id: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { calcularDesbloqueo } from "@/lib/turnos";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
+import { calcularDesbloqueo } from "@/lib/nucleo/turnos";
 import { ModoJuego } from "@prisma/client";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {

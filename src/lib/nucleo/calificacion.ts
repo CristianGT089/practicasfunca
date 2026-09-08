@@ -1,5 +1,5 @@
 import { PasoEsperado, Accion } from "@prisma/client";
-import { coincideParametrosConMotivos } from "./modulos/checklist";
+import { coincideParametrosConMotivos } from "./checklist";
 
 /**
  * Compara los parámetros esperados de un paso contra el payload real de una

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
-import { generarPassword } from "@/lib/passwords";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireAdmin } from "@/lib/nucleo/auth";
+import { generarPassword } from "@/lib/nucleo/passwords";
 
 export async function GET() {
   const admin = await requireAdmin();

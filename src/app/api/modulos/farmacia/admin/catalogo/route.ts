@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireAdmin } from "@/lib/nucleo/auth";
 import { normalizarClaveUnica } from "@/lib/modulos/farmacia/catalogoReal";
 
 export async function GET() {

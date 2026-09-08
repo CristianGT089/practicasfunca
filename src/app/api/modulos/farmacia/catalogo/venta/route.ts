@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 
 // Completa una venta de práctica sobre el catálogo real: descuenta stock y deja un
 // MovimientoInventario (SALIDA) como registro, igual que haría el software real. No hay

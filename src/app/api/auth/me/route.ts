@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
+import { prisma } from "@/lib/nucleo/prisma";
 
 export async function GET() {
   const usuario = await requireUser();

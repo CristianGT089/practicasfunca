@@ -1,8 +1,8 @@
 import { Accion, PasoEsperado, RegistroCrecimiento } from "@prisma/client";
-import { estaFueraDeChecklist as estaFueraDeChecklistGenerico } from "../checklist";
+import { estaFueraDeChecklist as estaFueraDeChecklistGenerico } from "../../nucleo/checklist";
 import { esPrematuro } from "./edad";
 
-export { coincideParametrosConMotivos, contarPasosCumplidos } from "../checklist";
+export { coincideParametrosConMotivos, contarPasosCumplidos } from "../../nucleo/checklist";
 
 /** Verbos de "consultar/verificar" que en modo difícil nunca cuestan un corazón. */
 export const ACCIONES_SIEMPRE_PERMITIDAS: string[] = [

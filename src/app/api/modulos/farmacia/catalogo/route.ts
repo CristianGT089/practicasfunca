@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 
 // Catálogo real de medicamentos (origen = CATALOGO_REAL), de solo consulta para el
 // estudiante — no está ligado a ningún Intento ni checklist, a diferencia de los

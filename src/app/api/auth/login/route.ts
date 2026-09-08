@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { createSession } from "@/lib/nucleo/auth";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);

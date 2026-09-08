@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { generarInformePDF } from "@/lib/informePdf";
+import { generarInformePDF } from "@/lib/nucleo/informePdf";
 
 type EscenarioResumen = {
   id: string;

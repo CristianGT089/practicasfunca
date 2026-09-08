@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { contarPasosCumplidos } from "@/lib/modulos/checklist";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
+import { contarPasosCumplidos } from "@/lib/nucleo/checklist";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();

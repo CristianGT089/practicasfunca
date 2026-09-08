@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/nucleo/prisma";
+import { requireUser } from "@/lib/nucleo/auth";
 import { estaFueraDeChecklist, contarPasosCumplidos } from "@/lib/modulos/farmacia/reglas";
-import { perderCorazon } from "@/lib/vidas";
-import type { RetratoId } from "@/components/CedulaCard";
+import { perderCorazon } from "@/lib/nucleo/vidas";
+import type { RetratoId } from "@/components/modulos/farmacia/CedulaCard";
 
 // Elige un boceto de foto determinístico (mismo paciente → siempre el mismo retrato)
 // sin necesitar un campo de género en el modelo de datos.

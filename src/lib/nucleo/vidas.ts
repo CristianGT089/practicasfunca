@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/nucleo/prisma";
 
 /**
  * Descuenta un corazón del Intento y, si pertenece a un Turno, del pool compartido

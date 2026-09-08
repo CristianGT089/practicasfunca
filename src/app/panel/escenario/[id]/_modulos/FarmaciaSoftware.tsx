@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import CedulaCard, { DatosCedula } from "@/components/CedulaCard";
-import RecetaFisicaCard, { DatosRecetaFisica } from "@/components/RecetaFisicaCard";
+import CedulaCard, { DatosCedula } from "@/components/modulos/farmacia/CedulaCard";
+import RecetaFisicaCard, { DatosRecetaFisica } from "@/components/modulos/farmacia/RecetaFisicaCard";
 
 type EstadoRecetaOnline = "VIGENTE" | "VENCIDA" | "AGOTADA";
 type ResultadoRecetaOnline = {
