@@ -45,6 +45,18 @@ export const MODULOS: Record<string, DefinicionModulo> = {
     resultados: RESULTADOS_INFANCIA,
     seccionesAdmin: [],
   },
+  // Módulo-herramienta (tipo SIMULADOR): no usa el motor de escenarios, por eso no aporta
+  // vocabulario de acciones; sí tiene datos maestros propios que administrar.
+  dispensacion: {
+    slug: "dispensacion",
+    nombre: "Dispensación",
+    tiposAccion: [],
+    resultados: {},
+    seccionesAdmin: [
+      { href: "/admin/modulos/dispensacion/casos", label: "Casos" },
+      { href: "/admin/modulos/dispensacion/autorizaciones", label: "Autorizaciones" },
+    ],
+  },
 };
 
 export function obtenerDefinicionModulo(slug: string): DefinicionModulo | undefined {
