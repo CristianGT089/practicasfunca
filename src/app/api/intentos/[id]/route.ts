@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/nucleo/prisma";
 import { requireUser } from "@/lib/nucleo/auth";
 import { contarPasosCumplidos } from "@/lib/nucleo/checklist";
+import { escenarioBaseSeguro, intentoConEscenarioInclude } from "@/lib/modulos/contrato";
+import { obtenerModuloSimulacion } from "@/lib/modulos/registroSimulacion";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUser();
@@ -10,17 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const intento = await prisma.intento.findUnique({
     where: { id },
-    include: {
-      escenario: {
-        include: {
-          modulo: true,
-          farmacia: true,
-          enfermeria: { include: { paciente: true } },
-          infancia: { include: { nino: { include: { registrosCrecimiento: { orderBy: { fecha: "asc" } } } } } },
-        },
-      },
-      acciones: { orderBy: { creadoEn: "asc" } },
-    },
+    include: intentoConEscenarioInclude,
   });
 
   if (!intento || intento.usuarioId !== usuario.id) {
@@ -44,47 +36,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  // Los pasos esperados nunca se exponen al cliente (revelarían el checklist);
-  // solo se usan aquí para calcular el conteo de progreso.
-  const pasos = await prisma.pasoEsperado.findMany({ where: { escenarioId: intento.escenarioId } });
-  const progreso = contarPasosCumplidos(pasos, intento.acciones);
+  // `pasos` (el checklist) se usa solo aquí para el conteo de progreso; nunca sale al cliente.
+  const progreso = contarPasosCumplidos(intento.escenario.pasos, intento.acciones);
   const erroresTotales = intento.acciones.filter((a) => a.esError).length;
   const precision =
     intento.acciones.length > 0
       ? Math.round(((intento.acciones.length - erroresTotales) / intento.acciones.length) * 100)
       : 100;
 
-  const { descripcionDificil, farmacia, enfermeria, infancia, ...escenarioBase } = intento.escenario;
-  const descripcion = intento.modo === "DIFICIL" && descripcionDificil ? descripcionDificil : escenarioBase.descripcion;
-
-  // No se envía el pacienteId ni la actitud ante la cédula: eso solo se revela cuando el
-  // estudiante la solicita y busca al paciente en el sistema, para que la ficha no llegue
-  // "gratis" con la carga inicial de la página.
-  const escenarioSeguro =
-    escenarioBase.modulo.slug === "farmacia"
-      ? (() => {
-          const { id: _fid, escenarioId: _feid, pacienteId: _pid, ...recetaFisica } = farmacia ?? ({} as NonNullable<typeof farmacia>);
-          void _fid;
-          void _feid;
-          void _pid;
-          return {
-            ...escenarioBase,
-            ...recetaFisica,
-            descripcion,
-            mostrarIdentidad: farmacia?.pacienteId !== null || farmacia?.actitudCedula !== null,
-          };
-        })()
-      : {
-          ...escenarioBase,
-          descripcion,
-          enfermeria: enfermeria ? { paciente: enfermeria.paciente, contexto: enfermeria.contexto } : null,
-          infancia: infancia
-            ? { nino: infancia.nino, contexto: infancia.contexto, hitosEsperados: infancia.hitosEsperados }
-            : null,
-        };
-
-  const medicamentos =
-    escenarioBase.modulo.slug === "farmacia" ? await prisma.medicamento.findMany({ orderBy: { nombre: "asc" } }) : [];
+  // Cada módulo decide qué exponer del escenario y qué datos extra necesita su "software".
+  const modulo = obtenerModuloSimulacion(intento.escenario.modulo.slug);
+  const escenarioSeguro = modulo
+    ? modulo.proyectarEscenario(intento.escenario, intento.modo)
+    : escenarioBaseSeguro(intento.escenario, intento.modo);
+  const datosModulo = modulo?.cargarDatosIniciales ? await modulo.cargarDatosIniciales(prisma) : {};
 
   return NextResponse.json({
     intento: {
@@ -92,7 +57,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       escenario: escenarioSeguro,
       intentoTurno: intentoTurnoInfo,
     },
-    medicamentos,
+    ...datosModulo,
     progreso,
     precision,
   });
