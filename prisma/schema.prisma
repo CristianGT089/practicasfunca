@@ -475,3 +475,101 @@ model Accion {
 
   @@map("acciones")
 }
+
+// ==================== Turnero ====================
+// Herramienta de administración (NO es un Modulo): sistema de turnos de atención tipo
+// droguería/EPS, para practicar en sala de cómputo bajo la cuenta admin. Sin escenarios,
+// checklist, vidas ni calificación. Ver docs/turnero.md.
+//
+// El modelo `Turno` de arriba (prueba final: escenarios encadenados) NO tiene relación
+// con esto: distinto dominio, distinto vocabulario.
+
+enum ReglaPrioridad {
+  ESTRICTA // prioritarios primero, luego FIFO
+  INTERCALADA // máx. 2 normales seguidos antes de meter un prioritario
+}
+
+enum EstadoSesionTurnero {
+  ABIERTA
+  CERRADA
+}
+
+enum EstadoEspacio {
+  LIBRE
+  LLAMANDO // llamó un turno, aún no confirma que llegó
+  ATENDIENDO
+  PAUSA
+}
+
+enum EstadoTicket {
+  EN_ESPERA
+  LLAMADO
+  ATENDIDO
+  NO_SE_PRESENTO
+}
+
+// Plantilla configurable de turnero (nº de espacios, servicios, categorías de prioridad).
+model Turnero {
+  id             String         @id @default(cuid())
+  nombre         String
+  numeroEspacios Int            @default(3)
+  servicios      Json // [{ codigo, nombre, prefijo }]
+  categorias     Json // [{ codigo, nombre }]; editable por plantilla
+  reglaPrioridad ReglaPrioridad @default(ESTRICTA)
+  activo         Boolean        @default(true)
+  creadoEn       DateTime       @default(now())
+
+  sesiones SesionTurnero[]
+
+  @@map("turneros")
+}
+
+// Una corrida del turnero. Cerrarla archiva la cola; una nueva sesión arranca limpia.
+model SesionTurnero {
+  id             String              @id @default(cuid())
+  turneroId      String
+  turnero        Turnero             @relation(fields: [turneroId], references: [id])
+  numeroEspacios Int // copia editable en vivo
+  estado         EstadoSesionTurnero @default(ABIERTA)
+  iniciadaEn     DateTime            @default(now())
+  cerradaEn      DateTime?
+
+  espacios Espacio[]
+  tickets  Ticket[]
+
+  @@map("sesiones_turnero")
+}
+
+model Espacio {
+  id             String        @id @default(cuid())
+  sesionId       String
+  sesion         SesionTurnero @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  numero         Int
+  nombre         String?
+  estado         EstadoEspacio @default(LIBRE)
+  ticketActualId String?       @unique
+  ticketActual   Ticket?       @relation("TicketEnEspacio", fields: [ticketActualId], references: [id])
+
+  @@unique([sesionId, numero])
+  @@map("espacios_turnero")
+}
+
+model Ticket {
+  id             String        @id @default(cuid())
+  sesionId       String
+  sesion         SesionTurnero @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  codigo         String // ej: "A-047"
+  servicioCodigo String
+  prioritario    Boolean       @default(false)
+  categoria      String? // código de la categoría de prioridad, si aplica
+  estado         EstadoTicket  @default(EN_ESPERA)
+  espacioNumero  Int? // espacio que lo llamó
+  emitidoEn      DateTime      @default(now())
+  llamadoEn      DateTime?
+  cerradoEn      DateTime?
+
+  espacio Espacio? @relation("TicketEnEspacio")
+
+  @@index([sesionId, estado])
+  @@map("tickets_turnero")
+}
