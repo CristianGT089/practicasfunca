@@ -335,7 +335,8 @@ function RenglonCard({ renglon, onCambio }: { renglon: EstadoRenglon; onCambio: 
         <p className="mt-2 text-xs text-slate-400">Sin autorización en el sistema.</p>
       )}
 
-      {renglon.avisos.length > 0 && (
+      {/* Los avisos son la guía ANTES de actuar; tras una entrega correcta ya no aplican. */}
+      {renglon.avisos.length > 0 && gestionado?.resultado !== "ENTREGADO" && (
         <div className="mt-2 flex flex-col gap-1">
           {renglon.avisos.map((a, i) => (
             <p key={i} className={`rounded px-2 py-1 text-xs ${colorAviso(a.nivel)}`}>
