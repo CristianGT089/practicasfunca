@@ -37,3 +37,15 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
+
+/* Entrada del overlay que anuncia el turno llamado en el tablero del turnero.
+   Solo anima la escala (no la opacidad): si el navegador congela la animación por
+   tener la pestaña en segundo plano, el overlay igual se ve completo. */
+@keyframes turnero-anuncio {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}

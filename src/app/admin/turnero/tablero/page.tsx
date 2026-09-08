@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
+import type { TicketVista } from "@/lib/turnero/snapshot";
+
+const SEGUNDOS_ANUNCIO = 5;
 
 export default function TurneroTableroPage() {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
@@ -22,6 +25,31 @@ export default function TurneroTableroPage() {
     if (finalizada) buscarSesion();
   }, [finalizada, buscarSesion]);
 
+  // --- Anuncio de la última llamada: overlay de 5 s cuando se llama a un turno ---
+  const [anuncio, setAnuncio] = useState<{ ticket: TicketVista; clave: string } | null>(null);
+  const claveVistaRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const ultimo = snapshot?.llamados?.[0];
+    const clave = ultimo && ultimo.llamadoEn ? `${ultimo.id}|${ultimo.llamadoEn}` : null;
+    if (!clave) return;
+    // Primera carga: no re-anunciar turnos que ya se habían llamado antes de abrir la pantalla.
+    if (claveVistaRef.current === null) {
+      claveVistaRef.current = clave;
+      return;
+    }
+    if (clave !== claveVistaRef.current) {
+      claveVistaRef.current = clave;
+      setAnuncio({ ticket: ultimo!, clave });
+    }
+  }, [snapshot]);
+
+  useEffect(() => {
+    if (!anuncio) return;
+    const t = setTimeout(() => setAnuncio(null), SEGUNDOS_ANUNCIO * 1000);
+    return () => clearTimeout(t);
+  }, [anuncio]);
+
   if (!sesionId || !snapshot) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center text-slate-400 text-xl">
@@ -32,9 +60,19 @@ export default function TurneroTableroPage() {
 
   const { espacios, enEspera, llamados } = snapshot;
   const ultimoLlamado = llamados[0] ?? null;
+  const nombreEspacio = (numero: number | null) =>
+    espacios.find((e) => e.numero === numero)?.nombre ?? (numero ? `Espacio ${numero}` : "");
 
   return (
     <div className="mx-auto max-w-6xl py-4">
+      {anuncio && (
+        <AnuncioLlamado
+          ticket={anuncio.ticket}
+          espacio={nombreEspacio(anuncio.ticket.espacioNumero)}
+          onCerrar={() => setAnuncio(null)}
+        />
+      )}
+
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="font-heading text-3xl font-extrabold text-blue-900">{snapshot.sesion.turnero.nombre}</h1>
         <span className={`text-sm ${conectado ? "text-green-600" : "text-amber-600"}`}>
@@ -109,6 +147,44 @@ export default function TurneroTableroPage() {
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Overlay a pantalla completa que anuncia el turno recién llamado. Se muestra 5 s (lo
+ * controla el componente padre) y se puede cerrar antes tocando la pantalla.
+ */
+function AnuncioLlamado({
+  ticket,
+  espacio,
+  onCerrar,
+}: {
+  ticket: TicketVista;
+  espacio: string;
+  onCerrar: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-live="assertive"
+      aria-label={`Turno ${ticket.codigo}, ${espacio}`}
+      onClick={onCerrar}
+      className="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-blue-900 px-6 text-center text-white"
+    >
+      {/* Solo el contenido hace el "pop"; el fondo azul cubre siempre toda la pantalla. */}
+      <div className="flex flex-col items-center gap-8 animate-[turnero-anuncio_300ms_ease-out]">
+        <p className="font-heading text-2xl font-semibold uppercase tracking-[0.3em] text-blue-200 sm:text-4xl">
+          Turno
+        </p>
+        <p className="font-heading text-[24vw] font-extrabold leading-none sm:text-[15rem]">{ticket.codigo}</p>
+        {ticket.prioritario && (
+          <p className="rounded-full bg-gold-500 px-6 py-2 text-xl font-bold text-blue-950 sm:text-3xl">
+            {ticket.categoriaNombre ?? "Atención prioritaria"}
+          </p>
+        )}
+        <p className="font-heading text-4xl font-bold text-gold-300 sm:text-6xl">{espacio}</p>
       </div>
     </div>
   );
