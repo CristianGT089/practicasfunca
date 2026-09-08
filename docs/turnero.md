@@ -37,6 +37,7 @@ src/app/admin/turnero/
   tablero/          TABLERO  — proyector/TV, solo lectura: LLAMANDO … cola … últimos llamados
   plantillas/       CRUD de configuraciones de turnero
 src/app/api/turnero/
+  sesion-activa/route.ts            { sesionId } de la sesión abierta más reciente
   sesiones/route.ts                 abrir sesión
   sesiones/[id]/route.ts            snapshot inicial · ajustar espacios · cerrar
   sesiones/[id]/stream/route.ts     SSE (tiempo real)
@@ -44,7 +45,12 @@ src/app/api/turnero/
   sesiones/[id]/llamar/route.ts     llamar siguiente en un espacio  { espacio }
   tickets/[id]/route.ts             atendido · no-show · rellamar
   plantillas/…                      CRUD
-src/components/turnero/             TableroLlamado, ColaEspera, BotonServicio, …
+src/components/turnero/
+  useSnapshotTurnero.ts             hook: se suscribe al SSE y expone el snapshot
+
+Registro y Tablero se renderizan **sin la barra de admin** (kiosco / proyector); la lista
+`RUTAS_SIN_CHROME` en `src/app/admin/layout.tsx` las exceptúa. Ambas resuelven la sesión
+activa solas vía `/api/turnero/sesion-activa` (en la sala hay una a la vez).
 ```
 
 En el nav de admin: separador **"Herramientas"** → **Turnero** (lleva a Control;
