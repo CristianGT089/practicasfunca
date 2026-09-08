@@ -32,7 +32,7 @@ src/
     ├── admin/
     │   ├── estudiantes · matriculas · modulos · escenarios · calificaciones   (núcleo)
     │   └── modulos/<slug>/          Datos maestros de cada módulo
-    │                                (el nav se arma desde registro.ts → seccionesAdminModulos)
+    │                                (el nav se arma desde registro.ts → gruposAdminModulos)
     ├── panel/
     │   └── escenario/[id]/
     │       ├── page.tsx             Shell: elige el software según el módulo del escenario

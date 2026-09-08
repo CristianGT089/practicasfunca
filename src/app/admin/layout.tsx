@@ -4,18 +4,29 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { seccionesAdminModulos } from "@/lib/modulos/registro";
+import { gruposAdminModulos } from "@/lib/modulos/registro";
 
-// Pestañas del núcleo (no dependen de ningún módulo) + las que cada módulo aporta +
-// herramientas de admin que no son un módulo (turnero).
-const TABS = [
+// Pestañas del núcleo (no dependen de ningún módulo).
+const TABS_NUCLEO = [
   { href: "/admin/calificaciones", label: "Calificaciones" },
   { href: "/admin/estudiantes", label: "Estudiantes" },
   { href: "/admin/matriculas", label: "Matrículas" },
   { href: "/admin/modulos", label: "Módulos" },
   { href: "/admin/escenarios", label: "Escenarios" },
-  ...seccionesAdminModulos(),
-  { href: "/admin/turnero", label: "Turnero", grupo: "Herramientas" as const },
+];
+
+// Herramientas de admin que no son un módulo.
+const TABS_HERRAMIENTAS = [{ href: "/admin/turnero", label: "Turnero" }];
+
+// Las secciones específicas de módulo van en un menú desplegable por módulo, no como
+// pestaña por sección (desbordaba la barra).
+const GRUPOS_MODULO = gruposAdminModulos();
+
+// Todos los href, para calcular la pestaña activa por prefijo más largo.
+const TODOS_HREF = [
+  ...TABS_NUCLEO.map((t) => t.href),
+  ...TABS_HERRAMIENTAS.map((t) => t.href),
+  ...GRUPOS_MODULO.flatMap((g) => g.secciones.map((s) => s.href)),
 ];
 
 // Rutas del turnero pensadas para pantalla completa (kiosco / proyector): sin la barra de admin.
@@ -51,9 +62,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Pestaña activa = la de prefijo más largo que coincide (evita que "/admin/modulos"
   // se marque a la vez que "/admin/modulos/farmacia/medicamentos").
-  const hrefActivo = TABS.map((t) => t.href)
-    .filter((h) => pathname === h || pathname.startsWith(h + "/"))
-    .sort((a, b) => b.length - a.length)[0];
+  const hrefActivo = TODOS_HREF.filter((h) => pathname === h || pathname.startsWith(h + "/")).sort(
+    (a, b) => b.length - a.length
+  )[0];
+  const enlaceActivo = (href: string) => href === hrefActivo;
+
+  const claseTab = (activo: boolean) =>
+    `px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+      activo ? "border-gold-600 text-blue-900" : "border-transparent text-slate-500 hover:text-blue-800"
+    }`;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -70,27 +87,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </header>
       <div className="bg-white border-b border-slate-200 px-6">
         <div className="mx-auto max-w-5xl">
-          <nav className="flex items-center gap-1">
-            {TABS.map((tab, i) => {
-              const activo = tab.href === hrefActivo;
-              const grupo = "grupo" in tab ? tab.grupo : undefined;
-              const abreGrupo = grupo && (i === 0 || !("grupo" in TABS[i - 1]));
+          <nav className="flex flex-wrap items-stretch gap-x-1">
+            {TABS_NUCLEO.map((tab) => (
+              <Link key={tab.href} href={tab.href} className={claseTab(enlaceActivo(tab.href))}>
+                {tab.label}
+              </Link>
+            ))}
+
+            {GRUPOS_MODULO.map((grupo) => {
+              const activo = grupo.secciones.some(
+                (s) => pathname === s.href || pathname.startsWith(s.href + "/")
+              );
               return (
-                <span key={tab.href} className="flex items-center">
-                  {abreGrupo && <span className="mx-2 h-4 w-px bg-slate-200" aria-hidden />}
-                  <Link
-                    href={tab.href}
-                    className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                      activo
-                        ? "border-gold-600 text-blue-900"
-                        : "border-transparent text-slate-500 hover:text-blue-800"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
-                </span>
+                <div key={grupo.slug} className="relative flex items-stretch group">
+                  <button type="button" className={`${claseTab(activo)} inline-flex items-center gap-1`}>
+                    {grupo.nombre}
+                    <span aria-hidden className="text-[10px]">▾</span>
+                  </button>
+                  <div className="absolute left-0 top-full z-20 hidden min-w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg group-hover:block group-focus-within:block">
+                    {grupo.secciones.map((s) => (
+                      <Link
+                        key={s.href}
+                        href={s.href}
+                        className={`block px-4 py-2 text-sm ${
+                          enlaceActivo(s.href)
+                            ? "font-medium text-blue-900"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-blue-800"
+                        }`}
+                      >
+                        {s.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               );
             })}
+
+            {TABS_HERRAMIENTAS.length > 0 && <span className="mx-2 my-2 w-px self-center bg-slate-200" aria-hidden />}
+            {TABS_HERRAMIENTAS.map((tab) => (
+              <Link key={tab.href} href={tab.href} className={claseTab(enlaceActivo(tab.href))}>
+                {tab.label}
+              </Link>
+            ))}
           </nav>
         </div>
       </div>

@@ -51,9 +51,15 @@ export function obtenerDefinicionModulo(slug: string): DefinicionModulo | undefi
   return MODULOS[slug];
 }
 
-/** Todas las secciones de admin específicas de módulo, con el nombre del módulo como prefijo. */
-export function seccionesAdminModulos(): SeccionAdmin[] {
-  return Object.values(MODULOS).flatMap((m) =>
-    m.seccionesAdmin.map((s) => ({ href: s.href, label: `${s.label} (${m.nombre})` }))
-  );
+export type GrupoAdminModulo = { slug: string; nombre: string; secciones: SeccionAdmin[] };
+
+/**
+ * Secciones de admin agrupadas por módulo, solo para los módulos que aportan alguna.
+ * El nav de admin las muestra como un menú desplegable por módulo (en vez de una pestaña
+ * por sección, que desbordaba la barra).
+ */
+export function gruposAdminModulos(): GrupoAdminModulo[] {
+  return Object.values(MODULOS)
+    .filter((m) => m.seccionesAdmin.length > 0)
+    .map((m) => ({ slug: m.slug, nombre: m.nombre, secciones: m.seccionesAdmin }));
 }
