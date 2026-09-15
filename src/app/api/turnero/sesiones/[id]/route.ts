@@ -31,10 +31,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     if ("cerrar" in parsed.data) {
-      await cerrarSesion(id);
-    } else {
-      await ajustarEspacios(id, parsed.data.numeroEspacios);
+      const { puestosEliminados } = await cerrarSesion(id);
+      return NextResponse.json({ ...(await construirSnapshot(id)), puestosEliminados });
     }
+    await ajustarEspacios(id, parsed.data.numeroEspacios);
     return NextResponse.json(await construirSnapshot(id));
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

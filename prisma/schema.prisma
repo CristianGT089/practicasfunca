@@ -64,6 +64,11 @@ model Usuario {
   // Solo para cuentas temporales: a qué pantalla entra derecho al iniciar sesión, sin pasar
   // por /panel (ej. "/panel/dispensacion"). Null = panel normal (estudiantes permanentes).
   rutaDirecta  String?
+  // Si el puesto se creó desde el Control de un turnero, queda enlazado a esa sesión: al
+  // cerrarla, la cuenta se borra con ella (ver operaciones.ts#cerrarSesion). Null = puesto
+  // creado desde Estudiantes, sin turnero de por medio.
+  sesionTurneroId String?
+  sesionTurnero   SesionTurnero? @relation(fields: [sesionTurneroId], references: [id], onDelete: SetNull)
   creadoEn     DateTime @default(now())
 
   intentos            Intento[]
@@ -555,6 +560,8 @@ model SesionTurnero {
 
   espacios Espacio[]
   tickets  Ticket[]
+  // Cuentas temporales creadas desde Control para esta sesión (ver Usuario.sesionTurneroId).
+  puestos  Usuario[]
 
   @@map("sesiones_turnero")
 }

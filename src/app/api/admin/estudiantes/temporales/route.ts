@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/nucleo/prisma";
 import { requireAdmin } from "@/lib/nucleo/auth";
-import { generarPassword } from "@/lib/nucleo/passwords";
 import { esRutaDirectaValida } from "@/lib/nucleo/rutasDirectas";
+import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
+import { emitirCambio } from "@/lib/turnero/eventos";
 
 /**
  * Cuentas rápidas para una sala de cómputo: cada una es un "puesto" (ej. una de las
@@ -14,6 +14,10 @@ import { esRutaDirectaValida } from "@/lib/nucleo/rutasDirectas";
  *
  * Si se manda `rutaDirecta`, esas cuentas entran derecho a esa pantalla al iniciar sesión
  * (sin ver /panel) — es lo que usa, por ejemplo, un puesto de dispensación en la sala.
+ *
+ * Este mismo endpoint también lo usa Control del turnero (con `sesionTurneroId`): esos
+ * puestos quedan enlazados a la sesión y se borran solos cuando el turnero se cierra
+ * (ver lib/turnero/operaciones.ts#cerrarSesion) — no hace falta el DELETE manual para ellos.
  */
 
 const schema = z.object({
@@ -25,15 +29,8 @@ const schema = z.object({
     .nullable()
     .default(null)
     .refine((v) => v === null || esRutaDirectaValida(v), "Pantalla directa inválida"),
+  sesionTurneroId: z.string().min(1).nullable().default(null),
 });
-
-function slug(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-}
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -43,45 +40,23 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos", detalle: parsed.error.issues }, { status: 400 });
   }
-  const { cantidad, prefijo, moduloIds, rutaDirecta } = parsed.data;
 
-  const modulos = await prisma.modulo.findMany({ where: { id: { in: moduloIds } } });
-  if (modulos.length === 0) {
-    return NextResponse.json({ error: "Selecciona al menos un módulo" }, { status: 400 });
-  }
-
-  const base = slug(prefijo) || "puesto";
-  const creados: { nombre: string; usuario: string; password: string }[] = [];
-
-  for (let i = 1; i <= cantidad; i++) {
-    let intento = i;
-    let usuario = `${base}${intento}`;
-    // Evita chocar con cuentas ya existentes (de una sesión anterior no limpiada, etc.).
-    while (await prisma.usuario.findUnique({ where: { usuario } })) {
-      intento++;
-      usuario = `${base}${intento}`;
+  if (parsed.data.sesionTurneroId) {
+    const sesion = await prisma.sesionTurnero.findUnique({ where: { id: parsed.data.sesionTurneroId } });
+    if (!sesion || sesion.estado !== "ABIERTA") {
+      return NextResponse.json({ error: "Esa sesión de turnero no está abierta" }, { status: 400 });
     }
-
-    const passwordTemporal = generarPassword();
-    const passwordHash = await bcrypt.hash(passwordTemporal, 10);
-    const nombre = `${prefijo} ${intento}`;
-
-    const creado = await prisma.usuario.create({
-      data: {
-        nombre,
-        usuario,
-        passwordHash,
-        rol: "ESTUDIANTE",
-        temporal: true,
-        rutaDirecta,
-        matriculas: { create: modulos.map((m) => ({ moduloId: m.id })) },
-      },
-    });
-
-    creados.push({ nombre: creado.nombre, usuario: creado.usuario, password: passwordTemporal });
   }
 
-  return NextResponse.json({ creados }, { status: 201 });
+  try {
+    const creados = await crearPuestosTemporales(parsed.data);
+    // Control tiene el snapshot de la sesión abierto por SSE: sin esto, los puestos nuevos
+    // no aparecerían ahí hasta el respaldo de 10s.
+    if (parsed.data.sesionTurneroId) emitirCambio(parsed.data.sesionTurneroId);
+    return NextResponse.json({ creados }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  }
 }
 
 /** Borra TODAS las cuentas temporales (y lo que hayan generado) para dejar la sala limpia. */
@@ -90,16 +65,7 @@ export async function DELETE() {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const temporales = await prisma.usuario.findMany({ where: { temporal: true }, select: { id: true } });
-  const ids = temporales.map((u) => u.id);
-  if (ids.length === 0) return NextResponse.json({ eliminados: 0 });
+  const eliminados = await eliminarUsuarios(temporales.map((u) => u.id));
 
-  // Relaciones sin onDelete: Cascade hacia Usuario: hay que vaciarlas a mano antes de borrar.
-  await prisma.sesionDispensacion.deleteMany({ where: { usuarioId: { in: ids } } }); // arrastra sus EntregaDispensacion (Cascade)
-  await prisma.accion.deleteMany({ where: { intento: { usuarioId: { in: ids } } } });
-  await prisma.intento.deleteMany({ where: { usuarioId: { in: ids } } });
-  await prisma.intentoTurno.deleteMany({ where: { usuarioId: { in: ids } } });
-  // Matricula sí tiene onDelete: Cascade, se va sola con el usuario.
-  const { count } = await prisma.usuario.deleteMany({ where: { id: { in: ids } } });
-
-  return NextResponse.json({ eliminados: count });
+  return NextResponse.json({ eliminados });
 }

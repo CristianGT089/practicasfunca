@@ -26,6 +26,8 @@ export type EspacioVista = {
   ticket: TicketVista | null;
 };
 
+export type PuestoVista = { id: string; nombre: string; usuario: string };
+
 export type SnapshotTurnero = {
   sesion: {
     id: string;
@@ -43,6 +45,8 @@ export type SnapshotTurnero = {
   enEspera: TicketVista[];
   llamados: TicketVista[];
   contadores: { enEspera: number; atendidos: number; noShow: number };
+  // Cuentas temporales creadas desde Control para esta sesión (se borran al cerrarla).
+  puestos: PuestoVista[];
   actualizadoEn: string;
 };
 
@@ -53,6 +57,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
       turnero: true,
       espacios: { orderBy: { numero: "asc" }, include: { ticketActual: true } },
       tickets: { orderBy: { emitidoEn: "asc" } },
+      puestos: { orderBy: { creadoEn: "asc" }, select: { id: true, nombre: true, usuario: true } },
     },
   });
   if (!sesion) return null;
@@ -123,6 +128,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
       atendidos: sesion.tickets.filter((t) => t.estado === "ATENDIDO").length,
       noShow: sesion.tickets.filter((t) => t.estado === "NO_SE_PRESENTO").length,
     },
+    puestos: sesion.puestos,
     actualizadoEn: new Date().toISOString(),
   };
 }

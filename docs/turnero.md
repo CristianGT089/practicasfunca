@@ -155,9 +155,11 @@ mover un espacio: un puesto que atiende gente en otra pantalla (el computador de
 siguiente sin que nadie lo haga desde Control.
 
 - Componente `src/components/turnero/PanelMiEspacio.tsx`: se monta en cualquier pantalla
-  (hoy en `/panel/dispensacion`). La primera vez pregunta "¿cuál espacio es este
-  computador?" y lo guarda en `localStorage` — es una propiedad del puesto físico, no de
-  la sesión de quien esté logueado. Si ningún turnero está abierto ese día, no se muestra.
+  (hoy en `/panel/dispensacion` y `/panel/catalogo`). La primera vez pregunta "¿cuál
+  espacio es este computador?" y lo guarda en `localStorage` — es una propiedad del puesto
+  físico, no de la sesión de quien esté logueado. Si ningún turnero está abierto ese día,
+  igual muestra un aviso ("no hay ninguno abierto") — nunca desaparece del todo, para que
+  no se confunda con que la función no existe.
 - `POST /api/turnero/sesiones/[id]/mi-espacio` (`{ espacio, resultado }`): cierra el ticket
   que ese espacio estaba atendiendo (si `resultado` es `ATENDIDO` o `NO_SE_PRESENTO`) y
   llama al siguiente, en una sola llamada. Implementado en `operarMiEspacio` (`operaciones.ts`),
@@ -169,6 +171,23 @@ siguiente sin que nadie lo haga desde Control.
   sesión, ajustar el número de espacios, emitir turnos (Registro) y las plantillas — un
   estudiante nunca puede tocar esas rutas, ni operar el espacio de otro puesto salvo que
   también sepa su número (no hay "dueño" de un espacio, es honor system dentro de la sala).
+
+## Puestos temporales de la sala, ligados a la sesión
+
+Control tiene su propia sección **"Puestos de este turnero"** (mismo componente que usa
+Estudiantes, `src/components/admin/PuestosTemporales.tsx`, con `sesionTurneroId` puesto):
+crea las cuentas de la sala de cómputo (ej. `Dispensación 1/2/3`) justo ahí, al abrir el
+turnero del día.
+
+Esas cuentas quedan enlazadas (`Usuario.sesionTurneroId`) a la `SesionTurnero`. **Cerrar el
+turnero las borra con él** — `cerrarSesion()` en `operaciones.ts` primero elimina esos
+`Usuario` (con `lib/nucleo/estudiantesTemporales.ts#eliminarUsuarios`, la misma limpieza en
+cascada que usa el DELETE manual de Estudiantes) y solo después marca la sesión `CERRADA`.
+Control avisa antes con un `confirm()` si hay puestos de por medio.
+
+Los puestos creados desde **Estudiantes** (sin pasar por Control) no llevan
+`sesionTurneroId` y no se ven afectados por esto — siguen necesitando el botón manual
+"Eliminar cuentas temporales".
 
 ## Tiempo real
 

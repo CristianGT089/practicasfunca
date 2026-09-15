@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
+import PuestosTemporales from "@/components/admin/PuestosTemporales";
 
 type Plantilla = {
   id: string;
@@ -111,8 +112,22 @@ function ControlSesion({ sesionId, onCerrada }: { sesionId: string; onCerrada: (
 
   if (!snapshot) return <p className="text-slate-500 text-sm">Conectando al turnero...</p>;
 
-  const { sesion, espacios, enEspera, contadores } = snapshot;
+  const { sesion, espacios, enEspera, contadores, puestos } = snapshot;
   const colaVacia = enEspera.length === 0;
+
+  async function cerrarTurnero() {
+    if (
+      puestos.length > 0 &&
+      !confirm(
+        `Esto también va a eliminar ${puestos.length} cuenta(s) temporal(es) creadas para este turnero (${puestos
+          .map((p) => p.nombre)
+          .join(", ")}). ¿Cerrar de todas formas?`
+      )
+    ) {
+      return;
+    }
+    await api(`/api/turnero/sesiones/${sesionId}`, { cerrar: true }, "PATCH");
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -129,13 +144,31 @@ function ControlSesion({ sesionId, onCerrada }: { sesionId: string; onCerrada: (
         <a href="/admin/turnero/tablero" target="_blank" className="text-blue-700 hover:underline">
           Abrir tablero ↗
         </a>
-        <button
-          onClick={() => api(`/api/turnero/sesiones/${sesionId}`, { cerrar: true }, "PATCH")}
-          className="ml-auto text-slate-500 hover:text-red-600"
-        >
+        <button onClick={cerrarTurnero} className="ml-auto text-slate-500 hover:text-red-600">
           Cerrar turnero
         </button>
       </div>
+
+      <PuestosTemporales
+        sesionTurneroId={sesionId}
+        titulo="Puestos de este turnero"
+        descripcion="Crea las cuentas de sala de cómputo para esta sesión — se borran solas al cerrar el turnero."
+        colapsable={false}
+        onCreados={() => {}}
+      />
+
+      {puestos.length > 0 && (
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+          <p className="text-xs font-semibold text-slate-500 mb-2">Cuentas de esta sesión ({puestos.length})</p>
+          <div className="flex flex-wrap gap-2">
+            {puestos.map((p) => (
+              <span key={p.id} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 font-mono">
+                {p.usuario}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5 flex items-center gap-6 text-sm">
         <span className="text-slate-500">

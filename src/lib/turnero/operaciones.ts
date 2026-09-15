@@ -4,6 +4,7 @@
  * entrada y llaman acá.
  */
 import { prisma } from "@/lib/nucleo/prisma";
+import { eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
 import { leerServicios } from "./config";
 import { emitirCambio } from "./eventos";
 import { siguienteTicket } from "./fila";
@@ -195,10 +196,20 @@ export async function ajustarEspacios(sesionId: string, numeroEspacios: number) 
   emitirCambio(sesionId);
 }
 
-export async function cerrarSesion(sesionId: string) {
+/**
+ * Cierra la sesión y borra con ella los puestos temporales que se crearon para esta sesión
+ * desde Control (si los hay) — el admin no tiene que acordarse de un paso de limpieza
+ * aparte. Los puestos creados desde Estudiantes (sin sesionTurneroId) no se tocan.
+ */
+export async function cerrarSesion(sesionId: string): Promise<{ puestosEliminados: number }> {
+  const puestos = await prisma.usuario.findMany({ where: { sesionTurneroId: sesionId }, select: { id: true } });
+  const puestosEliminados = await eliminarUsuarios(puestos.map((u) => u.id));
+
   await prisma.sesionTurnero.update({
     where: { id: sesionId },
     data: { estado: "CERRADA", cerradaEn: new Date() },
   });
   emitirCambio(sesionId);
+
+  return { puestosEliminados };
 }

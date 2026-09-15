@@ -85,6 +85,12 @@ temporales"** las borra todas de un clic (`DELETE /api/admin/estudiantes/tempora
 arrastrando sus sesiones/entregas/matrículas — no hace falta limpiarlas una por una ni
 dejarlas acumulándose de una clase a otra.
 
+Si la sala también tiene un turnero corriendo (el caso normal: 2-3 computadores de
+dispensación + una pantalla de turnero), es mejor crear estos mismos puestos desde
+**Control del turnero** en vez de aquí — quedan enlazados a esa sesión y se borran solos
+al cerrar el turnero, sin el paso manual. Ver "Puestos ligados a la sesión" en
+`docs/turnero.md`.
+
 ### Pantalla directa (`Usuario.rutaDirecta`)
 
 Un puesto de sala de cómputo no debe ver el panel general con el selector de módulos — su
