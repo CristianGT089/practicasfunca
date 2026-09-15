@@ -32,6 +32,12 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.ts ./next.config.ts
+# El build compilado (.next) alcanza para servir la app, pero los scripts de mantenimiento
+# (seed, importar-catalogo-real) se corren con tsx directo sobre el código fuente — necesitan
+# scripts/ y src/ (de donde importan) presentes en la imagen, no solo lo ya compilado.
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN npx prisma generate && chmod +x docker-entrypoint.sh && chown -R nextjs:nodejs /app
 
