@@ -147,6 +147,29 @@ espacio) o **Rellamar** (reemite el evento sin cambiar de estado).
 > espacio libre" (el turno espera y entra cuando uno se desocupa). No implementado en esta
 > versión.
 
+## Operar un espacio desde otra pantalla (ej. dispensación)
+
+El botón "Llamar siguiente" de Control sigue existiendo, pero **no es la única forma** de
+mover un espacio: un puesto que atiende gente en otra pantalla (el computador de
+[dispensación](./dispensacion.md), por ejemplo) puede terminar su propio turno y pedir el
+siguiente sin que nadie lo haga desde Control.
+
+- Componente `src/components/turnero/PanelMiEspacio.tsx`: se monta en cualquier pantalla
+  (hoy en `/panel/dispensacion`). La primera vez pregunta "¿cuál espacio es este
+  computador?" y lo guarda en `localStorage` — es una propiedad del puesto físico, no de
+  la sesión de quien esté logueado. Si ningún turnero está abierto ese día, no se muestra.
+- `POST /api/turnero/sesiones/[id]/mi-espacio` (`{ espacio, resultado }`): cierra el ticket
+  que ese espacio estaba atendiendo (si `resultado` es `ATENDIDO` o `NO_SE_PRESENTO`) y
+  llama al siguiente, en una sola llamada. Implementado en `operarMiEspacio` (`operaciones.ts`),
+  compone `cerrarTicket` + `llamarSiguiente`.
+- **Cualquier usuario logueado** puede llamar este endpoint (no solo admin) — es la persona
+  sentada en ese puesto la que decide cuándo terminó. Por eso las lecturas
+  (`sesion-activa`, `GET /sesiones/[id]`, el stream SSE) también se abrieron de
+  `requireAdmin` a `requireUser`. Lo que sigue siendo **solo admin**: abrir/cerrar la
+  sesión, ajustar el número de espacios, emitir turnos (Registro) y las plantillas — un
+  estudiante nunca puede tocar esas rutas, ni operar el espacio de otro puesto salvo que
+  también sepa su número (no hay "dueño" de un espacio, es honor system dentro de la sala).
+
 ## Tiempo real
 
 La cola vive en Postgres; **cada pantalla es solo una vista**. Si el Registro emite un

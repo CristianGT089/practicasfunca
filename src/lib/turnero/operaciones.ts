@@ -112,6 +112,33 @@ export async function llamarSiguiente(sesionId: string, espacioNumero: number) {
   return { ticket };
 }
 
+/**
+ * Acción combinada para un puesto que opera su propio espacio (ej. un computador de
+ * dispensación): cierra el turno que estaba atendiendo (si había uno) y de una vez llama
+ * al siguiente. Así el estudiante no depende de que alguien lo haga desde Control — un
+ * solo botón en su pantalla cuando termina con la persona.
+ */
+export async function operarMiEspacio(
+  sesionId: string,
+  espacioNumero: number,
+  resultadoActual: "ATENDIDO" | "NO_SE_PRESENTO" | null
+) {
+  const sesion = await prisma.sesionTurnero.findUnique({
+    where: { id: sesionId },
+    include: { espacios: true },
+  });
+  if (!sesion || sesion.estado !== "ABIERTA") throw new Error("La sesión no está abierta");
+
+  const espacio = sesion.espacios.find((e) => e.numero === espacioNumero);
+  if (!espacio) throw new Error("Espacio inválido");
+
+  if (espacio.ticketActualId && resultadoActual) {
+    await cerrarTicket(espacio.ticketActualId, resultadoActual);
+  }
+
+  return llamarSiguiente(sesionId, espacioNumero);
+}
+
 export async function cerrarTicket(ticketId: string, resultado: "ATENDIDO" | "NO_SE_PRESENTO") {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw new Error("Ticket no encontrado");

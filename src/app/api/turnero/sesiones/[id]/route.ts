@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireAdmin, requireUser } from "@/lib/nucleo/auth";
 import { construirSnapshot } from "@/lib/turnero/snapshot";
 import { ajustarEspacios, cerrarSesion } from "@/lib/turnero/operaciones";
 
+// Lectura: cualquier usuario logueado (el panel de dispensación del estudiante también
+// necesita el snapshot). Ajustar espacios / cerrar la sesión: solo admin (ver PATCH).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const usuario = await requireUser();
+  if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { id } = await params;
   const snapshot = await construirSnapshot(id);

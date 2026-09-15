@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { SnapshotPractica, ResultadoBusqueda, EstadoRenglon } from "@/lib/modulos/dispensacion/practica";
+import PanelMiEspacio from "@/components/turnero/PanelMiEspacio";
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
@@ -101,6 +102,8 @@ export default function DispensacionPage() {
 
       <div className="px-6 py-8">
         <div className="mx-auto max-w-3xl">
+          <PanelMiEspacio />
+
           {!snapshot && <p className="text-slate-500 text-sm">Cargando...</p>}
 
           {snapshot && (snapshot.terminado || !caso) && (

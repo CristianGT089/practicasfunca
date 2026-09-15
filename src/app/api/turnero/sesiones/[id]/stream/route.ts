@@ -6,15 +6,17 @@
  *  - cada 10 s como respaldo (keepalive + re-sync).
  */
 import type { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireUser } from "@/lib/nucleo/auth";
 import { suscribirse } from "@/lib/turnero/eventos";
 import { construirSnapshot } from "@/lib/turnero/snapshot";
 
 export const dynamic = "force-dynamic";
 
+// Cualquier usuario logueado puede suscribirse (lo usa también el panel de dispensación
+// del estudiante, no solo las pantallas de admin).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) return new Response("No autorizado", { status: 403 });
+  const usuario = await requireUser();
+  if (!usuario) return new Response("No autenticado", { status: 401 });
 
   const { id } = await params;
   const encoder = new TextEncoder();
