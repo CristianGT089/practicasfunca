@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import PanelMiEspacio from "@/components/turnero/PanelMiEspacio";
 
 type Medicamento = {
   id: string;
@@ -37,6 +38,26 @@ export default function CatalogoRealPage() {
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [vendiendo, setVendiendo] = useState(false);
+
+  // Un puesto temporal (entró derecho aquí, sin panel) no tiene a dónde "volver": mejor
+  // cerrarle la sesión que mandarlo a un /panel que lo rebota de vuelta acá.
+  const [cuentaConRutaDirecta, setCuentaConRutaDirecta] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setCuentaConRutaDirecta(Boolean(data.usuario?.rutaDirecta)))
+      .catch(() => {});
+  }, []);
+
+  async function volverOSalir() {
+    if (cuentaConRutaDirecta) {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+    } else {
+      router.push("/panel");
+    }
+  }
 
   useEffect(() => {
     const controlador = new AbortController();
@@ -147,14 +168,16 @@ export default function CatalogoRealPage() {
             <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
             <span className="font-heading text-sm font-semibold text-white">Catálogo real de medicamentos</span>
           </div>
-          <button onClick={() => router.push("/panel")} className="text-sm text-blue-100 hover:text-white transition-colors">
-            Volver a casos prácticos
+          <button onClick={volverOSalir} className="text-sm text-blue-100 hover:text-white transition-colors">
+            {cuentaConRutaDirecta ? "Cerrar sesión" : "Volver a casos prácticos"}
           </button>
         </div>
       </header>
 
       <div className="px-6 py-10">
         <div className="mx-auto max-w-6xl">
+          <PanelMiEspacio />
+
           <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Expediente y venta de medicamentos</h1>
           <p className="text-sm text-slate-500 mb-6">
             Consulta el inventario real y practica el flujo de venta: agrega medicamentos al carrito y completa la

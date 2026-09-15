@@ -18,7 +18,7 @@ export async function GET() {
         ).map((m) => m.modulo);
 
   return NextResponse.json({
-    usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol },
+    usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol, rutaDirecta: usuario.rutaDirecta },
     modulos: modulos.map((m) => ({
       id: m.id,
       slug: m.slug,

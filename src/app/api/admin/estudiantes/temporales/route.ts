@@ -4,18 +4,27 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/nucleo/prisma";
 import { requireAdmin } from "@/lib/nucleo/auth";
 import { generarPassword } from "@/lib/nucleo/passwords";
+import { esRutaDirectaValida } from "@/lib/nucleo/rutasDirectas";
 
 /**
  * Cuentas rápidas para una sala de cómputo: cada una es un "puesto" (ej. una de las
  * computadoras de dispensación) que un estudiante distinto usa durante la sesión. Se
  * matriculan de una vez en los módulos indicados y quedan marcadas `temporal: true` para
  * poder limpiarlas en bloque al terminar (ver DELETE).
+ *
+ * Si se manda `rutaDirecta`, esas cuentas entran derecho a esa pantalla al iniciar sesión
+ * (sin ver /panel) — es lo que usa, por ejemplo, un puesto de dispensación en la sala.
  */
 
 const schema = z.object({
   cantidad: z.number().int().min(1).max(40),
   prefijo: z.string().trim().min(1).max(30).default("Puesto"),
   moduloIds: z.array(z.string().min(1)).min(1),
+  rutaDirecta: z
+    .string()
+    .nullable()
+    .default(null)
+    .refine((v) => v === null || esRutaDirectaValida(v), "Pantalla directa inválida"),
 });
 
 function slug(texto: string): string {
@@ -34,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos", detalle: parsed.error.issues }, { status: 400 });
   }
-  const { cantidad, prefijo, moduloIds } = parsed.data;
+  const { cantidad, prefijo, moduloIds, rutaDirecta } = parsed.data;
 
   const modulos = await prisma.modulo.findMany({ where: { id: { in: moduloIds } } });
   if (modulos.length === 0) {
@@ -64,6 +73,7 @@ export async function POST(req: NextRequest) {
         passwordHash,
         rol: "ESTUDIANTE",
         temporal: true,
+        rutaDirecta,
         matriculas: { create: modulos.map((m) => ({ moduloId: m.id })) },
       },
     });

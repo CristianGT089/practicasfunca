@@ -16,6 +16,25 @@ export default function DispensacionPage() {
   const [busqueda, setBusqueda] = useState<ResultadoBusqueda | null>(null);
   const [documento, setDocumento] = useState("");
   const [buscando, setBuscando] = useState(false);
+  // Un puesto temporal (entró derecho aquí, sin panel) no tiene a dónde "salir": mejor
+  // cerrarle la sesión que mandarlo a un /panel que lo rebota de vuelta acá.
+  const [cuentaConRutaDirecta, setCuentaConRutaDirecta] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setCuentaConRutaDirecta(Boolean(data.usuario?.rutaDirecta)))
+      .catch(() => {});
+  }, []);
+
+  async function salir() {
+    if (cuentaConRutaDirecta) {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+    } else {
+      router.push("/panel");
+    }
+  }
 
   const cargarSesion = useCallback(async () => {
     const res = await fetch("/api/modulos/dispensacion/sesion");
@@ -93,8 +112,8 @@ export default function DispensacionPage() {
                 Caso {Math.min(snapshot.progreso.indice + 1, snapshot.progreso.total)} de {snapshot.progreso.total}
               </span>
             )}
-            <button onClick={() => router.push("/panel")} className="text-blue-100 hover:text-white">
-              Salir
+            <button onClick={salir} className="text-blue-100 hover:text-white">
+              {cuentaConRutaDirecta ? "Cerrar sesión" : "Salir"}
             </button>
           </div>
         </div>

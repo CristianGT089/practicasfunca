@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { RUTAS_DIRECTAS } from "@/lib/nucleo/rutasDirectas";
 
 type Estudiante = {
   id: string;
@@ -8,8 +9,13 @@ type Estudiante = {
   usuario: string;
   activo: boolean;
   temporal: boolean;
+  rutaDirecta: string | null;
   creadoEn: string;
 };
+
+function etiquetaRuta(ruta: string): string {
+  return RUTAS_DIRECTAS.find((r) => r.valor === ruta)?.etiqueta ?? ruta;
+}
 
 type Modulo = { id: string; slug: string; nombre: string; activo: boolean };
 
@@ -151,6 +157,11 @@ export default function EstudiantesPage() {
                       temporal
                     </span>
                   )}
+                  {est.rutaDirecta && (
+                    <span className="ml-2 text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                      → {etiquetaRuta(est.rutaDirecta)}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-slate-600 font-mono">{est.usuario}</td>
                 <td className="px-4 py-2">
@@ -184,16 +195,21 @@ function PuestosTemporales({ modulos, onCreados }: { modulos: Modulo[]; onCreado
   const [abierto, setAbierto] = useState(false);
   const [cantidad, setCantidad] = useState(3);
   const [prefijo, setPrefijo] = useState("Dispensación");
+  const [rutaDirecta, setRutaDirecta] = useState<string>("/panel/dispensacion");
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [creando, setCreando] = useState(false);
   const [creados, setCreados] = useState<Credencial[] | null>(null);
 
-  // Preselecciona el módulo "dispensacion" si existe, la primera vez que llegan los módulos.
+  // El módulo que hace falta matricular según la pantalla directa elegida.
+  const sloguModuloSugerido = rutaDirecta === "/panel/catalogo" ? "farmacia" : "dispensacion";
+
+  // Preselecciona el módulo sugerido la primera vez que llegan los módulos, y cuando
+  // cambia la pantalla directa (sin des-marcar lo que el admin ya haya elegido a mano).
   useEffect(() => {
-    const dispensacion = modulos.find((m) => m.slug === "dispensacion");
-    if (dispensacion && seleccion.size === 0) setSeleccion(new Set([dispensacion.id]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modulos]);
+    const sugerido = modulos.find((m) => m.slug === sloguModuloSugerido);
+    if (!sugerido) return;
+    setSeleccion((s) => (s.has(sugerido.id) ? s : new Set([...s, sugerido.id])));
+  }, [modulos, sloguModuloSugerido]);
 
   function alternar(id: string) {
     setSeleccion((s) => {
@@ -210,7 +226,12 @@ function PuestosTemporales({ modulos, onCreados }: { modulos: Modulo[]; onCreado
     const res = await fetch("/api/admin/estudiantes/temporales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cantidad, prefijo, moduloIds: Array.from(seleccion) }),
+      body: JSON.stringify({
+        cantidad,
+        prefijo,
+        moduloIds: Array.from(seleccion),
+        rutaDirecta: rutaDirecta || null,
+      }),
     });
     const data = await res.json();
     setCreando(false);
@@ -270,6 +291,22 @@ function PuestosTemporales({ modulos, onCreados }: { modulos: Modulo[]; onCreado
             </label>
           </div>
 
+          <label className="block text-xs text-slate-500 mb-3">
+            Al iniciar sesión entra directo a
+            <select
+              value={rutaDirecta}
+              onChange={(e) => setRutaDirecta(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">Ninguna — panel normal (elige el módulo ahí)</option>
+              {RUTAS_DIRECTAS.map((r) => (
+                <option key={r.valor} value={r.valor}>
+                  {r.etiqueta}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <p className="text-xs text-slate-500 mb-1.5">Matricular en:</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {modulos.map((m) => (
@@ -298,7 +335,8 @@ function PuestosTemporales({ modulos, onCreados }: { modulos: Modulo[]; onCreado
             <div className="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-emerald-800">
-                  Listo — cópialas ahora, no se vuelven a mostrar:
+                  Listo{rutaDirecta ? ` — entran directo a "${etiquetaRuta(rutaDirecta)}"` : ""} — cópialas ahora, no
+                  se vuelven a mostrar:
                 </p>
                 <button onClick={copiar} className="text-xs text-emerald-700 hover:underline">
                   Copiar todo

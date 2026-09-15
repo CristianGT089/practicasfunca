@@ -27,7 +27,8 @@ export default function LoginPage() {
       return;
     }
     const data = await res.json();
-    router.push(data.rol === "ADMIN" ? "/admin" : "/panel");
+    // Los puestos temporales (sala de cómputo) entran derecho a su herramienta, sin panel.
+    router.push(data.rutaDirecta || (data.rol === "ADMIN" ? "/admin" : "/panel"));
   }
 
   return (

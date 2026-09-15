@@ -28,5 +28,6 @@ export async function POST(req: NextRequest) {
     id: registro.id,
     nombre: registro.nombre,
     rol: registro.rol,
+    rutaDirecta: registro.rutaDirecta,
   });
 }

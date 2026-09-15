@@ -51,18 +51,26 @@ export default function PanelPage() {
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [moduloActivo, setModuloActivo] = useState<Modulo | null>(null);
+  const [redirigiendo, setRedirigiendo] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
+        // Cuenta temporal con pantalla directa asignada: no ve el panel general, aunque
+        // llegue aquí por atrás/adelante del navegador o un enlace guardado.
+        if (data.usuario?.rutaDirecta) {
+          setRedirigiendo(true);
+          router.replace(data.usuario.rutaDirecta);
+          return;
+        }
         setPerfil(data.usuario ?? null);
         const lista: Modulo[] = data.modulos ?? [];
         setModulos(lista);
         setModuloActivo((actual) => actual ?? lista[0] ?? null);
       })
       .catch(() => {});
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!moduloActivo || moduloActivo.tipo === "SIMULADOR") {
@@ -226,6 +234,8 @@ export default function PanelPage() {
       </div>
     );
   }
+
+  if (redirigiendo) return null;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">

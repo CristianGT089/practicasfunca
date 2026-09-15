@@ -61,6 +61,9 @@ model Usuario {
   // Cuenta creada para un puesto de una sala de cómputo (ej. "Dispensación 2"), no para un
   // estudiante inscrito de forma permanente. Se puede limpiar en bloque tras la sesión.
   temporal     Boolean  @default(false)
+  // Solo para cuentas temporales: a qué pantalla entra derecho al iniciar sesión, sin pasar
+  // por /panel (ej. "/panel/dispensacion"). Null = panel normal (estudiantes permanentes).
+  rutaDirecta  String?
   creadoEn     DateTime @default(now())
 
   intentos            Intento[]

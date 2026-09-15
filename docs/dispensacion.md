@@ -85,4 +85,25 @@ temporales"** las borra todas de un clic (`DELETE /api/admin/estudiantes/tempora
 arrastrando sus sesiones/entregas/matrículas — no hace falta limpiarlas una por una ni
 dejarlas acumulándose de una clase a otra.
 
+### Pantalla directa (`Usuario.rutaDirecta`)
+
+Un puesto de sala de cómputo no debe ver el panel general con el selector de módulos — su
+única tarea es esa pantalla. Al crear los puestos, el admin elige **"al iniciar sesión
+entra directo a"** (`/panel/dispensacion` o `/panel/catalogo`, ver `RUTAS_DIRECTAS` en
+`src/lib/nucleo/rutasDirectas.ts`), y esa cuenta:
+
+- En el login, `router.push(rutaDirecta)` en vez de ir a `/panel`.
+- Si de todos modos llega a `/panel` (atrás del navegador, un enlace guardado), `/panel` la
+  rebota ahí mismo (`router.replace`) sin mostrar nada.
+- En esa pantalla, el botón que normalmente dice "Salir" / "Volver a casos prácticos" pasa
+  a decir **"Cerrar sesión"** — no tiene a dónde "volver", solo terminar.
+
+Solo aplica a cuentas `temporal: true` con `rutaDirecta` asignada; un estudiante inscrito de
+forma permanente (aunque esté matriculado en un solo módulo) sigue entrando a `/panel` como
+siempre, por si más adelante lo matriculan en otro.
+
+`/panel/dispensacion` y `/panel/catalogo` (venta de Farmacia) montan además
+`PanelMiEspacio` (ver `docs/turnero.md`) — así el mismo puesto que dispensa o vende también
+puede pasar su turno del turnero sin ir a Control.
+
 Admin CRUD de casos y autorizaciones: ver `/admin/modulos/dispensacion/casos` y `/autorizaciones`.

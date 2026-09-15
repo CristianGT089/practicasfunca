@@ -20,6 +20,7 @@ export default function PlantillasTurneroPage() {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [cargando, setCargando] = useState(true);
   const [nombre, setNombre] = useState("");
+  const [numeroEspacios, setNumeroEspacios] = useState(3);
 
   const cargar = useCallback(async () => {
     const res = await fetch("/api/turnero/plantillas");
@@ -37,9 +38,10 @@ export default function PlantillasTurneroPage() {
     await fetch("/api/turnero/plantillas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre }),
+      body: JSON.stringify({ nombre, numeroEspacios }),
     });
     setNombre("");
+    setNumeroEspacios(3);
     cargar();
   }
 
@@ -61,11 +63,22 @@ export default function PlantillasTurneroPage() {
             placeholder="Nombre (ej: Droguería mostrador)"
             className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
           />
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+            Espacios
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={numeroEspacios}
+              onChange={(e) => setNumeroEspacios(Number(e.target.value))}
+              className="w-16 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+            />
+          </label>
           <button onClick={crear} className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900">
             Crear
           </button>
         </div>
-        <p className="text-xs text-slate-400 mt-2">Arranca con 3 espacios y los servicios/categorías por defecto; edítalo abajo.</p>
+        <p className="text-xs text-slate-400 mt-2">Servicios y categorías arrancan con los valores por defecto; edítalos abajo.</p>
       </div>
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
