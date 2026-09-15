@@ -12,7 +12,8 @@ const CLAVE_LOCAL = "turnero-mi-espacio";
  *
  * Se elige una sola vez qué espacio es "este computador" (queda en localStorage, porque
  * es una propiedad del puesto físico, no de quién esté logueado). Si no hay ningún
- * turnero abierto ese día, el widget no se muestra — no estorba cuando no se usa.
+ * turnero abierto ese día, igual se muestra un aviso (nunca "nada") — que no aparezca
+ * literalmente nada es indistinguible de que la función no exista.
  */
 export default function PanelMiEspacio() {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
@@ -56,7 +57,15 @@ export default function PanelMiEspacio() {
     setEnviando(false);
   }
 
-  if (!sesionId || !snapshot) return null; // sin turnero abierto hoy: no mostrar nada
+  if (sesionId === undefined) return null; // todavía preguntando si hay turnero: nada que parpadee
+
+  if (sesionId === null || !snapshot) {
+    return (
+      <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 text-xs text-slate-400">
+        Turnero: no hay ninguno abierto en este momento.
+      </div>
+    );
+  }
 
   const espacio = snapshot.espacios.find((e) => e.numero === miEspacio);
 
