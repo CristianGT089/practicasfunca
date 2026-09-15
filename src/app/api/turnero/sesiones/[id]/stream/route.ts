@@ -65,6 +65,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      // Sin esto, un nginx delante de la app hace buffering de la respuesta y el stream
+      // nunca "carga" en el navegador (los datos se acumulan en nginx en vez de salir).
+      "X-Accel-Buffering": "no",
     },
   });
 }
