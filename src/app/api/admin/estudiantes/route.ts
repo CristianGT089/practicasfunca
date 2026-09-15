@@ -11,7 +11,7 @@ export async function GET() {
   const estudiantes = await prisma.usuario.findMany({
     where: { rol: "ESTUDIANTE" },
     orderBy: { creadoEn: "desc" },
-    select: { id: true, nombre: true, usuario: true, activo: true, creadoEn: true },
+    select: { id: true, nombre: true, usuario: true, activo: true, temporal: true, creadoEn: true },
   });
 
   return NextResponse.json({ estudiantes });
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const creado = await prisma.usuario.create({
     data: { nombre, usuario, passwordHash, rol: "ESTUDIANTE" },
-    select: { id: true, nombre: true, usuario: true, activo: true, creadoEn: true },
+    select: { id: true, nombre: true, usuario: true, activo: true, temporal: true, creadoEn: true },
   });
 
   return NextResponse.json({ estudiante: creado, passwordTemporal });

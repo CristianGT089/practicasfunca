@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const actualizado = await prisma.usuario.update({
     where: { id },
     data: { activo },
-    select: { id: true, nombre: true, usuario: true, activo: true, creadoEn: true },
+    select: { id: true, nombre: true, usuario: true, activo: true, temporal: true, creadoEn: true },
   });
 
   return NextResponse.json({ estudiante: actualizado });

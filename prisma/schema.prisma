@@ -58,6 +58,9 @@ model Usuario {
   passwordHash String
   rol          Rol      @default(ESTUDIANTE)
   activo       Boolean  @default(true)
+  // Cuenta creada para un puesto de una sala de cómputo (ej. "Dispensación 2"), no para un
+  // estudiante inscrito de forma permanente. Se puede limpiar en bloque tras la sesión.
+  temporal     Boolean  @default(false)
   creadoEn     DateTime @default(now())
 
   intentos            Intento[]

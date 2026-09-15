@@ -67,6 +67,22 @@ SesionDispensacion    corrida de práctica de un estudiante (indiceCaso) — aí
 las autorizaciones (`RecetaElectronica`) vuelven a su estado sembrado porque el consumo de
 la práctica vive en `EntregaDispensacion`, no en `cantidadRedimida`.
 
-## Pendiente
+## Sala de cómputo: puestos temporales
 
-- Admin CRUD de casos y de autorizaciones (`RecetaElectronica` hoy solo se siembra).
+A diferencia del turnero (una sola cuenta admin), acá **cada estudiante necesita su propia
+cuenta** — la sesión de práctica (`SesionDispensacion`) vive por `usuarioId`, así que dos
+personas con la misma cuenta compartirían el mismo avance.
+
+Para no tener que dar de alta un estudiante a la vez antes de cada práctica, `/admin/estudiantes`
+tiene una sección **"Puestos temporales para sala de cómputo"**: el admin pide N cuentas
+(ej. 3, una por computador), les pone un nombre base ("Dispensación") y elige en qué
+módulo(s) matricularlas. Crea `Dispensación 1`, `Dispensación 2`, `Dispensación 3`
+(usuarios `dispensacion1/2/3`) ya matriculadas, con contraseña generada, listas para
+repartir en cada puesto.
+
+Quedan marcadas `Usuario.temporal = true`. Terminada la sesión, **"Eliminar cuentas
+temporales"** las borra todas de un clic (`DELETE /api/admin/estudiantes/temporales`),
+arrastrando sus sesiones/entregas/matrículas — no hace falta limpiarlas una por una ni
+dejarlas acumulándose de una clase a otra.
+
+Admin CRUD de casos y autorizaciones: ver `/admin/modulos/dispensacion/casos` y `/autorizaciones`.
