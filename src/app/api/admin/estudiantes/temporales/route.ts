@@ -20,17 +20,29 @@ import { emitirCambio } from "@/lib/turnero/eventos";
  * (ver lib/turnero/operaciones.ts#cerrarSesion) — no hace falta el DELETE manual para ellos.
  */
 
-const schema = z.object({
-  cantidad: z.number().int().min(1).max(40),
-  prefijo: z.string().trim().min(1).max(30).default("Puesto"),
-  moduloIds: z.array(z.string().min(1)).min(1),
-  rutaDirecta: z
-    .string()
-    .nullable()
-    .default(null)
-    .refine((v) => v === null || esRutaDirectaValida(v), "Pantalla directa inválida"),
-  sesionTurneroId: z.string().min(1).nullable().default(null),
+const alumnoSchema = z.object({
+  nombre: z.string().trim().min(1).max(80),
+  genero: z.enum(["MASCULINO", "FEMENINO", "OTRO"]).nullable().default(null),
 });
+
+const schema = z
+  .object({
+    // Nombres reales de los estudiantes (y género, opcional) — un puesto por cada uno.
+    alumnos: z.array(alumnoSchema).max(40).optional(),
+    // Alternativa cuando no se tienen los nombres a la mano: genera "Prefijo 1", "Prefijo 2"...
+    cantidad: z.number().int().min(1).max(40).optional(),
+    prefijo: z.string().trim().min(1).max(30).default("Puesto"),
+    moduloIds: z.array(z.string().min(1)).min(1),
+    rutaDirecta: z
+      .string()
+      .nullable()
+      .default(null)
+      .refine((v) => v === null || esRutaDirectaValida(v), "Pantalla directa inválida"),
+    sesionTurneroId: z.string().min(1).nullable().default(null),
+  })
+  .refine((d) => (d.alumnos && d.alumnos.length > 0) || (d.cantidad ?? 0) > 0, {
+    message: "Agrega nombres o una cantidad",
+  });
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();

@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
 import type { TicketVista } from "@/lib/turnero/snapshot";
+import { anunciar, desbloquearAudio } from "@/lib/turnero/voz";
 
 const SEGUNDOS_ANUNCIO = 5;
+const CLAVE_SONIDO = "turnero-tablero-sonido";
 
 export default function TurneroTableroPage() {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
@@ -25,7 +27,23 @@ export default function TurneroTableroPage() {
     if (finalizada) buscarSesion();
   }, [finalizada, buscarSesion]);
 
-  // --- Anuncio de la última llamada: overlay de 5 s cuando se llama a un turno ---
+  // --- Sonido: timbre + voz. Los navegadores exigen un gesto del usuario antes de dejar
+  // sonar nada, así que se pide una vez con un botón y queda recordado en este dispositivo.
+  const [sonidoActivo, setSonidoActivo] = useState(false);
+  useEffect(() => {
+    setSonidoActivo(localStorage.getItem(CLAVE_SONIDO) === "1");
+  }, []);
+  function activarSonido() {
+    desbloquearAudio();
+    localStorage.setItem(CLAVE_SONIDO, "1");
+    setSonidoActivo(true);
+  }
+  function silenciar() {
+    localStorage.removeItem(CLAVE_SONIDO);
+    setSonidoActivo(false);
+  }
+
+  // --- Anuncio de la última llamada: overlay de 5 s (+ timbre y voz) cuando se llama a un turno ---
   const [anuncio, setAnuncio] = useState<{ ticket: TicketVista; clave: string } | null>(null);
   const claveVistaRef = useRef<string | null>(null);
 
@@ -41,8 +59,12 @@ export default function TurneroTableroPage() {
     if (clave !== claveVistaRef.current) {
       claveVistaRef.current = clave;
       setAnuncio({ ticket: ultimo!, clave });
+      if (sonidoActivo) {
+        const espacio = snapshot?.espacios.find((e) => e.numero === ultimo!.espacioNumero)?.nombre ?? `espacio ${ultimo!.espacioNumero}`;
+        anunciar(`Turno ${ultimo!.codigo}. ${ultimo!.servicioNombre}. Pasar a ${espacio}.`);
+      }
     }
-  }, [snapshot]);
+  }, [snapshot, sonidoActivo]);
 
   useEffect(() => {
     if (!anuncio) return;
@@ -75,9 +97,23 @@ export default function TurneroTableroPage() {
 
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="font-heading text-3xl font-extrabold text-blue-900">{snapshot.sesion.turnero.nombre}</h1>
-        <span className={`text-sm ${conectado ? "text-green-600" : "text-amber-600"}`}>
-          {conectado ? "● en vivo" : "○ reconectando"}
-        </span>
+        <div className="flex items-center gap-4">
+          {sonidoActivo ? (
+            <button onClick={silenciar} className="text-sm text-slate-400 hover:text-slate-600">
+              🔊 Silenciar
+            </button>
+          ) : (
+            <button
+              onClick={activarSonido}
+              className="rounded-full bg-blue-800 px-3 py-1 text-sm font-medium text-white hover:bg-blue-900"
+            >
+              🔈 Activar sonido
+            </button>
+          )}
+          <span className={`text-sm ${conectado ? "text-green-600" : "text-amber-600"}`}>
+            {conectado ? "● en vivo" : "○ reconectando"}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">

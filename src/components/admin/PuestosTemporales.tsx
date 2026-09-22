@@ -5,6 +5,7 @@ import { RUTAS_DIRECTAS } from "@/lib/nucleo/rutasDirectas";
 
 type Modulo = { id: string; slug: string; nombre: string; activo: boolean };
 type Credencial = { nombre: string; usuario: string; password: string };
+type Genero = "MASCULINO" | "FEMENINO" | "OTRO";
 
 export function etiquetaRutaDirecta(ruta: string): string {
   return RUTAS_DIRECTAS.find((r) => r.valor === ruta)?.etiqueta ?? ruta;
@@ -17,6 +18,10 @@ export function etiquetaRutaDirecta(ruta: string): string {
  * - Estudiantes (`sesionTurneroId` ausente): puestos sueltos, se limpian a mano.
  * - Control del turnero (`sesionTurneroId` presente): los puestos quedan enlazados a esa
  *   sesión y se borran solos cuando el turnero se cierra — no hace falta limpiarlos aparte.
+ *
+ * Dos modos para nombrar los puestos: con los nombres reales de los estudiantes (uno por
+ * línea, con género opcional cada uno) o genérico ("Prefijo 1", "Prefijo 2"...) cuando no
+ * se tienen los nombres a la mano.
  */
 export default function PuestosTemporales({
   sesionTurneroId,
@@ -33,6 +38,9 @@ export default function PuestosTemporales({
 }) {
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [abierto, setAbierto] = useState(!colapsable);
+  const [modo, setModo] = useState<"nombres" | "generico">("nombres");
+  const [nombresTexto, setNombresTexto] = useState("");
+  const [generos, setGeneros] = useState<Record<string, Genero | "">>({});
   const [cantidad, setCantidad] = useState(3);
   const [prefijo, setPrefijo] = useState("Dispensación");
   const [rutaDirecta, setRutaDirecta] = useState<string>("/panel/dispensacion");
@@ -67,15 +75,30 @@ export default function PuestosTemporales({
     });
   }
 
+  // Nombres tal como los va escribiendo el admin, uno por línea, sin líneas vacías.
+  const nombres = useMemo(
+    () =>
+      nombresTexto
+        .split("\n")
+        .map((n) => n.trim())
+        .filter(Boolean),
+    [nombresTexto]
+  );
+
+  const cantidadFinal = modo === "nombres" ? nombres.length : cantidad;
+
   async function crear() {
-    if (seleccion.size === 0 || creando) return;
+    if (seleccion.size === 0 || creando || cantidadFinal === 0) return;
     setCreando(true);
+    const body =
+      modo === "nombres"
+        ? { alumnos: nombres.map((nombre) => ({ nombre, genero: generos[nombre] || null })) }
+        : { cantidad, prefijo };
     const res = await fetch("/api/admin/estudiantes/temporales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cantidad,
-        prefijo,
+        ...body,
         moduloIds: Array.from(seleccion),
         rutaDirecta: rutaDirecta || null,
         sesionTurneroId: sesionTurneroId ?? null,
@@ -88,6 +111,8 @@ export default function PuestosTemporales({
       return;
     }
     setCreados(data.creados);
+    setNombresTexto("");
+    setGeneros({});
     onCreados();
   }
 
@@ -122,27 +147,81 @@ export default function PuestosTemporales({
               Quedan enlazados a este turnero: al cerrarlo, estas cuentas se borran solas.
             </p>
           )}
-          <div className="flex gap-3 mb-3">
-            <label className="text-xs text-slate-500">
-              Cuántas
-              <input
-                type="number"
-                min={1}
-                max={40}
-                value={cantidad}
-                onChange={(e) => setCantidad(Number(e.target.value))}
-                className="mt-1 block w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-              />
-            </label>
-            <label className="flex-1 text-xs text-slate-500">
-              Nombre base (queda &ldquo;{prefijo} 1&rdquo;, &ldquo;{prefijo} 2&rdquo;…)
-              <input
-                value={prefijo}
-                onChange={(e) => setPrefijo(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-              />
-            </label>
+
+          <div className="flex gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setModo("nombres")}
+              className={`rounded-full px-3 py-1 text-xs font-medium border ${
+                modo === "nombres" ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-500"
+              }`}
+            >
+              Nombres de los estudiantes
+            </button>
+            <button
+              type="button"
+              onClick={() => setModo("generico")}
+              className={`rounded-full px-3 py-1 text-xs font-medium border ${
+                modo === "generico" ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-500"
+              }`}
+            >
+              Genérico (Puesto 1, 2...)
+            </button>
           </div>
+
+          {modo === "nombres" ? (
+            <div className="mb-4">
+              <label className="block text-xs text-slate-500 mb-1">Un nombre por línea</label>
+              <textarea
+                value={nombresTexto}
+                onChange={(e) => setNombresTexto(e.target.value)}
+                rows={4}
+                placeholder={"María Gómez\nJuan Pérez\nLaura Torres"}
+                className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-mono"
+              />
+              {nombres.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {nombres.map((n) => (
+                    <div key={n} className="flex items-center gap-2">
+                      <span className="flex-1 text-sm text-slate-700 truncate">{n}</span>
+                      <select
+                        value={generos[n] ?? ""}
+                        onChange={(e) => setGeneros((g) => ({ ...g, [n]: e.target.value as Genero | "" }))}
+                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600"
+                      >
+                        <option value="">Género (opcional)</option>
+                        <option value="FEMENINO">Femenino</option>
+                        <option value="MASCULINO">Masculino</option>
+                        <option value="OTRO">Otro</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-3 mb-3">
+              <label className="text-xs text-slate-500">
+                Cuántas
+                <input
+                  type="number"
+                  min={1}
+                  max={40}
+                  value={cantidad}
+                  onChange={(e) => setCantidad(Number(e.target.value))}
+                  className="mt-1 block w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+              <label className="flex-1 text-xs text-slate-500">
+                Nombre base (queda &ldquo;{prefijo} 1&rdquo;, &ldquo;{prefijo} 2&rdquo;…)
+                <input
+                  value={prefijo}
+                  onChange={(e) => setPrefijo(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </label>
+            </div>
+          )}
 
           <label className="block text-xs text-slate-500 mb-3">
             Al iniciar sesión entra directo a
@@ -178,10 +257,10 @@ export default function PuestosTemporales({
 
           <button
             onClick={crear}
-            disabled={creando || seleccion.size === 0}
+            disabled={creando || seleccion.size === 0 || cantidadFinal === 0}
             className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
           >
-            {creando ? "Creando..." : `Crear ${cantidad} puesto(s)`}
+            {creando ? "Creando..." : `Crear ${cantidadFinal} puesto(s)`}
           </button>
 
           {creados && (

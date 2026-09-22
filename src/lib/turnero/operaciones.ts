@@ -38,17 +38,32 @@ export async function emitirTicket(
   sesionId: string,
   servicioCodigo: string,
   prioritario: boolean,
-  categoria: string | null
+  categoria: string | null,
+  cedula?: string | null
 ) {
   const sesion = await prisma.sesionTurnero.findUnique({
     where: { id: sesionId },
-    include: { turnero: true },
+    include: { turnero: true, simulacion: true },
   });
   if (!sesion || sesion.estado !== "ABIERTA") throw new Error("La sesión no está abierta");
 
   const servicios = leerServicios(sesion.turnero.servicios);
   const servicio = servicios.find((s) => s.codigo === servicioCodigo);
   if (!servicio) throw new Error("Servicio inválido");
+
+  // En el turnero de una Simulación, el turno se pide por cédula: si no corresponde a un
+  // paciente generado para esa simulación, se rechaza acá — no se puede sacar turno para
+  // "nadie". El turnero de mostrador libre (sin Simulación) no exige esto.
+  let pacienteId: string | null = null;
+  if (sesion.simulacion) {
+    const documento = cedula?.trim();
+    if (!documento) throw new Error("Esta simulación requiere la cédula del paciente para sacar turno");
+    const paciente = await prisma.paciente.findFirst({
+      where: { cedula: documento, simulacionId: sesion.simulacion.id },
+    });
+    if (!paciente) throw new Error("Esa cédula no corresponde a ningún paciente de esta simulación");
+    pacienteId = paciente.id;
+  }
 
   const emitidosDelServicio = await prisma.ticket.count({ where: { sesionId, servicioCodigo } });
   const codigo = `${servicio.prefijo}-${String(emitidosDelServicio + 1).padStart(3, "0")}`;
@@ -60,7 +75,9 @@ export async function emitirTicket(
       servicioCodigo,
       prioritario,
       categoria: prioritario ? categoria : null,
+      pacienteId,
     },
+    include: { paciente: { select: { nombre: true } } },
   });
 
   emitirCambio(sesionId);

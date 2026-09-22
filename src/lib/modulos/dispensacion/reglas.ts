@@ -44,6 +44,14 @@ export type ContextoRenglon = {
   formulaCargadaEnSistema: boolean;
   alergiasPaciente: string[];
   identidadCoincide: boolean;
+  /**
+   * true si el documento no coincide porque viene un TERCERO AUTORIZADO (no una
+   * suplantación): baja el aviso de BLOQUEO a ALERTA — la vida real sí permite la entrega
+   * a un tercero con justificación, si el estudiante verifica y la registra. Los llamadores
+   * que no lo pasan (la práctica libre de Dispensación) conservan el comportamiento de
+   * siempre: cualquier no-coincidencia bloquea.
+   */
+  terceroAutorizado?: boolean;
   autorizacion: AutorizacionSistema | null;
 };
 
@@ -59,11 +67,20 @@ export function evaluarRenglon(ctx: ContextoRenglon): EvaluacionRenglon {
   const avisos: Aviso[] = [];
 
   if (!ctx.identidadCoincide) {
-    avisos.push({
-      nivel: "BLOQUEO",
-      codigo: "IDENTIDAD",
-      mensaje: "El documento que presenta la persona no coincide con el del paciente de la fórmula.",
-    });
+    if (ctx.terceroAutorizado) {
+      avisos.push({
+        nivel: "ALERTA",
+        codigo: "TERCERO_AUTORIZADO",
+        mensaje:
+          "Quien recoge no es el paciente, pero se presenta como tercero autorizado. Verifica el parentesco/justificación y regístralo antes de entregar.",
+      });
+    } else {
+      avisos.push({
+        nivel: "BLOQUEO",
+        codigo: "IDENTIDAD",
+        mensaje: "El documento que presenta la persona no coincide con el del paciente de la fórmula.",
+      });
+    }
   }
 
   if (!ctx.formulaCargadaEnSistema) {

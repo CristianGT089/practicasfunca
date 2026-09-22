@@ -51,6 +51,14 @@ model Matricula {
   @@map("matriculas")
 }
 
+// Informativo (ej. para que el profesor lleve el registro) — nada del checklist calificado
+// depende de este campo. Nullable: no se pide para cuentas ya existentes.
+enum Genero {
+  MASCULINO
+  FEMENINO
+  OTRO
+}
+
 model Usuario {
   id           String   @id @default(cuid())
   nombre       String
@@ -58,6 +66,7 @@ model Usuario {
   passwordHash String
   rol          Rol      @default(ESTUDIANTE)
   activo       Boolean  @default(true)
+  genero       Genero?
   // Cuenta creada para un puesto de una sala de cómputo (ej. "Dispensación 2"), no para un
   // estudiante inscrito de forma permanente. Se puede limpiar en bloque tras la sesión.
   temporal     Boolean  @default(false)
@@ -75,6 +84,7 @@ model Usuario {
   intentosTurno       IntentoTurno[]
   matriculas          Matricula[]
   sesionesDispensacion SesionDispensacion[]
+  entregasSimulacion   EntregaSimulacion[]
 
   @@map("usuarios")
 }
@@ -144,6 +154,20 @@ model MovimientoInventario {
 }
 
 // Pacientes ficticios usados dentro de los escenarios de Farmacia
+enum CategoriaAfiliado {
+  SUBSIDIADO // Sisbén A/B — exento de cuota moderadora en todo el PBS
+  CONTRIBUTIVO_A // IBC < 2 SMMLV
+  CONTRIBUTIVO_B // IBC 2-5 SMMLV
+  CONTRIBUTIVO_C // IBC > 5 SMMLV
+}
+
+// Quién se presenta en la ventanilla a recoger, frente a quién es el paciente en el sistema.
+enum TipoRecogida {
+  EL_MISMO // el paciente en persona: no hay nada que verificar
+  TERCERO_AUTORIZADO // otra persona, con justificación (cuidador, familiar...): no bloquea, alerta a verificar
+  SUPLANTACION // alguien intentando pasar por el paciente con un documento que no es el suyo: bloquea
+}
+
 model Paciente {
   id              String    @id @default(cuid())
   nombre          String
@@ -154,11 +178,29 @@ model Paciente {
   fechaNacimiento DateTime?
   lugarNacimiento String?
   tipoSangre      String?
+  // Campos de una Simulación (ver docs/simulacion.md): null en los pacientes sembrados o
+  // creados a mano para Farmacia/Dispensación de siempre.
+  diagnostico       String?
+  esAltoCosto       Boolean            @default(false) // Cuenta de Alto Costo -> exento de cuota moderadora
+  categoriaAfiliado CategoriaAfiliado?
+  // El admin lo puede fijar al pedirle un nombre puntual al generador (para armar la
+  // historia clínica alrededor de ese nombre); si no, se sortea junto con el nombre —
+  // ver generador.ts. Null en los pacientes sembrados/manuales de siempre.
+  genero            Genero?
+  simulacionId      String? // generado para esta simulación; se borra con ella
+  simulacion        Simulacion?        @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  // Quién se presenta realmente en la ventanilla a recoger (fase 5, ver docs/simulacion.md):
+  // EL_MISMO (default) = coincide con el paciente, sin caso de verificación de identidad.
+  tipoRecogida         TipoRecogida @default(EL_MISMO)
+  personaRecogeNombre  String? // solo si tipoRecogida != EL_MISMO
+  personaRecogeCedula  String? // documento que presenta esa persona (no el del paciente)
+  personaRecogeRelacion String? // solo si TERCERO_AUTORIZADO, ej "esposo(a)", "hijo(a)"
   creadoEn        DateTime  @default(now())
 
   escenarios        EscenarioFarmacia[]
   recetas           RecetaElectronica[]
   casosDispensacion CasoDispensacion[] @relation("PacienteCasosDispensacion")
+  ticketsTurnero    Ticket[]
 
   @@map("pacientes")
 }
@@ -183,7 +225,8 @@ model RecetaElectronica {
   fechaVigencia      DateTime
   creadoEn           DateTime    @default(now())
 
-  entregas EntregaDispensacion[] @relation("RecetaEntregas")
+  entregas           EntregaDispensacion[] @relation("RecetaEntregas")
+  entregasSimulacion EntregaSimulacion[]
 
   @@map("recetas_electronicas")
 }
@@ -543,7 +586,8 @@ model Turnero {
   activo         Boolean        @default(true)
   creadoEn       DateTime       @default(now())
 
-  sesiones SesionTurnero[]
+  sesiones     SesionTurnero[]
+  simulaciones Simulacion[]
 
   @@map("turneros")
 }
@@ -562,6 +606,8 @@ model SesionTurnero {
   tickets  Ticket[]
   // Cuentas temporales creadas desde Control para esta sesión (ver Usuario.sesionTurneroId).
   puestos  Usuario[]
+  // Si este turnero corre dentro de una Simulación (ver Simulacion.sesionTurneroId).
+  simulacion Simulacion?
 
   @@map("sesiones_turnero")
 }
@@ -593,6 +639,10 @@ model Ticket {
   emitidoEn      DateTime      @default(now())
   llamadoEn      DateTime?
   cerradoEn      DateTime?
+  // Solo en el turnero de una Simulación: a qué paciente corresponde este turno (se pidió
+  // por cédula al sacarlo). El turnero de mostrador libre lo deja vacío.
+  pacienteId String?
+  paciente   Paciente? @relation(fields: [pacienteId], references: [id])
 
   espacio Espacio? @relation("TicketEnEspacio")
 
@@ -699,4 +749,63 @@ model EntregaDispensacion {
 
   @@index([sesionId])
   @@map("entregas_dispensacion")
+}
+
+// ==================== Simulación ====================
+// Jornada de práctica completa: pool de pacientes generados (historia clínica + receta,
+// desde el catálogo real) que corren sobre un turnero por cédula. Ver docs/simulacion.md.
+
+enum TipoSimulacion {
+  FARMACIA // venta/mostrador, sobre /panel/catalogo
+  DISPENSARIO // por fórmula, sobre /panel/dispensacion, con cuota moderadora
+}
+
+enum EstadoSimulacion {
+  BORRADOR // pacientes generados, en revisión; aún no se puede sacar turno
+  ABIERTA
+  CERRADA
+}
+
+model Simulacion {
+  id              String           @id @default(cuid())
+  nombre          String
+  tipo            TipoSimulacion
+  estado          EstadoSimulacion @default(BORRADOR)
+  turneroId       String
+  turnero         Turnero          @relation(fields: [turneroId], references: [id])
+  sesionTurneroId String?          @unique
+  sesionTurnero   SesionTurnero?   @relation(fields: [sesionTurneroId], references: [id])
+  creadaEn        DateTime         @default(now())
+  abiertaEn       DateTime?
+  cerradaEn       DateTime?
+
+  pacientes Paciente[]
+  entregas  EntregaSimulacion[]
+
+  @@map("simulaciones")
+}
+
+// Consumo COMPARTIDO por simulación (no por estudiante) contra una autorización del
+// sistema: si un estudiante agota el stock, debe verse agotado para los demás también —
+// es una sola farmacia/dispensario compartido ese día, no N prácticas aisladas en paralelo
+// (a diferencia de EntregaDispensacion, que sí aísla por sesión/usuario).
+model EntregaSimulacion {
+  id                  String             @id @default(cuid())
+  simulacionId        String
+  simulacion          Simulacion         @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  recetaElectronicaId String
+  recetaElectronica   RecetaElectronica  @relation(fields: [recetaElectronicaId], references: [id])
+  usuarioId           String // quién la hizo, solo para trazabilidad
+  usuario             Usuario            @relation(fields: [usuarioId], references: [id])
+  cantidad            Int
+  resultado           ResultadoEntrega
+  cuotaModeradora     Int // lo cobrado, en pesos; 0 si exento
+  // Solo se llena en la entrega que cobra la cuota (la primera del paciente en la
+  // simulación): qué marcó el ESTUDIANTE al leer el diagnóstico, no la verdad del sistema
+  // — así se puede dar retroalimentación de si acertó. Null en las demás entregas.
+  altoCostoMarcado    Boolean?
+  creadoEn            DateTime           @default(now())
+
+  @@index([simulacionId])
+  @@map("entregas_simulacion")
 }

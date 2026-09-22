@@ -6,28 +6,24 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { gruposAdminModulos } from "@/lib/modulos/registro";
 
-// Pestañas del núcleo (no dependen de ningún módulo).
+// Pestañas del núcleo (no dependen de ningún módulo). El turnero ya no existe suelto —
+// cada Simulación crea y controla el suyo desde su propia pantalla (ver
+// /admin/simulacion/[id]), así que "Simulación" es una pestaña más, no un menú.
 const TABS_NUCLEO = [
   { href: "/admin/calificaciones", label: "Calificaciones" },
   { href: "/admin/estudiantes", label: "Estudiantes" },
   { href: "/admin/matriculas", label: "Matrículas" },
   { href: "/admin/modulos", label: "Módulos" },
   { href: "/admin/escenarios", label: "Escenarios" },
+  { href: "/admin/simulacion", label: "Simulación" },
 ];
-
-// Herramientas de admin que no son un módulo.
-const TABS_HERRAMIENTAS = [{ href: "/admin/turnero", label: "Turnero" }];
 
 // Las secciones específicas de módulo van en un menú desplegable por módulo, no como
 // pestaña por sección (desbordaba la barra).
 const GRUPOS_MODULO = gruposAdminModulos();
 
 // Todos los href, para calcular la pestaña activa por prefijo más largo.
-const TODOS_HREF = [
-  ...TABS_NUCLEO.map((t) => t.href),
-  ...TABS_HERRAMIENTAS.map((t) => t.href),
-  ...GRUPOS_MODULO.flatMap((g) => g.secciones.map((s) => s.href)),
-];
+const TODOS_HREF = [...TABS_NUCLEO.map((t) => t.href), ...GRUPOS_MODULO.flatMap((g) => g.secciones.map((s) => s.href))];
 
 // Rutas del turnero pensadas para pantalla completa (kiosco / proyector): sin la barra de admin.
 const RUTAS_SIN_CHROME = ["/admin/turnero/registro", "/admin/turnero/tablero"];
@@ -122,13 +118,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
               );
             })}
-
-            {TABS_HERRAMIENTAS.length > 0 && <span className="mx-2 my-2 w-px self-center bg-slate-200" aria-hidden />}
-            {TABS_HERRAMIENTAS.map((tab) => (
-              <Link key={tab.href} href={tab.href} className={claseTab(enlaceActivo(tab.href))}>
-                {tab.label}
-              </Link>
-            ))}
           </nav>
         </div>
       </div>
