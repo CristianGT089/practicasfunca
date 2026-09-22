@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { RUTAS_DIRECTAS } from "@/lib/nucleo/rutasDirectas";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
 
+type Genero = "MASCULINO" | "FEMENINO" | "OTRO";
+
 type Estudiante = {
   id: string;
   nombre: string;
@@ -11,6 +13,7 @@ type Estudiante = {
   activo: boolean;
   temporal: boolean;
   rutaDirecta: string | null;
+  genero: Genero | null;
   creadoEn: string;
 };
 
@@ -18,11 +21,25 @@ function etiquetaRuta(ruta: string): string {
   return RUTAS_DIRECTAS.find((r) => r.valor === ruta)?.etiqueta ?? ruta;
 }
 
+export function etiquetaGenero(genero: Genero | null): string {
+  switch (genero) {
+    case "MASCULINO":
+      return "Masculino";
+    case "FEMENINO":
+      return "Femenino";
+    case "OTRO":
+      return "Otro";
+    default:
+      return "";
+  }
+}
+
 export default function EstudiantesPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [cargando, setCargando] = useState(true);
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
+  const [genero, setGenero] = useState<Genero | "">("");
   const [error, setError] = useState<string | null>(null);
   const [credenciales, setCredenciales] = useState<{ usuario: string; password: string } | null>(null);
 
@@ -43,7 +60,7 @@ export default function EstudiantesPage() {
     const res = await fetch("/api/admin/estudiantes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, usuario }),
+      body: JSON.stringify({ nombre, usuario, genero: genero || null }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -53,6 +70,7 @@ export default function EstudiantesPage() {
     setCredenciales({ usuario: data.estudiante.usuario, password: data.passwordTemporal });
     setNombre("");
     setUsuario("");
+    setGenero("");
     cargar();
   }
 
@@ -103,6 +121,19 @@ export default function EstudiantesPage() {
             required
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Género</label>
+          <select
+            value={genero}
+            onChange={(e) => setGenero(e.target.value as Genero | "")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+          >
+            <option value="">Sin especificar</option>
+            <option value="FEMENINO">Femenino</option>
+            <option value="MASCULINO">Masculino</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
         <button type="submit" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Crear
         </button>
@@ -120,8 +151,8 @@ export default function EstudiantesPage() {
 
       <PuestosTemporales onCreados={cargar} />
       <p className="text-xs text-slate-400 -mt-4 mb-6">
-        Para una sala con turnero, mejor créalos desde <a href="/admin/turnero" className="underline">Control del turnero</a> —
-        se borran solos cuando lo cierras.
+        Para una sala con turnero, mejor créalos desde la <a href="/admin/simulacion" className="underline">Simulación</a> —
+        se borran solos cuando la cierras.
       </p>
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
@@ -158,6 +189,11 @@ export default function EstudiantesPage() {
                   {est.rutaDirecta && (
                     <span className="ml-2 text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
                       → {etiquetaRuta(est.rutaDirecta)}
+                    </span>
+                  )}
+                  {est.genero && (
+                    <span className="ml-2 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {etiquetaGenero(est.genero)}
                     </span>
                   )}
                 </td>

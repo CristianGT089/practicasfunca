@@ -15,7 +15,12 @@ const CLAVE_LOCAL = "turnero-mi-espacio";
  * turnero abierto ese día, igual se muestra un aviso (nunca "nada") — que no aparezca
  * literalmente nada es indistinguible de que la función no exista.
  */
-export default function PanelMiEspacio() {
+export type EstadoMiEspacio = {
+  simulacionId: string | null;
+  paciente: { nombre: string; cedula: string } | null;
+};
+
+export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: EstadoMiEspacio) => void }) {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
   const [miEspacio, setMiEspacio] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -40,6 +45,18 @@ export default function PanelMiEspacio() {
   useEffect(() => {
     if (finalizada) buscarSesion();
   }, [finalizada, buscarSesion]);
+
+  // Avisa a quien nos incruste (ej. Dispensación) qué paciente trae el turno actual de
+  // este espacio, para que pueda cargarlo automáticamente si la sesión es de una
+  // Simulación — sin esto, la pantalla no tiene forma de saber por qué cédula buscar.
+  useEffect(() => {
+    if (!onEstado) return;
+    const espacioActual = snapshot?.espacios.find((e) => e.numero === miEspacio);
+    onEstado({
+      simulacionId: snapshot?.sesion.simulacionId ?? null,
+      paciente: espacioActual?.ticket?.paciente ?? null,
+    });
+  }, [onEstado, snapshot, miEspacio]);
 
   function elegirEspacio(numero: number) {
     localStorage.setItem(CLAVE_LOCAL, String(numero));

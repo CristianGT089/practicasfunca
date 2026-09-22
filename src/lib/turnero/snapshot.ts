@@ -17,6 +17,8 @@ export type TicketVista = {
   espacioNumero: number | null;
   emitidoEn: string;
   llamadoEn: string | null;
+  // Solo en el turnero de una Simulación.
+  paciente: { nombre: string; cedula: string } | null;
 };
 
 export type EspacioVista = {
@@ -40,6 +42,8 @@ export type SnapshotTurnero = {
       servicios: Servicio[];
       categorias: CategoriaPrioridad[];
     };
+    // Si este turnero corre dentro de una Simulación: Registro exige cédula al emitir.
+    simulacionId: string | null;
   };
   espacios: EspacioVista[];
   enEspera: TicketVista[];
@@ -55,8 +59,9 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
     where: { id: sesionId },
     include: {
       turnero: true,
-      espacios: { orderBy: { numero: "asc" }, include: { ticketActual: true } },
-      tickets: { orderBy: { emitidoEn: "asc" } },
+      simulacion: { select: { id: true } },
+      espacios: { orderBy: { numero: "asc" }, include: { ticketActual: { include: { paciente: true } } } },
+      tickets: { orderBy: { emitidoEn: "asc" }, include: { paciente: true } },
       puestos: { orderBy: { creadoEn: "asc" }, select: { id: true, nombre: true, usuario: true } },
     },
   });
@@ -78,6 +83,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
     espacioNumero: number | null;
     emitidoEn: Date;
     llamadoEn: Date | null;
+    paciente: { nombre: string; cedula: string } | null;
   }): TicketVista => ({
     id: t.id,
     codigo: t.codigo,
@@ -90,6 +96,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
     espacioNumero: t.espacioNumero,
     emitidoEn: t.emitidoEn.toISOString(),
     llamadoEn: t.llamadoEn?.toISOString() ?? null,
+    paciente: t.paciente ? { nombre: t.paciente.nombre, cedula: t.paciente.cedula } : null,
   });
 
   const enEspera = sesion.tickets.filter((t) => t.estado === "EN_ESPERA").map(aVista);
@@ -119,6 +126,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
         servicios,
         categorias,
       },
+      simulacionId: sesion.simulacion?.id ?? null,
     },
     espacios,
     enEspera,
