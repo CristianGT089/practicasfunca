@@ -1,9 +1,13 @@
 /**
  * Dispensación DENTRO de una Simulación: el paciente sale del pool generado (no de
  * `CasoDispensacion`) y el consumo se contabiliza por `simulacionId` (compartido entre
- * todos los estudiantes de la jornada), no por usuario — ver docs/simulacion.md. Reusa
- * `evaluarRenglon` de la práctica libre de Dispensación en vez de duplicar el checklist de
- * avisos; lo que cambia acá es de dónde sale el paciente/receta y dónde queda el registro.
+ * todos los estudiantes de la jornada), no por usuario — ver docs/simulacion.md.
+ *
+ * A propósito NO se reusa el checklist de avisos de la práctica libre (`evaluarRenglon`):
+ * acá el sistema solo entrega datos crudos (el medicamento existe o no en el catálogo,
+ * cuánto tiene autorizado, etc.) — sin decir "esto está bien" o "esto está mal". Que el
+ * estudiante se equivoque o acierte al comparar contra la fórmula física es parte de lo que
+ * se está practicando, no algo que la pantalla deba resolverle. Ver docs/simulacion.md.
  *
  * Cuota moderadora: NO se revela `esAltoCosto` del paciente hasta que el estudiante ya
  * decidió — es él quien tiene que leer el diagnóstico y marcar si califica, exactamente
@@ -13,17 +17,20 @@
  */
 import { prisma } from "@/lib/nucleo/prisma";
 import type { CategoriaAfiliado, TipoRecogida } from "@prisma/client";
-import { evaluarRenglon, type AutorizacionSistema, type EvaluacionRenglon } from "@/lib/modulos/dispensacion/reglas";
 import { calcularCuotaModeradora } from "./cuotaModeradora";
 
-export type RenglonSimulacion = EvaluacionRenglon & {
-  recetaId: string;
+export type RenglonSimulacion = {
+  // null cuando el medicamento existe en el catálogo pero el paciente NO tiene receta para
+  // él — igual se puede "entregar" o "rechazar" (queda registrado con medicamentoId en vez
+  // de recetaId), sin ningún aviso que lo distinga del resto.
+  recetaId: string | null;
+  medicamentoId: string;
   medicamentoNombre: string;
   presentacion: string;
   cantidadAutorizada: number;
   cantidadRedimida: number;
   saldoDisponible: number;
-  fechaVigencia: string;
+  fechaVigencia: string | null;
   yaGestionado: { resultado: "ENTREGADO" | "RECHAZADO"; cantidad: number } | null;
 };
 
@@ -58,78 +65,42 @@ export type ResultadoBusquedaSimulacion = {
     cedula: string;
     relacion: string | null;
   } | null;
-  renglones: RenglonSimulacion[];
+  // Cuántos renglones tiene la receta — informativo (para un "1 de 3 gestionados"), sin
+  // revelar cuáles son: eso el estudiante lo tiene que buscar uno por uno, igual que pide
+  // el documento en vez de que el sistema le diga quién es el paciente.
+  totalRenglones: number;
 };
 
-export async function buscarPacienteSimulacion(simulacionId: string, cedula: string): Promise<ResultadoBusquedaSimulacion> {
-  const doc = cedula.trim();
-  const paciente = await prisma.paciente.findFirst({
-    where: { cedula: doc, simulacionId },
+function normalizar(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+async function pacienteDeLaSimulacion(simulacionId: string, cedula: string) {
+  return prisma.paciente.findFirst({
+    where: { cedula: cedula.trim(), simulacionId },
     include: { recetas: { include: { medicamento: true } } },
   });
+}
+
+export async function buscarPacienteSimulacion(simulacionId: string, cedula: string): Promise<ResultadoBusquedaSimulacion> {
+  const paciente = await pacienteDeLaSimulacion(simulacionId, cedula);
 
   const vacio: ResultadoBusquedaSimulacion = {
     encontrado: false,
     paciente: null,
     cuota: { cobrada: false, montoAplicado: null, altoCostoMarcado: null, correcto: null },
     personaEnVentanilla: null,
-    renglones: [],
+    totalRenglones: 0,
   };
   if (!paciente) return vacio;
 
-  const entregas = await prisma.entregaSimulacion.findMany({
-    where: { simulacionId, recetaElectronica: { pacienteId: paciente.id } },
+  const entregaConCuota = await prisma.entregaSimulacion.findFirst({
+    where: { simulacionId, pacienteId: paciente.id, altoCostoMarcado: { not: null } },
   });
-
-  const redimidoEnSimulacion = (recetaId: string) =>
-    entregas
-      .filter((e) => e.recetaElectronicaId === recetaId && e.resultado === "ENTREGADO")
-      .reduce((s, e) => s + e.cantidad, 0);
-
-  const identidadCoincide = paciente.tipoRecogida === "EL_MISMO";
-  const terceroAutorizado = paciente.tipoRecogida === "TERCERO_AUTORIZADO";
-
-  const renglones: RenglonSimulacion[] = paciente.recetas.map((r) => {
-    const auth: AutorizacionSistema = {
-      recetaElectronicaId: r.id,
-      medico: r.medico,
-      cantidadAutorizada: r.cantidadAutorizada,
-      cantidadRedimida: r.cantidadRedimida + redimidoEnSimulacion(r.id),
-      fechaVigencia: r.fechaVigencia.toISOString(),
-    };
-
-    const evaluacion = evaluarRenglon({
-      cantidadPapel: r.cantidadAutorizada,
-      cantidadTachada: null,
-      medicamentoNombre: r.medicamento.nombre,
-      medicamentoTags: r.medicamento.tags,
-      medicamentoStock: r.medicamento.stock,
-      medicoFormula: r.medico,
-      formulaCargadaEnSistema: true,
-      alergiasPaciente: paciente.alergias,
-      identidadCoincide,
-      terceroAutorizado,
-      autorizacion: auth,
-    });
-
-    const gestion = entregas.find((e) => e.recetaElectronicaId === r.id) ?? null;
-
-    return {
-      ...evaluacion,
-      recetaId: r.id,
-      medicamentoNombre: r.medicamento.nombre,
-      presentacion: r.medicamento.presentacion,
-      cantidadAutorizada: r.cantidadAutorizada,
-      cantidadRedimida: auth.cantidadRedimida,
-      saldoDisponible: Math.max(0, auth.cantidadAutorizada - auth.cantidadRedimida),
-      fechaVigencia: auth.fechaVigencia,
-      yaGestionado: gestion ? { resultado: gestion.resultado, cantidad: gestion.cantidad } : null,
-    };
-  });
-
-  // La entrega que cobró la cuota es la que trae `altoCostoMarcado` no nulo (ver
-  // `decidirCuota` más abajo) — solo puede haber una por paciente en la simulación.
-  const entregaConCuota = entregas.find((e) => e.altoCostoMarcado !== null) ?? null;
   const yaDecidida = entregaConCuota !== null;
 
   return {
@@ -159,17 +130,76 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
             cedula: paciente.personaRecogeCedula ?? "—",
             relacion: paciente.personaRecogeRelacion,
           },
-    renglones,
+    totalRenglones: paciente.recetas.length,
   };
 }
 
-async function recetaDeLaSimulacion(simulacionId: string, recetaId: string) {
-  const receta = await prisma.recetaElectronica.findFirst({
-    where: { id: recetaId, paciente: { simulacionId } },
-    include: { paciente: true },
+/**
+ * Busca UN medicamento puntual — lo que el estudiante tiene que hacer por cada medicamento
+ * que le pida (o traiga escrito) la persona en la ventanilla, en vez de que el sistema le
+ * muestre de una vez toda la fórmula. Busca en TODO el catálogo real, no solo en lo que el
+ * paciente tiene autorizado — si el estudiante busca algo que no le corresponde, el sistema
+ * lo encuentra igual (existe en el inventario); no hay ningún aviso que le diga si está bien
+ * o mal, eso lo tiene que resolver comparando contra la fórmula física. "No se encontró"
+ * queda solo para cuando el medicamento de verdad no existe en el catálogo.
+ */
+export async function buscarMedicamentoSimulacion(
+  simulacionId: string,
+  cedula: string,
+  texto: string
+): Promise<{ encontrado: boolean; renglones: RenglonSimulacion[] }> {
+  const paciente = await pacienteDeLaSimulacion(simulacionId, cedula);
+  if (!paciente) return { encontrado: false, renglones: [] };
+
+  const buscado = normalizar(texto);
+  const candidatos = await prisma.medicamento.findMany({
+    where: { origen: "CATALOGO_REAL", nombre: { contains: texto, mode: "insensitive" } },
   });
-  if (!receta) throw new Error("Receta no encontrada en esta simulación");
-  return receta;
+  const coincidencias = candidatos.filter((m) => normalizar(m.nombre).includes(buscado));
+  if (coincidencias.length === 0) return { encontrado: false, renglones: [] };
+
+  const entregas = await prisma.entregaSimulacion.findMany({ where: { simulacionId, pacienteId: paciente.id } });
+
+  const renglones: RenglonSimulacion[] = coincidencias.map((med) => {
+    const receta = paciente.recetas.find((r) => r.medicamentoId === med.id) ?? null;
+
+    if (receta) {
+      const redimidoEnSimulacion = entregas
+        .filter((e) => e.recetaElectronicaId === receta.id && e.resultado === "ENTREGADO")
+        .reduce((s, e) => s + e.cantidad, 0);
+      const cantidadRedimida = receta.cantidadRedimida + redimidoEnSimulacion;
+      const gestion = entregas.find((e) => e.recetaElectronicaId === receta.id) ?? null;
+
+      return {
+        recetaId: receta.id,
+        medicamentoId: med.id,
+        medicamentoNombre: med.nombre,
+        presentacion: med.presentacion,
+        cantidadAutorizada: receta.cantidadAutorizada,
+        cantidadRedimida,
+        saldoDisponible: Math.max(0, receta.cantidadAutorizada - cantidadRedimida),
+        fechaVigencia: receta.fechaVigencia.toISOString(),
+        yaGestionado: gestion ? { resultado: gestion.resultado, cantidad: gestion.cantidad } : null,
+      };
+    }
+
+    // Existe en el catálogo pero el paciente no tiene receta para él — se muestra exactamente
+    // igual, sin ninguna marca que lo distinga.
+    const gestion = entregas.find((e) => e.recetaElectronicaId === null && e.medicamentoId === med.id) ?? null;
+    return {
+      recetaId: null,
+      medicamentoId: med.id,
+      medicamentoNombre: med.nombre,
+      presentacion: med.presentacion,
+      cantidadAutorizada: 0,
+      cantidadRedimida: 0,
+      saldoDisponible: 0,
+      fechaVigencia: null,
+      yaGestionado: gestion ? { resultado: gestion.resultado, cantidad: gestion.cantidad } : null,
+    };
+  });
+
+  return { encontrado: true, renglones };
 }
 
 /**
@@ -185,7 +215,7 @@ async function decidirCuota(
   altoCostoMarcado: boolean
 ): Promise<{ cuotaModeradora: number; altoCostoMarcado: boolean | null }> {
   const yaDecidida = await prisma.entregaSimulacion.findFirst({
-    where: { simulacionId, recetaElectronica: { pacienteId }, altoCostoMarcado: { not: null } },
+    where: { simulacionId, pacienteId, altoCostoMarcado: { not: null } },
     select: { id: true },
   });
   if (yaDecidida) return { cuotaModeradora: 0, altoCostoMarcado: null };
@@ -193,49 +223,60 @@ async function decidirCuota(
   return { cuotaModeradora: calcularCuotaModeradora(categoriaAfiliado, altoCostoMarcado), altoCostoMarcado };
 }
 
-export async function dispensarRenglonSimulacion(
-  simulacionId: string,
-  usuarioId: string,
-  recetaId: string,
-  cantidad: number,
-  altoCostoMarcado: boolean
-) {
-  const receta = await recetaDeLaSimulacion(simulacionId, recetaId);
-  const cuota = await decidirCuota(simulacionId, receta.pacienteId, receta.paciente.categoriaAfiliado, altoCostoMarcado);
+async function registrarEntrega(opts: {
+  simulacionId: string;
+  usuarioId: string;
+  cedula: string;
+  recetaId: string | null;
+  medicamentoId: string;
+  cantidad: number;
+  resultado: "ENTREGADO" | "RECHAZADO";
+  altoCostoMarcado: boolean;
+}) {
+  const paciente = await pacienteDeLaSimulacion(opts.simulacionId, opts.cedula);
+  if (!paciente) throw new Error("Paciente no encontrado en esta simulación");
 
-  await prisma.entregaSimulacion.deleteMany({ where: { simulacionId, recetaElectronicaId: recetaId } });
+  const cuota = await decidirCuota(opts.simulacionId, paciente.id, paciente.categoriaAfiliado, opts.altoCostoMarcado);
+
+  await prisma.entregaSimulacion.deleteMany({
+    where: opts.recetaId
+      ? { simulacionId: opts.simulacionId, recetaElectronicaId: opts.recetaId }
+      : { simulacionId: opts.simulacionId, recetaElectronicaId: null, medicamentoId: opts.medicamentoId, pacienteId: paciente.id },
+  });
   await prisma.entregaSimulacion.create({
     data: {
-      simulacionId,
-      recetaElectronicaId: recetaId,
-      usuarioId,
-      cantidad: Math.max(0, Math.round(cantidad)),
-      resultado: "ENTREGADO",
+      simulacionId: opts.simulacionId,
+      pacienteId: paciente.id,
+      recetaElectronicaId: opts.recetaId,
+      medicamentoId: opts.recetaId ? null : opts.medicamentoId,
+      usuarioId: opts.usuarioId,
+      cantidad: Math.max(0, Math.round(opts.cantidad)),
+      resultado: opts.resultado,
       cuotaModeradora: cuota.cuotaModeradora,
       altoCostoMarcado: cuota.altoCostoMarcado,
     },
   });
 }
 
-export async function rechazarRenglonSimulacion(
-  simulacionId: string,
-  usuarioId: string,
-  recetaId: string,
-  altoCostoMarcado: boolean
-) {
-  const receta = await recetaDeLaSimulacion(simulacionId, recetaId);
-  const cuota = await decidirCuota(simulacionId, receta.pacienteId, receta.paciente.categoriaAfiliado, altoCostoMarcado);
+export async function dispensarRenglonSimulacion(opts: {
+  simulacionId: string;
+  usuarioId: string;
+  cedula: string;
+  recetaId: string | null;
+  medicamentoId: string;
+  cantidad: number;
+  altoCostoMarcado: boolean;
+}) {
+  await registrarEntrega({ ...opts, resultado: "ENTREGADO" });
+}
 
-  await prisma.entregaSimulacion.deleteMany({ where: { simulacionId, recetaElectronicaId: recetaId } });
-  await prisma.entregaSimulacion.create({
-    data: {
-      simulacionId,
-      recetaElectronicaId: recetaId,
-      usuarioId,
-      cantidad: 0,
-      resultado: "RECHAZADO",
-      cuotaModeradora: cuota.cuotaModeradora,
-      altoCostoMarcado: cuota.altoCostoMarcado,
-    },
-  });
+export async function rechazarRenglonSimulacion(opts: {
+  simulacionId: string;
+  usuarioId: string;
+  cedula: string;
+  recetaId: string | null;
+  medicamentoId: string;
+  altoCostoMarcado: boolean;
+}) {
+  await registrarEntrega({ ...opts, cantidad: 0, resultado: "RECHAZADO" });
 }

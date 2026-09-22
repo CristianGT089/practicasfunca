@@ -131,6 +131,7 @@ model Medicamento {
   recetasElectronicas  RecetaElectronica[]
   renglonesFormula     RenglonFormula[]      @relation("MedicamentoRenglonesFormula")
   entregasDispensacion EntregaDispensacion[] @relation("MedicamentoEntregasDispensacion")
+  entregasSimulacion   EntregaSimulacion[]   @relation("MedicamentoEntregasSimulacion")
 
   @@map("medicamentos")
 }
@@ -197,10 +198,11 @@ model Paciente {
   personaRecogeRelacion String? // solo si TERCERO_AUTORIZADO, ej "esposo(a)", "hijo(a)"
   creadoEn        DateTime  @default(now())
 
-  escenarios        EscenarioFarmacia[]
-  recetas           RecetaElectronica[]
-  casosDispensacion CasoDispensacion[] @relation("PacienteCasosDispensacion")
-  ticketsTurnero    Ticket[]
+  escenarios         EscenarioFarmacia[]
+  recetas            RecetaElectronica[]
+  casosDispensacion  CasoDispensacion[] @relation("PacienteCasosDispensacion")
+  ticketsTurnero     Ticket[]
+  entregasSimulacion EntregaSimulacion[]
 
   @@map("pacientes")
 }
@@ -790,11 +792,21 @@ model Simulacion {
 // es una sola farmacia/dispensario compartido ese día, no N prácticas aisladas en paralelo
 // (a diferencia de EntregaDispensacion, que sí aísla por sesión/usuario).
 model EntregaSimulacion {
-  id                  String             @id @default(cuid())
-  simulacionId        String
-  simulacion          Simulacion         @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
-  recetaElectronicaId String
-  recetaElectronica   RecetaElectronica  @relation(fields: [recetaElectronicaId], references: [id])
+  id           String     @id @default(cuid())
+  simulacionId String
+  simulacion   Simulacion @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  // De qué paciente es esta atención — antes se sacaba de la receta, pero un medicamento
+  // sin autorización no tiene receta y de todas formas hay que saber de quién es.
+  pacienteId String
+  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  // Con receta (el paciente sí tiene autorización) o null: el estudiante buscó un
+  // medicamento del catálogo que este paciente no tiene autorizado — a propósito no hay
+  // ningún aviso que se lo diga (ver docs/simulacion.md); si igual lo entrega o lo
+  // rechaza, queda registrado iguial vía `medicamentoId` para que el profesor lo revise.
+  recetaElectronicaId String?
+  recetaElectronica   RecetaElectronica? @relation(fields: [recetaElectronicaId], references: [id])
+  medicamentoId       String? // solo cuando recetaElectronicaId es null
+  medicamento         Medicamento?       @relation("MedicamentoEntregasSimulacion", fields: [medicamentoId], references: [id])
   usuarioId           String // quién la hizo, solo para trazabilidad
   usuario             Usuario            @relation(fields: [usuarioId], references: [id])
   cantidad            Int
@@ -803,9 +815,10 @@ model EntregaSimulacion {
   // Solo se llena en la entrega que cobra la cuota (la primera del paciente en la
   // simulación): qué marcó el ESTUDIANTE al leer el diagnóstico, no la verdad del sistema
   // — así se puede dar retroalimentación de si acertó. Null en las demás entregas.
-  altoCostoMarcado    Boolean?
-  creadoEn            DateTime           @default(now())
+  altoCostoMarcado Boolean?
+  creadoEn         DateTime @default(now())
 
   @@index([simulacionId])
+  @@index([pacienteId])
   @@map("entregas_simulacion")
 }

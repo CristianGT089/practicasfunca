@@ -13,6 +13,15 @@ function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+/**
+ * Clave para acumular renglones encontrados en el dispensario de Simulación: `recetaId`
+ * cuando el medicamento sí está autorizado, o el nombre cuando no (recetaId null) — así
+ * varios medicamentos "no autorizados" buscados en la misma visita no se pisan entre sí.
+ */
+function claveRenglon(r: { recetaId: string | null; medicamentoNombre: string }) {
+  return r.recetaId ?? `sin-receta:${r.medicamentoNombre}`;
+}
+
 export default function DispensacionPage() {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<SnapshotPractica | null>(null);
@@ -343,13 +352,23 @@ function DispensarioSimulacion({
   // Lo que el ESTUDIANTE marca al leer el diagnóstico — decide la cuota, no lo que el
   // sistema ya sepa del paciente (ver docs/simulacion.md).
   const [altoCostoMarcado, setAltoCostoMarcado] = useState(false);
+  // Igual que el diagnóstico: los medicamentos que hay que entregar NO se muestran de una
+  // vez — el estudiante busca cada uno por nombre, como en el dispensario real. Van
+  // acumulándose acá a medida que los encuentra (por recetaId, para no duplicar).
+  const [medicamentoTexto, setMedicamentoTexto] = useState("");
+  const [buscandoMed, setBuscandoMed] = useState(false);
+  const [medError, setMedError] = useState<string | null>(null);
+  const [renglonesEncontrados, setRenglonesEncontrados] = useState<Record<string, RenglonSimulacion>>({});
 
-  // Si cambia el turno atendido (nuevo paciente en la ventanilla), se limpia la búsqueda
-  // anterior: no debe quedar visible la ficha de la persona pasada.
+  // Si cambia el turno atendido (nuevo paciente en la ventanilla), se limpia todo — no debe
+  // quedar visible la ficha ni los medicamentos de la persona pasada.
   useEffect(() => {
     setDocumento("");
     setResultado(null);
     setAltoCostoMarcado(false);
+    setMedicamentoTexto("");
+    setMedError(null);
+    setRenglonesEncontrados({});
   }, [paciente?.cedula]);
 
   async function buscar() {
@@ -361,16 +380,47 @@ function DispensarioSimulacion({
       body: JSON.stringify({ simulacionId, cedula: documento.trim() }),
     });
     setResultado(await res.json());
+    setRenglonesEncontrados({});
     setBuscando(false);
   }
 
-  async function refrescarBusqueda() {
-    const res = await fetch("/api/modulos/dispensacion/simulacion/buscar", {
+  async function buscarMedicamento() {
+    if (!medicamentoTexto.trim() || buscandoMed) return;
+    setBuscandoMed(true);
+    setMedError(null);
+    const res = await fetch("/api/modulos/dispensacion/simulacion/buscar-medicamento", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ simulacionId, cedula: documento.trim() }),
+      body: JSON.stringify({ simulacionId, cedula: documento.trim(), texto: medicamentoTexto.trim() }),
     });
-    setResultado(await res.json());
+    const data: { encontrado: boolean; renglones: RenglonSimulacion[] } = await res.json();
+    setBuscandoMed(false);
+    if (!data.encontrado) {
+      setMedError(`"${medicamentoTexto}" no se encontró en el catálogo del sistema.`);
+      return;
+    }
+    setRenglonesEncontrados((actual) => {
+      const copia = { ...actual };
+      for (const r of data.renglones) copia[claveRenglon(r)] = r;
+      return copia;
+    });
+    setMedicamentoTexto("");
+  }
+
+  /** Vuelve a buscar un renglón puntual por su propio nombre — para refrescarlo tras entregar/rechazar. */
+  async function refrescarRenglon(nombreMedicamento: string) {
+    const res = await fetch("/api/modulos/dispensacion/simulacion/buscar-medicamento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ simulacionId, cedula: documento.trim(), texto: nombreMedicamento }),
+    });
+    const data: { encontrado: boolean; renglones: RenglonSimulacion[] } = await res.json();
+    if (!data.encontrado) return;
+    setRenglonesEncontrados((actual) => {
+      const copia = { ...actual };
+      for (const r of data.renglones) copia[claveRenglon(r)] = r;
+      return copia;
+    });
   }
 
   if (!paciente) {
@@ -413,22 +463,16 @@ function DispensarioSimulacion({
 
   if (!resultado?.encontrado || !resultado.paciente) return buscador;
 
-  // El documento buscado coincide con un paciente, pero no es al que le tocó este turno
-  // (se equivocó de cédula, o mezcló el turno de otra persona): no seguimos.
-  if (resultado.paciente.cedula !== paciente.cedula) {
-    return (
-      <>
-        {buscador}
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-          Encontraste a <b>{resultado.paciente.nombre}</b> ({resultado.paciente.cedula}), pero el turno actual no es
-          para esa persona. Verifica el documento.
-        </div>
-      </>
-    );
-  }
-
+  // A propósito NO se compara contra la cédula del turno asignado: el sistema, en la vida
+  // real, no sabe a quién le toca — solo busca lo que le pidan. Si el estudiante mete la
+  // cédula equivocada (o mezcla el turno de otra persona), el error debe ser suyo y visible,
+  // no algo que la pantalla le prevenga.
   const p = resultado.paciente;
-  const todoGestionado = resultado.renglones.length > 0 && resultado.renglones.every((r) => r.yaGestionado);
+  const listaEncontrados = Object.values(renglonesEncontrados);
+  // Solo cuenta lo que sí tiene receta — lo gestionado sin receta no hace parte de "la
+  // fórmula de este paciente", así que no debe sumar para el progreso ni para el "Listo".
+  const gestionados = listaEncontrados.filter((r) => r.recetaId && r.yaGestionado).length;
+  const todoGestionado = resultado.totalRenglones > 0 && gestionados >= resultado.totalRenglones;
 
   return (
     <>
@@ -494,17 +538,45 @@ function DispensarioSimulacion({
         </div>
       )}
 
-      {resultado.renglones.length === 0 ? (
-        <p className="text-sm text-slate-400">Este paciente no tiene recetas registradas.</p>
-      ) : (
+      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-4">
+        <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar medicamento en el sistema</p>
+        <p className="text-xs text-slate-400 mb-3">
+          Pídele a la persona qué necesita y búscalo — no se muestran de una vez.
+          {resultado.totalRenglones > 0 && (
+            <span className="ml-1 text-slate-500">
+              ({gestionados} de {resultado.totalRenglones} gestionados)
+            </span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={medicamentoTexto}
+            onChange={(e) => setMedicamentoTexto(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && buscarMedicamento()}
+            placeholder="Nombre del medicamento"
+            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button
+            onClick={buscarMedicamento}
+            disabled={buscandoMed || !medicamentoTexto.trim()}
+            className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+          >
+            Buscar
+          </button>
+        </div>
+        {medError && <p className="text-sm text-red-600 mt-3">{medError}</p>}
+      </div>
+
+      {listaEncontrados.length > 0 && (
         <div className="flex flex-col gap-3">
-          {resultado.renglones.map((r) => (
+          {listaEncontrados.map((r) => (
             <RenglonCardSimulacion
-              key={r.recetaId}
+              key={claveRenglon(r)}
               simulacionId={simulacionId}
+              cedula={documento}
               renglon={r}
               altoCostoMarcado={altoCostoMarcado}
-              onCambio={refrescarBusqueda}
+              onCambio={() => refrescarRenglon(r.medicamentoNombre)}
             />
           ))}
         </div>
@@ -582,18 +654,26 @@ function CuotaModeradoraCard({
   );
 }
 
+/**
+ * Sin ningún aviso ni bloqueo: el sistema muestra el medicamento (esté o no autorizado
+ * para este paciente, ver docs/simulacion.md) con sus datos crudos, y "Entregar"/"Rechazar"
+ * siempre están disponibles. Que sea correcto o no depende de que el estudiante lo compare
+ * contra la fórmula física — la pantalla no se lo dice.
+ */
 function RenglonCardSimulacion({
   simulacionId,
+  cedula,
   renglon,
   altoCostoMarcado,
   onCambio,
 }: {
   simulacionId: string;
+  cedula: string;
   renglon: RenglonSimulacion;
   altoCostoMarcado: boolean;
   onCambio: () => void;
 }) {
-  const [cantidad, setCantidad] = useState(renglon.maxEntregable || renglon.cantidadAutorizada);
+  const [cantidad, setCantidad] = useState(renglon.cantidadAutorizada || 1);
   const [enviando, setEnviando] = useState(false);
 
   async function accion(body: Record<string, unknown>) {
@@ -601,16 +681,20 @@ function RenglonCardSimulacion({
     await fetch("/api/modulos/dispensacion/simulacion/dispensar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ simulacionId, altoCostoMarcado, ...body }),
+      body: JSON.stringify({
+        simulacionId,
+        cedula,
+        recetaId: renglon.recetaId,
+        medicamentoId: renglon.medicamentoId,
+        altoCostoMarcado,
+        ...body,
+      }),
     });
     setEnviando(false);
     onCambio();
   }
 
   const gestionado = renglon.yaGestionado;
-  const hayBloqueo = renglon.avisos.some((a) => a.nivel === "BLOQUEO");
-  const colorAviso = (nivel: string) =>
-    nivel === "BLOQUEO" ? "text-red-700 bg-red-50" : nivel === "ALERTA" ? "text-amber-800 bg-amber-50" : "text-slate-600 bg-slate-50";
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -642,44 +726,29 @@ function RenglonCardSimulacion({
         </span>
       </div>
 
-      {renglon.avisos.length > 0 && gestionado?.resultado !== "ENTREGADO" && (
-        <div className="mt-2 flex flex-col gap-1">
-          {renglon.avisos.map((a, i) => (
-            <p key={i} className={`rounded px-2 py-1 text-xs ${colorAviso(a.nivel)}`}>
-              {a.mensaje}
-            </p>
-          ))}
-        </div>
-      )}
-
       {!gestionado && (
         <div className="mt-3 flex items-center gap-2">
-          {!hayBloqueo && (
-            <>
-              <input
-                type="number"
-                min={1}
-                value={cantidad}
-                onChange={(e) => setCantidad(Number(e.target.value))}
-                className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-              />
-              <button
-                onClick={() => accion({ recetaId: renglon.recetaId, cantidad })}
-                disabled={enviando || cantidad < 1}
-                className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-900 disabled:opacity-40"
-              >
-                Entregar
-              </button>
-            </>
-          )}
+          <input
+            type="number"
+            min={1}
+            value={cantidad}
+            onChange={(e) => setCantidad(Number(e.target.value))}
+            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+          />
           <button
-            onClick={() => accion({ recetaId: renglon.recetaId, rechazar: true })}
+            onClick={() => accion({ cantidad })}
+            disabled={enviando || cantidad < 1}
+            className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+          >
+            Entregar
+          </button>
+          <button
+            onClick={() => accion({ rechazar: true })}
             disabled={enviando}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             Rechazar
           </button>
-          {hayBloqueo && <span className="text-xs text-red-600">El sistema no permite dispensar este renglón.</span>}
         </div>
       )}
     </div>
