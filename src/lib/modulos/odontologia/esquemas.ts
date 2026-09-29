@@ -30,6 +30,8 @@ export const casoOdontologiaSchema = z.object({
   descripcion: z.string().trim().min(1).max(2000),
   descripcionDificil: opcional(2000),
   activo: z.boolean().default(true),
+  // true = solo para jornadas presenciales: no aparece en la práctica virtual.
+  soloTurno: z.boolean().default(false),
   resultadoEsperado: z.enum(["ATENCION_EN_CONSULTA", "REMISION_ESPECIALISTA", "INTERCONSULTA_MEDICA"]),
   denticion: z.enum(["PERMANENTE", "TEMPORAL", "MIXTA"]),
   motivoConsulta: z.string().trim().min(1).max(500),

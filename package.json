@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
     "seed:catalogo-real": "tsx scripts/modulos/farmacia/importar-catalogo-real.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "casos:odontologia": "tsx scripts/modulos/odontologia/crear-casos.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -13,6 +13,7 @@ function prepararCaso(entrada: CasoOdontologiaEntrada) {
     descripcion: entrada.descripcion,
     descripcionDificil: entrada.descripcionDificil,
     activo: entrada.activo,
+    soloTurno: entrada.soloTurno,
     resultadoEsperado: entrada.resultadoEsperado,
   };
   const extension = {

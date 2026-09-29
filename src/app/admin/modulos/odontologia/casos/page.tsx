@@ -45,6 +45,7 @@ type Caso = {
   descripcion: string;
   descripcionDificil: string;
   activo: boolean;
+  soloTurno: boolean;
   resultadoEsperado: string;
   denticion: Denticion;
   motivoConsulta: string;
@@ -61,6 +62,7 @@ type CasoApi = {
   descripcion: string;
   descripcionDificil: string | null;
   activo: boolean;
+  soloTurno: boolean;
   resultadoEsperado: string;
   _count: { intentos: number };
   odontologia: {
@@ -98,6 +100,7 @@ const casoVacio = (): Caso => ({
   descripcion: "",
   descripcionDificil: "",
   activo: true,
+  soloTurno: false,
   resultadoEsperado: "ATENCION_EN_CONSULTA",
   denticion: "PERMANENTE",
   motivoConsulta: "",
@@ -119,6 +122,7 @@ function aFormulario(c: CasoApi): Caso {
     descripcion: c.descripcion,
     descripcionDificil: c.descripcionDificil ?? "",
     activo: c.activo,
+    soloTurno: c.soloTurno,
     resultadoEsperado: c.resultadoEsperado,
     denticion: o.denticion as Denticion,
     motivoConsulta: o.motivoConsulta,
@@ -139,6 +143,7 @@ function aPayload(c: Caso) {
     descripcion: c.descripcion.trim(),
     descripcionDificil: nulo(c.descripcionDificil),
     activo: c.activo,
+    soloTurno: c.soloTurno,
     resultadoEsperado: c.resultadoEsperado,
     denticion: c.denticion,
     motivoConsulta: c.motivoConsulta.trim(),
@@ -249,6 +254,9 @@ export default function CasosOdontologiaPage() {
                 <p className="font-medium text-slate-800">
                   {c.titulo}
                   {!c.activo && <span className="ml-2 text-xs text-slate-400">(inactivo)</span>}
+                  {c.soloTurno && (
+                    <span className="ml-2 rounded bg-cyan-100 px-1.5 py-0.5 text-[11px] font-semibold text-cyan-800">Solo jornada presencial</span>
+                  )}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {c.odontologia?.paciente.nombres} {c.odontologia?.paciente.primerApellido} · dentición {c.odontologia?.denticion.toLowerCase()} ·{" "}
@@ -359,6 +367,10 @@ function Editor({
         </div>
         <label className="mt-3 flex items-center gap-2 text-xs text-slate-600">
           <input type="checkbox" checked={caso.activo} onChange={(ev) => set({ activo: ev.target.checked })} /> Activo (visible para los estudiantes)
+        </label>
+        <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+          <input type="checkbox" checked={caso.soloTurno} onChange={(ev) => set({ soloTurno: ev.target.checked })} /> Solo para jornadas
+          presenciales (no aparece en la práctica virtual, para que no lo conozcan antes)
         </label>
       </Seccion>
 

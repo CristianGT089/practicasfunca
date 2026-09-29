@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   COLORES_HEX,
   FILAS,
@@ -82,11 +82,13 @@ type PropsDiente = {
   marcas: Marca[];
   herramienta: DefinicionHallazgo | "BORRAR" | null;
   onClic?: (diente: number, superficie: Superficie) => void;
+  /** Clic derecho: abre el menú de lo que puede tener esa cara o ese diente. */
+  onMenu?: (diente: number, superficie: Superficie | null, x: number, y: number) => void;
   estado?: EstadoEtiqueta;
   sinEtiqueta?: boolean;
 };
 
-function Diente({ diente, x, y, marcas, herramienta, onClic, estado, sinEtiqueta }: PropsDiente) {
+function Diente({ diente, x, y, marcas, herramienta, onClic, onMenu, estado, sinEtiqueta }: PropsDiente) {
   const [hover, setHover] = useState<Superficie | null>(null);
   const superior = esSuperior(diente);
   const cx = x + ANCHO / 2;
@@ -171,7 +173,19 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, estado, sinEtiqueta
     estado === "ok" ? "#15803d" : estado === "parcial" ? "#b45309" : estado === "error" ? "#dc2626" : "#334155";
 
   return (
-    <g onMouseLeave={() => setHover(null)} style={{ cursor: editable ? "pointer" : "default" }}>
+    <g
+      onMouseLeave={() => setHover(null)}
+      style={{ cursor: editable ? "pointer" : "default" }}
+      onContextMenu={
+        onMenu
+          ? (e) => {
+              e.preventDefault();
+              const cara = (e.target as Element).getAttribute("data-superficie") as Superficie | null;
+              onMenu(diente, cara, e.clientX, e.clientY);
+            }
+          : undefined
+      }
+    >
       <title>{titulo}</title>
       {/* Área de clic de todo el diente para herramientas de diente completo */}
       {editable && herramientaDeDiente && (
@@ -196,6 +210,7 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, estado, sinEtiqueta
             fill={fill}
             stroke={stroke ?? "#475569"}
             strokeWidth={stroke ? 2.2 : 1}
+            data-superficie={s}
             onMouseEnter={() => setHover(s)}
             onClick={() => onClic?.(diente, s)}
           >
@@ -213,6 +228,7 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, estado, sinEtiqueta
             fill={fill}
             stroke={stroke ?? "#475569"}
             strokeWidth={stroke ? 2.2 : 1}
+            data-superficie="O"
             onMouseEnter={() => setHover("O")}
             onClick={() => onClic?.(diente, "O")}
           >
@@ -314,6 +330,8 @@ export type PropsOdontograma = {
 
 export default function Odontograma({ denticion, marcas, onChange, estados, mostrarResumen = true }: PropsOdontograma) {
   const [herramienta, setHerramienta] = useState<CodigoHallazgo | "BORRAR">("CARIES");
+  const [menu, setMenu] = useState<{ diente: number; superficie: Superficie | null; x: number; y: number } | null>(null);
+  const cerrarMenu = useCallback(() => setMenu(null), []);
   const editable = Boolean(onChange);
   const def = herramienta === "BORRAR" ? "BORRAR" : definicionHallazgo(herramienta)!;
   const { superiores, inferiores } = filasDe(denticion);
@@ -341,6 +359,7 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
         marcas={marcas}
         herramienta={editable ? def : null}
         onClic={editable ? clic : undefined}
+        onMenu={editable ? (diente, superficie, x, y) => setMenu({ diente, superficie, x, y }) : undefined}
         estado={estados?.get(d)}
       />
     ));
@@ -349,6 +368,17 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
 
   return (
     <div className="flex flex-col gap-4 xl:flex-row">
+      {menu && onChange && (
+        <MenuDiente
+          {...menu}
+          marcas={marcas}
+          onElegir={(nuevas) => {
+            onChange(nuevas);
+            setMenu(null);
+          }}
+          onCerrar={cerrarMenu}
+        />
+      )}
       <div className="min-w-0 flex-1">
         <svg viewBox={`-4 -4 ${ANCHO_TOTAL + 8} ${altoTotal + 8}`} className="w-full h-auto select-none" role="img" aria-label="Odontograma">
           {/* Cruz de cuadrantes */}
@@ -397,7 +427,8 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
         <div className="xl:w-64 shrink-0">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Convenciones</p>
           <p className="text-[11px] text-slate-500 mb-2">
-            Elige una convención y haz clic en la cara del diente (las de diente completo se aplican con clic en cualquier parte). Clic
+            Clic derecho sobre una cara o un diente para elegir desde ahí lo que puede tener. También puedes elegir una convención aquí y
+            hacer clic en la cara del diente (las de diente completo se aplican con clic en cualquier parte). Clic
             de nuevo para quitarla.
           </p>
           <div className="grid grid-cols-2 xl:grid-cols-1 gap-1">
@@ -430,6 +461,120 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Menú contextual (clic derecho)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que puede tener la cara o el diente donde se hizo clic derecho: los hallazgos de esa
+ * cara (caries, obturaciones) y los del diente completo. Lo que ya está marcado aparece con
+ * ✓ y, al elegirlo de nuevo, se quita (igual que con la paleta).
+ */
+function MenuDiente({
+  diente,
+  superficie,
+  x,
+  y,
+  marcas,
+  onElegir,
+  onCerrar,
+}: {
+  diente: number;
+  superficie: Superficie | null;
+  x: number;
+  y: number;
+  marcas: Marca[];
+  onElegir: (marcas: Marca[]) => void;
+  onCerrar: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fuera = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onCerrar();
+    };
+    const tecla = (e: KeyboardEvent) => e.key === "Escape" && onCerrar();
+    // Se cierra si se desplaza la página, pero no si se desplaza la lista del propio menú.
+    const desplazamiento = (e: Event) => {
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
+      onCerrar();
+    };
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", tecla);
+    window.addEventListener("scroll", desplazamiento, true);
+    window.addEventListener("resize", onCerrar);
+    ref.current?.querySelector("button")?.focus({ preventScroll: true });
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", tecla);
+      window.removeEventListener("scroll", desplazamiento, true);
+      window.removeEventListener("resize", onCerrar);
+    };
+  }, [onCerrar]);
+
+  // Que no se salga de la pantalla.
+  const ANCHO_MENU = 272;
+  const left = Math.max(8, Math.min(x, (typeof window !== "undefined" ? window.innerWidth : 1200) - ANCHO_MENU - 8));
+  const alto = typeof window !== "undefined" ? window.innerHeight : 800;
+  const top = Math.max(8, Math.min(y, alto - Math.min(460, alto * 0.7) - 8));
+
+  const tiene = (h: CodigoHallazgo, cara?: Superficie) =>
+    marcas.some((m) => m.diente === diente && m.hallazgo === h && (cara ? m.superficie === cara : !m.superficie));
+  const deCara = HALLAZGOS.filter((h) => h.nivel === "SUPERFICIE");
+  const deDiente = HALLAZGOS.filter((h) => h.nivel === "DIENTE");
+
+  const item = (h: DefinicionHallazgo, marcado: boolean, aplicar: () => void) => (
+    <button
+      key={h.codigo}
+      type="button"
+      role="menuitem"
+      onClick={aplicar}
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-slate-700 hover:bg-cyan-50 focus:bg-cyan-50 focus:outline-none"
+    >
+      <SimboloHallazgo codigo={h.codigo} tamano={18} />
+      <span className="flex-1">{h.etiqueta}</span>
+      {marcado && <span className="font-bold text-cyan-700">✓</span>}
+    </button>
+  );
+
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      aria-label={`Hallazgos del diente ${diente}`}
+      className="fixed z-50 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+      style={{ left, top, width: ANCHO_MENU, maxHeight: "min(460px, 70vh)" }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <p className="px-2 pt-1 font-heading text-sm font-semibold text-cyan-900">Diente {diente}</p>
+      <p className="px-2 pb-1 text-[11px] text-slate-500">{nombreDiente(diente)}</p>
+
+      {superficie && (
+        <>
+          <p className="mt-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            Cara {nombreSuperficie(diente, superficie)}
+          </p>
+          {deCara.map((h) => item(h, tiene(h.codigo, superficie), () => onElegir(aplicarHallazgo(marcas, diente, h.codigo, superficie))))}
+        </>
+      )}
+
+      <p className="mt-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Todo el diente</p>
+      {deDiente.map((h) => item(h, tiene(h.codigo), () => onElegir(aplicarHallazgo(marcas, diente, h.codigo))))}
+
+      <div className="mt-1 border-t border-slate-100 pt-1">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => onElegir(limpiarDiente(marcas, diente))}
+          className="w-full rounded-md px-2 py-1 text-left text-xs text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+        >
+          Borrar todo lo del diente
+        </button>
+      </div>
     </div>
   );
 }

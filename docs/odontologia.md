@@ -96,3 +96,14 @@ Código: `lib/modulos/odontologia/jornada.ts` (consultorio), `api/modulos/odonto
 - **Firma del paciente** en la evolución (el compañero firma en la pantalla) y sello del docente.
 - **Radiografía como imagen** en vez de texto, cuando haya radiografías de práctica.
 - **Tiempo por historia** en el reporte (desde que abrió hasta que cerró).
+
+## Casos de ejemplo y clic derecho
+
+- **Casos de ejemplo:** `lib/modulos/odontologia/casosEjemplo.ts` tiene 5 casos de práctica virtual
+  y 5 solo para jornadas presenciales (`soloTurno`: no salen en la práctica virtual, para que no
+  se conozcan antes). Para crearlos en una base sin seed (producción):
+  `npm run casos:odontologia` (en Docker: `docker compose exec app npm run casos:odontologia`).
+  Crea el módulo si falta, omite los casos que ya existen y no toca usuarios.
+- **Clic derecho en el odontograma:** abre un menú con lo que puede tener esa cara (caries,
+  obturaciones) y el diente completo, marcando con ✓ lo que ya tiene. En celulares Android se
+  abre manteniendo presionado.
