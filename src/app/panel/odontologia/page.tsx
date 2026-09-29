@@ -17,7 +17,34 @@ import {
   type PacienteOdontologia,
 } from "@/components/modulos/odontologia/SeccionesHistoria";
 
-type Jornada = { id: string; nombre: string; unidades: number };
+type Jornada = { id: string; nombre: string; unidades: number; pacientesReales: boolean };
+
+type Admision = {
+  nombres: string;
+  primerApellido: string;
+  segundoApellido: string;
+  tipoDocumento: "CC" | "TI" | "RC" | "CE";
+  documento: string;
+  sexo: "M" | "F";
+  fechaNacimiento: string;
+  eps: string;
+  ocupacion: string;
+};
+
+const ADMISION_VACIA: Admision = {
+  nombres: "",
+  primerApellido: "",
+  segundoApellido: "",
+  tipoDocumento: "CC",
+  documento: "",
+  sexo: "F",
+  fechaNacimiento: "",
+  eps: "",
+  ocupacion: "",
+};
+
+const claseCampo =
+  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500";
 type Encontrado = { casoId: string; paciente: PacienteOdontologia; denticion: Denticion };
 
 const CLAVE_UNIDAD = "odontologia-unidad";
@@ -51,6 +78,10 @@ export default function ConsultorioOdontologiaPage() {
   const [estadoGuardado, setEstadoGuardado] = useState<"guardado" | "pendiente" | "guardando" | "error">("guardado");
   const [cerrando, setCerrando] = useState(false);
   const [cerrada, setCerrada] = useState<string | null>(null);
+  // Pacientes reales: admisión del compañero que se va a examinar.
+  const [admision, setAdmision] = useState<Admision>(ADMISION_VACIA);
+  const [denticionReal, setDenticionReal] = useState<Denticion>("PERMANENTE");
+  const [consentimiento, setConsentimiento] = useState(false);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ultimaHistoria = useRef<HistoriaOdontologica>(historia);
 
@@ -63,8 +94,11 @@ export default function ConsultorioOdontologiaPage() {
     const data = await res.json();
     setJornada(data.jornada);
     setUsuario(data.usuario);
+    // La cuenta del computador ya sabe qué unidad es; si no, se usa la elegida antes.
+    const propia = data.usuario?.espacioNumero;
     const guardada = Number(localStorage.getItem(CLAVE_UNIDAD));
-    if (guardada > 0) setUnidad(guardada);
+    if (typeof propia === "number" && propia > 0) setUnidad(propia);
+    else if (guardada > 0) setUnidad(guardada);
   }, [router]);
 
   useEffect(() => {
@@ -140,6 +174,59 @@ export default function ConsultorioOdontologiaPage() {
     setHistoria(h);
     setAtencionId(data.atencion.id);
     setEstadoGuardado("guardado");
+    window.scrollTo(0, 0);
+  }
+
+  async function abrirHistoriaReal(e: React.FormEvent) {
+    e.preventDefault();
+    if (!unidad) return;
+    setError(null);
+    const a = admision;
+    if (!a.nombres.trim() || !a.primerApellido.trim() || !a.documento.trim() || !a.fechaNacimiento) {
+      setError("Faltan datos: nombres, primer apellido, documento y fecha de nacimiento.");
+      return;
+    }
+    if (!consentimiento) {
+      setError("Confirma que tu compañero dio su consentimiento.");
+      return;
+    }
+    const paciente = {
+      ...a,
+      segundoApellido: a.segundoApellido.trim() || null,
+      eps: a.eps.trim() || null,
+      ocupacion: a.ocupacion.trim() || null,
+    };
+    const res = await fetch("/api/modulos/odontologia/jornada/pacientes-reales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paciente, consentimiento: true, unidad, denticion: denticionReal }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "No se pudo abrir la historia");
+      return;
+    }
+    const h = data.atencion.historia ? normalizarHistoria(data.atencion.historia) : historiaVacia();
+    ultimaHistoria.current = h;
+    setHistoria(h);
+    setEncontrado({
+      casoId: "",
+      denticion: (data.atencion.denticion ?? denticionReal) as Denticion,
+      paciente: {
+        ...paciente,
+        profesion: null,
+        estadoCivil: null,
+        telefono: null,
+        direccion: null,
+        contactoEmergencia: null,
+        parentescoContacto: null,
+        telefonoContacto: null,
+      },
+    });
+    setAtencionId(data.atencion.id);
+    setEstadoGuardado("guardado");
+    setAdmision(ADMISION_VACIA);
+    setConsentimiento(false);
     window.scrollTo(0, 0);
   }
 
@@ -352,6 +439,91 @@ export default function ConsultorioOdontologiaPage() {
             Historia de <b>{cerrada}</b> cerrada y firmada. Llama al siguiente paciente.
           </div>
         )}
+        {jornada.pacientesReales ? (
+          <form onSubmit={abrirHistoriaReal} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm flex flex-col gap-3">
+            <div>
+              <h1 className="font-heading text-lg font-semibold text-cyan-900">Admisión del paciente</h1>
+              <p className="text-sm text-slate-600">
+                Registra a tu compañero con los datos de su documento. Solo lo necesario: al cerrar la jornada se borran.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(
+                [
+                  ["nombres", "Nombres"],
+                  ["primerApellido", "Primer apellido"],
+                  ["segundoApellido", "Segundo apellido"],
+                ] as const
+              ).map(([k, etiqueta]) => (
+                <label key={k} className="text-xs font-medium text-slate-600">
+                  {etiqueta}
+                  <input value={admision[k]} onChange={(e) => setAdmision({ ...admision, [k]: e.target.value })} className={`${claseCampo} mt-1`} />
+                </label>
+              ))}
+              <label className="text-xs font-medium text-slate-600">
+                Tipo de documento
+                <select
+                  value={admision.tipoDocumento}
+                  onChange={(e) => setAdmision({ ...admision, tipoDocumento: e.target.value as Admision["tipoDocumento"] })}
+                  className={`${claseCampo} mt-1`}
+                >
+                  {["CC", "TI", "RC", "CE"].map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Número de documento
+                <input
+                  value={admision.documento}
+                  inputMode="numeric"
+                  onChange={(e) => setAdmision({ ...admision, documento: e.target.value })}
+                  className={`${claseCampo} mt-1`}
+                />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Fecha de nacimiento
+                <input
+                  type="date"
+                  value={admision.fechaNacimiento}
+                  onChange={(e) => setAdmision({ ...admision, fechaNacimiento: e.target.value })}
+                  className={`${claseCampo} mt-1`}
+                />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Sexo
+                <select value={admision.sexo} onChange={(e) => setAdmision({ ...admision, sexo: e.target.value as "M" | "F" })} className={`${claseCampo} mt-1`}>
+                  <option value="F">Femenino</option>
+                  <option value="M">Masculino</option>
+                </select>
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                EPS
+                <input value={admision.eps} onChange={(e) => setAdmision({ ...admision, eps: e.target.value })} className={`${claseCampo} mt-1`} />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Ocupación
+                <input value={admision.ocupacion} onChange={(e) => setAdmision({ ...admision, ocupacion: e.target.value })} className={`${claseCampo} mt-1`} />
+              </label>
+              <label className="text-xs font-medium text-slate-600">
+                Dentición
+                <select value={denticionReal} onChange={(e) => setDenticionReal(e.target.value as Denticion)} className={`${claseCampo} mt-1`}>
+                  <option value="PERMANENTE">Permanente</option>
+                  <option value="MIXTA">Mixta</option>
+                  <option value="TEMPORAL">Temporal</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-start gap-2 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-900">
+              <input type="checkbox" checked={consentimiento} onChange={(e) => setConsentimiento(e.target.checked)} className="mt-0.5" />
+              Mi compañero aceptó que lo examine como parte de la práctica y que sus datos se usen solo durante esta jornada.
+            </label>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" className="self-start rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">
+              Abrir historia clínica
+            </button>
+          </form>
+        ) : (
         <section className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
           <h1 className="font-heading text-lg font-semibold text-cyan-900">Admisión del paciente</h1>
           <p className="text-sm text-slate-600 mb-3">Pídele el documento de identidad y búscalo en el sistema.</p>
@@ -373,6 +545,7 @@ export default function ConsultorioOdontologiaPage() {
           </form>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </section>
+        )}
 
         {encontrado && (
           <>

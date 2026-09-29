@@ -107,3 +107,24 @@ Código: `lib/modulos/odontologia/jornada.ts` (consultorio), `api/modulos/odonto
 - **Clic derecho en el odontograma:** abre un menú con lo que puede tener esa cara (caries,
   obturaciones) y el diente completo, marcando con ✓ lo que ya tiene. En celulares Android se
   abre manteniendo presionado.
+
+## Pacientes reales (boca real)
+
+Al crear la jornada de Odontología se elige **"Pacientes reales"** en vez de casos con tarjeta:
+
+- Los estudiantes se examinan en parejas. En el consultorio **registran al compañero**
+  (datos mínimos: nombre, documento, fecha de nacimiento, sexo, EPS, ocupación; sin dirección
+  ni teléfono) y marcan su **consentimiento**; sin él no se abre la historia.
+- Redactan la historia y el odontograma con lo que ven en boca. No hay nota automática.
+- Al finalizar, el docente abre cada historia (solo lectura) y la califica con la **rúbrica**
+  (`lib/modulos/odontologia/rubrica.ts`): historia completa, odontograma coherente, alerta y
+  antecedentes, bioseguridad y trato; cada uno Cumple / Parcial / No cumple, más un comentario.
+- Al **calificar y cerrar** se borran la historia, los datos del compañero y su documento; queda
+  el nombre abreviado ("Laura M."), la nota y el comentario.
+
+## Cuentas de los computadores
+
+Al **iniciar** cualquier jornada se crea una cuenta por espacio ("Ventanilla 1", "Unidad 2"...)
+con su contraseña, que se muestra en ese momento. Cada cuenta entra directo a su pantalla y ya
+sabe qué espacio es (`Usuario.espacioNumero`). Las contraseñas no se guardan; si se pierden,
+"Generar contraseñas nuevas" crea otras sin sacar a los computadores que ya entraron.

@@ -13,6 +13,8 @@ export type AtencionReporte = {
   criterios: CriterioReporte[];
   puntaje: number | null;
   cerrada?: boolean;
+  rubrica?: unknown;
+  comentario?: string | null;
   /** Odontología: revisión del odontograma (ver RevisionOdontograma). */
   detalle?: { revisionOdontologia?: unknown } | null;
 };

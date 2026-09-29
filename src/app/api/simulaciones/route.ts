@@ -23,6 +23,7 @@ export async function GET() {
       abiertaEn: true,
       cerradaEn: true,
       situaciones: true,
+      pacientesReales: true,
       grupo: { select: { nombre: true } },
       turnero: { select: { nombre: true } },
       _count: { select: { pacientes: true, atenciones: true, participantes: true } },
@@ -50,6 +51,7 @@ const crearSchema = z
     proporcionNormales: z.number().min(0).max(0.9).default(0.33),
     // Odontología: casos de la práctica virtual que se atienden ese día.
     casosOdontologiaIds: z.array(z.string().min(1)).max(40).default([]),
+    pacientesReales: z.boolean().default(false),
   })
   .refine((d) => d.tipo === "ODONTOLOGIA" || (d.pacientes && d.pacientes.length > 0) || (d.cantidadPacientes ?? 0) > 0, {
     message: "Agrega nombres o una cantidad de pacientes",

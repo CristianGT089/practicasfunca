@@ -28,6 +28,17 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
   useEffect(() => {
     const guardado = Number(localStorage.getItem(CLAVE_LOCAL));
     if (guardado > 0) setMiEspacio(guardado);
+    // Las cuentas creadas al iniciar una jornada ya saben qué ventanilla son.
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        const n = d.usuario?.espacioNumero;
+        if (typeof n === "number" && n > 0) {
+          localStorage.setItem(CLAVE_LOCAL, String(n));
+          setMiEspacio(n);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const buscarSesion = useCallback(async () => {

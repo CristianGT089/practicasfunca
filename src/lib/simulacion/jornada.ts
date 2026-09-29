@@ -14,6 +14,8 @@ import { evaluarAtencionDispensario, type ClaveCriterio, type Criterio } from ".
 import { ponderar, PESOS, revisarHistoria } from "@/lib/modulos/odontologia/calificacion";
 import { historiaVacia, normalizarEsperado, normalizarHistoria, REMISIONES } from "@/lib/modulos/odontologia/historia";
 import { denticionDe } from "@/lib/modulos/odontologia/consultorio";
+import { CRITERIOS_RUBRICA, NIVELES, normalizarRubrica, puntajeRubrica } from "@/lib/modulos/odontologia/rubrica";
+import { Prisma } from "@prisma/client";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -156,6 +158,17 @@ export async function finalizarJornada(simulacionId: string) {
   ]);
 }
 
+/** Pacientes reales: el docente califica con la rúbrica y deja un comentario (antes de cerrar). */
+export async function calificarConRubrica(simulacionId: string, atencionId: string, rubrica: unknown, comentario: string | null) {
+  const atencion = await prisma.atencionJornada.findUnique({ where: { id: atencionId }, include: { simulacion: true } });
+  if (!atencion || atencion.simulacionId !== simulacionId) throw new Error("Atención no encontrada");
+  if (atencion.simulacion.estado === "CERRADA") throw new Error("La jornada ya se cerró");
+  return prisma.atencionJornada.update({
+    where: { id: atencionId },
+    data: { rubrica: normalizarRubrica(rubrica), comentario: comentario?.trim() || null },
+  });
+}
+
 /** El docente corrige quién atendió a un paciente en la vista de confirmación. */
 export async function confirmarParticipante(simulacionId: string, atencionId: string, participanteId: string | null) {
   const atencion = await prisma.atencionJornada.findUnique({ where: { id: atencionId } });
@@ -183,7 +196,10 @@ export async function calificarJornada(simulacionId: string) {
   const ahora = new Date();
 
   if (simulacion.tipo === "ODONTOLOGIA") {
-    for (const atencion of atenciones) await calificarAtencionOdontologia(atencion.id, ahora);
+    for (const atencion of atenciones) {
+      if (atencion.pacienteReal) await calificarAtencionReal(atencion.id, ahora);
+      else await calificarAtencionOdontologia(atencion.id, ahora);
+    }
     await cerrarSimulacion(simulacionId);
     return;
   }
@@ -302,6 +318,39 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
   });
 }
 
+/**
+ * Paciente real: la nota sale de la rúbrica que llenó el docente (sin rúbrica completa queda
+ * sin nota). Al calificar se borran la historia y los datos del compañero: solo queda la
+ * nota, la retroalimentación y el nombre abreviado.
+ */
+async function calificarAtencionReal(atencionId: string, ahora: Date) {
+  const atencion = await prisma.atencionJornada.findUnique({ where: { id: atencionId } });
+  if (!atencion) return;
+  const rubrica = normalizarRubrica(atencion.rubrica);
+  const criterios: Criterio[] = CRITERIOS_RUBRICA.map((c) => {
+    const nivel = rubrica[c.codigo];
+    return {
+      clave: nivel === 2 ? ("HISTORIA_CORRECTA" as const) : ("RUBRICA" as ClaveCriterio),
+      descripcion: c.etiqueta,
+      cumplido: nivel === 2,
+      detalle: nivel === undefined ? "Sin calificar." : `${NIVELES.find((n) => n.valor === nivel)?.etiqueta}.`,
+    };
+  });
+  const [nombre, apellido] = atencion.pacienteNombre.split(" ");
+  await prisma.atencionJornada.update({
+    where: { id: atencion.id },
+    data: {
+      criterios,
+      puntaje: puntajeRubrica(rubrica),
+      calificadaEn: ahora,
+      historia: Prisma.DbNull,
+      pacienteReal: Prisma.DbNull,
+      pacienteCedula: "",
+      pacienteNombre: apellido ? `${nombre} ${apellido.charAt(0)}.` : nombre,
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Reporte
 // ---------------------------------------------------------------------------
@@ -329,6 +378,9 @@ export async function reporteJornada(simulacionId: string) {
     puntaje: a.puntaje,
     detalle: a.detalle,
     cerrada: a.cerradaEn !== null,
+    pacienteReal: a.pacienteReal !== null || a.rubrica !== null,
+    rubrica: a.rubrica,
+    comentario: a.comentario,
   }));
 
   const porEstudiante = simulacion.participantes.map((p) => {
@@ -354,6 +406,7 @@ export async function reporteJornada(simulacionId: string) {
       estado: simulacion.estado,
       grupo: simulacion.grupo?.nombre ?? null,
       situaciones: simulacion.situaciones,
+      pacientesReales: simulacion.pacientesReales,
       abiertaEn: simulacion.abiertaEn,
       cerradaEn: simulacion.cerradaEn,
     },

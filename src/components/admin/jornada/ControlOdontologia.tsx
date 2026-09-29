@@ -90,9 +90,9 @@ export default function ControlOdontologia({
       {sesionTurneroId && (
         <PuestosTemporales
           sesionTurneroId={sesionTurneroId}
-          titulo="Cuentas de los computadores de las unidades"
-          descripcion="Una por computador (no por estudiante): entran directo al consultorio y se borran solas al cerrar la jornada."
-          colapsable={false}
+          titulo="Agregar más computadores"
+          descripcion="Las cuentas de las unidades ya se crearon al iniciar. Usa esto solo si necesitas otro computador; se borran al cerrar la jornada."
+          colapsable
           modoInicial="generico"
           prefijoInicial="Unidad"
           rutaInicial="/panel/odontologia"

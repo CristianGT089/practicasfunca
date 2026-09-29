@@ -7,7 +7,12 @@ export async function GET() {
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const j = await jornadaActiva(usuario);
   return NextResponse.json({
-    jornada: j ? { id: j.id, nombre: j.nombre, unidades: j.turnero.numeroEspacios } : null,
-    usuario: { nombre: usuario.nombre, temporal: usuario.temporal, rutaDirecta: usuario.rutaDirecta },
+    jornada: j ? { id: j.id, nombre: j.nombre, unidades: j.turnero.numeroEspacios, pacientesReales: j.pacientesReales } : null,
+    usuario: {
+      nombre: usuario.nombre,
+      temporal: usuario.temporal,
+      rutaDirecta: usuario.rutaDirecta,
+      espacioNumero: usuario.espacioNumero,
+    },
   });
 }

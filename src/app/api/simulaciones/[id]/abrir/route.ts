@@ -4,9 +4,10 @@ import { abrirSimulacion } from "@/lib/simulacion/operaciones";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await requireGestorDeJornada(id))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestorDeJornada(id);
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   try {
-    const resultado = await abrirSimulacion(id);
+    const resultado = await abrirSimulacion(id, gestor.id);
     return NextResponse.json(resultado);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

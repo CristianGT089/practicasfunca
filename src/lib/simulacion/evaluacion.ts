@@ -31,7 +31,8 @@ export type ClaveCriterio =
   | "EXAMENES"
   | "INDICE_PLACA"
   | "REMISION"
-  | "HISTORIA_CORRECTA";
+  | "HISTORIA_CORRECTA"
+  | "RUBRICA";
 
 export type Criterio = { clave: ClaveCriterio; descripcion: string; cumplido: boolean; detalle?: string };
 
@@ -52,6 +53,7 @@ export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
   EXAMENES: "Examen estomatológico o dental mal registrado",
   INDICE_PLACA: "Índice de placa mal pintado o mal calculado",
   REMISION: "Eligió mal la conducta (remisión)",
+  RUBRICA: "No cumplió del todo un criterio de la rúbrica del docente",
 };
 
 export type PacienteEvaluado = {

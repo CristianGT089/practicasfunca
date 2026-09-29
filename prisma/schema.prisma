@@ -81,6 +81,9 @@ model Usuario {
   // Si el puesto se creó desde el Control de un turnero, queda enlazado a esa sesión: al
   // cerrarla, la cuenta se borra con ella (ver operaciones.ts#cerrarSesion). Null = puesto
   // creado desde Estudiantes, sin turnero de por medio.
+  // Espacio (ventanilla/unidad) que es esta cuenta de computador en su jornada. Con esto el
+  // computador no tiene que elegirlo. Null en las demás cuentas.
+  espacioNumero   Int?
   sesionTurneroId String?
   sesionTurnero   SesionTurnero? @relation(fields: [sesionTurneroId], references: [id], onDelete: SetNull)
   creadoEn        DateTime       @default(now())
@@ -881,11 +884,14 @@ model Simulacion {
   cerradaEn       DateTime?
 
   // Jornada presencial: grupo que la hace, quién la creó y qué situaciones eligió el docente.
-  grupoId     String?
-  grupo       Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
-  creadaPorId String?
-  creadaPor   Usuario? @relation("SimulacionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
-  situaciones String[] @default([])
+  grupoId         String?
+  grupo           Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  creadaPorId     String?
+  creadaPor       Usuario? @relation("SimulacionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  situaciones     String[] @default([])
+  // Odontología: true = los pacientes son compañeros examinados de verdad (sin caso ni
+  // respuesta previa); el docente califica con rúbrica y al cerrar se borran sus datos.
+  pacientesReales Boolean  @default(false)
 
   pacientes        Paciente[]
   entregas         EntregaSimulacion[]
@@ -963,6 +969,12 @@ model AtencionJornada {
   actualizadaEn     DateTime?
   cerradaEn         DateTime?
   detalle           Json?
+  // Pacientes reales: datos que registró el estudiante (se borran al cerrar la jornada),
+  // dentición elegida, y la rúbrica y el comentario del docente.
+  pacienteReal      Json?
+  denticion         String?
+  rubrica           Json?
+  comentario        String?
 
   @@index([simulacionId])
   @@map("atenciones_jornada")

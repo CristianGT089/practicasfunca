@@ -11,6 +11,7 @@ import Ventanillas from "@/components/admin/jornada/Ventanillas";
 import Confirmacion from "@/components/admin/jornada/Confirmacion";
 import Reporte from "@/components/admin/jornada/Reporte";
 import ControlOdontologia from "@/components/admin/jornada/ControlOdontologia";
+import CuentasPuestos, { type CuentaPuesto } from "@/components/admin/jornada/CuentasPuestos";
 import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjetasPdf";
 import type { Participante } from "@/components/admin/jornada/tipos";
 import { definicionSituacion } from "@/lib/simulacion/situaciones";
@@ -49,6 +50,7 @@ type Simulacion = {
   tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA";
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   turnero: { numeroEspacios: number };
+  pacientesReales: boolean;
   casosOdontologia: CasoOdontologiaJornada[];
   turneroId: string;
   sesionTurneroId: string | null;
@@ -103,6 +105,8 @@ export default function SimulacionDetallePage() {
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [ventanillas, setVentanillas] = useState<Record<number, string | null>>({});
   const [confirmandoFin, setConfirmandoFin] = useState(false);
+  // Contraseñas de las cuentas de los computadores: solo se conocen justo al iniciar.
+  const [cuentasNuevas, setCuentasNuevas] = useState<CuentaPuesto[] | null>(null);
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/simulaciones/${id}`);
@@ -130,9 +134,10 @@ export default function SimulacionDetallePage() {
     const res = await fetch(`/api/simulaciones/${id}/abrir`, { method: "POST" });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error ?? "No se pudo abrir la simulación");
+      setError(data.error ?? "No se pudo iniciar la jornada");
       return;
     }
+    setCuentasNuevas(data.cuentas ?? []);
     cargar();
   }
 
@@ -215,7 +220,7 @@ export default function SimulacionDetallePage() {
             {ETIQUETA_TIPO[simulacion.tipo]}
             {simulacion.grupo && ` · ${simulacion.grupo.nombre}`}
             {simulacion.tipo === "ODONTOLOGIA"
-              ? ` · ${simulacion.casosOdontologia.length} casos · ${simulacion.turnero.numeroEspacios} unidades`
+              ? ` · ${simulacion.pacientesReales ? "pacientes reales" : `${simulacion.casosOdontologia.length} casos`} · ${simulacion.turnero.numeroEspacios} unidades`
               : simulacion.estado !== "CERRADA" && ` · ${simulacion.pacientes.length} pacientes`}{" "}
             · {ETIQUETA_ESTADO[simulacion.estado]}
           </p>
@@ -291,6 +296,12 @@ export default function SimulacionDetallePage() {
         </div>
       )}
 
+      {simulacion.estado === "ABIERTA" && (
+        <div className="mb-6">
+          <CuentasPuestos simulacionId={simulacion.id} iniciales={cuentasNuevas} />
+        </div>
+      )}
+
       {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && (
         <ControlOdontologia
           simulacionId={simulacion.id}
@@ -313,12 +324,28 @@ export default function SimulacionDetallePage() {
       )}
 
       {simulacion.estado === "EN_REVISION" && (
-        <Confirmacion simulacionId={simulacion.id} participantes={simulacion.participantes} onCalificar={calificar} />
+        <Confirmacion
+          simulacionId={simulacion.id}
+          participantes={simulacion.participantes}
+          onCalificar={calificar}
+          conRubrica={simulacion.tipo === "ODONTOLOGIA" && simulacion.pacientesReales}
+        />
       )}
 
       {simulacion.estado === "CERRADA" && <Reporte simulacionId={simulacion.id} />}
 
-      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && (
+      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && simulacion.pacientesReales && (
+        <div className="rounded-xl bg-cyan-50 border border-cyan-200 p-4 text-sm text-cyan-900">
+          <p className="font-semibold">Jornada con pacientes reales</p>
+          <ul className="mt-1 list-disc pl-5 text-xs flex flex-col gap-0.5">
+            <li>Los estudiantes se examinan en parejas. En el consultorio registran al compañero (datos mínimos) y marcan su consentimiento.</li>
+            <li>Redactan la historia y el odontograma con lo que ven en boca. No hay nota automática.</li>
+            <li>Al finalizar, revisas cada historia y la calificas con la rúbrica. Al cerrar se borran las historias y los datos de los compañeros; queda la nota y tu comentario.</li>
+          </ul>
+        </div>
+      )}
+
+      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.pacientesReales && (
         <div className="flex flex-col gap-2">
           <h2 className="text-sm font-heading font-semibold text-blue-900">Casos de la jornada</h2>
           {simulacion.casosOdontologia.map((c) => {
@@ -414,9 +441,9 @@ function ControlTurnero({
 
       <PuestosTemporales
         sesionTurneroId={sesionId}
-        titulo="Puestos de este turnero"
-        descripcion="Crea una cuenta por computador de ventanilla (no por estudiante): se borran solas al cerrar la jornada."
-        colapsable={false}
+        titulo="Agregar más computadores"
+        descripcion="Las cuentas de las ventanillas ya se crearon al iniciar. Usa esto solo si necesitas otro computador; se borran al cerrar la jornada."
+        colapsable
         modoInicial="generico"
         prefijoInicial="Ventanilla"
         onCreados={() => {}}

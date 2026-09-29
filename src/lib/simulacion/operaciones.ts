@@ -2,7 +2,10 @@ import { prisma } from "@/lib/nucleo/prisma";
 import type { TipoSimulacion } from "@prisma/client";
 import { CATEGORIAS_PRIORIDAD_DEFAULT, SERVICIOS_DEFAULT } from "@/lib/turnero/config";
 import { abrirSesion, cerrarSesion } from "@/lib/turnero/operaciones";
-import { eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
+import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
+import { generarPassword } from "@/lib/nucleo/passwords";
+import bcrypt from "bcryptjs";
+import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
 import { planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
 
@@ -35,6 +38,8 @@ export async function crearSimulacionBorrador(opts: {
   proporcionNormales?: number;
   /** Jornada de Odontología: ids de los casos (Escenario) que se atienden ese día. */
   casosOdontologiaIds?: string[];
+  /** Jornada de Odontología con compañeros examinados de verdad (sin casos). */
+  pacientesReales?: boolean;
 }) {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
 
@@ -136,9 +141,20 @@ export async function regenerarPaciente(simulacionId: string, pacienteId: string
   });
 }
 
-/** Abre la sesión de turnero de esta simulación: de ahí en adelante se puede sacar turno. */
-export async function abrirSimulacion(simulacionId: string) {
-  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+/** Pantalla a la que entra cada computador según el tipo de jornada, y cómo se llama su espacio. */
+const PUESTOS_POR_TIPO = {
+  FARMACIA: { ruta: "/panel/catalogo", prefijo: "Ventanilla" },
+  DISPENSARIO: { ruta: "/panel/dispensacion", prefijo: "Ventanilla" },
+  ODONTOLOGIA: { ruta: "/panel/odontologia", prefijo: "Unidad" },
+} as const;
+
+/**
+ * Abre la jornada: el turnero empieza a funcionar y se crea de una vez una cuenta por
+ * espacio ("Ventanilla 1", "Unidad 2"...), que entra directo a su pantalla y ya sabe qué
+ * espacio es. Devuelve las contraseñas para mostrarlas en ese momento (no se guardan).
+ */
+export async function abrirSimulacion(simulacionId: string, creadoPorId?: string | null) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId }, include: { turnero: true } });
   if (!simulacion || simulacion.estado !== "BORRADOR") throw new Error("La simulación ya está abierta o cerrada");
 
   const sesion = await abrirSesion(simulacion.turneroId);
@@ -148,7 +164,42 @@ export async function abrirSimulacion(simulacionId: string) {
     data: { estado: "ABIERTA", sesionTurneroId: sesion.id, abiertaEn: new Date() },
   });
 
-  return { sesionTurneroId: sesion.id };
+  const modulo = await prisma.modulo.findUnique({ where: { slug: MODULO_DE_TIPO_JORNADA[simulacion.tipo] } });
+  const config = PUESTOS_POR_TIPO[simulacion.tipo];
+  const cuentas = modulo
+    ? await crearPuestosTemporales({
+        moduloIds: [modulo.id],
+        rutaDirecta: config.ruta,
+        sesionTurneroId: sesion.id,
+        cantidad: simulacion.turnero.numeroEspacios,
+        prefijo: config.prefijo,
+        creadoPorId,
+        numerarEspacios: true,
+      })
+    : [];
+
+  return { sesionTurneroId: sesion.id, cuentas };
+}
+
+/**
+ * Nuevas contraseñas para las cuentas de los computadores de la jornada (por si se
+ * perdieron las primeras). Los computadores que ya entraron siguen dentro: la sesión no
+ * depende de la contraseña.
+ */
+export async function regenerarCredencialesPuestos(simulacionId: string) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion?.sesionTurneroId || simulacion.estado !== "ABIERTA") throw new Error("La jornada no está en curso");
+  const puestos = await prisma.usuario.findMany({
+    where: { sesionTurneroId: simulacion.sesionTurneroId },
+    orderBy: [{ espacioNumero: "asc" }, { nombre: "asc" }],
+  });
+  const cuentas: { nombre: string; usuario: string; password: string }[] = [];
+  for (const p of puestos) {
+    const password = generarPassword();
+    await prisma.usuario.update({ where: { id: p.id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+    cuentas.push({ nombre: p.nombre, usuario: p.usuario, password });
+  }
+  return cuentas;
 }
 
 /**
@@ -218,13 +269,17 @@ async function crearJornadaOdontologia(opts: {
   grupoId?: string | null;
   creadaPorId?: string | null;
   casosOdontologiaIds?: string[];
+  pacientesReales?: boolean;
 }) {
-  // Los ids son de los casos (Escenario), como los lista Odontología → Casos.
-  const casos = await prisma.escenarioOdontologia.findMany({
-    where: { escenarioId: { in: opts.casosOdontologiaIds ?? [] }, escenario: { activo: true } },
-    select: { id: true },
-  });
-  if (casos.length === 0) throw new Error("Elige al menos un caso de odontología");
+  // Los ids son de los casos (Escenario), como los lista Odontología → Casos. Con pacientes
+  // reales no hay casos: el estudiante registra al compañero que examina.
+  const casos = opts.pacientesReales
+    ? []
+    : await prisma.escenarioOdontologia.findMany({
+        where: { escenarioId: { in: opts.casosOdontologiaIds ?? [] }, escenario: { activo: true } },
+        select: { id: true },
+      });
+  if (!opts.pacientesReales && casos.length === 0) throw new Error("Elige al menos un caso de odontología");
   const estudiantesGrupo = opts.grupoId
     ? await prisma.usuario.findMany({
         where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
@@ -236,6 +291,7 @@ async function crearJornadaOdontologia(opts: {
     data: {
       nombre: opts.nombre,
       tipo: "ODONTOLOGIA",
+      pacientesReales: opts.pacientesReales ?? false,
       ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
       ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
       participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },

@@ -123,6 +123,7 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
   const [porcentajeNormales, setPorcentajeNormales] = useState(Math.round(PROPORCION_NORMALES_DEFAULT * 100));
   const [casosOdonto, setCasosOdonto] = useState<CasoOdonto[]>([]);
   const [casosElegidos, setCasosElegidos] = useState<string[]>([]);
+  const [pacientesReales, setPacientesReales] = useState(false);
   const esOdonto = tipo === "ODONTOLOGIA";
 
   useEffect(() => {
@@ -161,7 +162,7 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
     [nombresTexto]
   );
 
-  const cantidadFinal = esOdonto ? casosElegidos.length : modo === "nombres" ? nombresPacientes.length : cantidad;
+  const cantidadFinal = esOdonto ? (pacientesReales ? 1 : casosElegidos.length) : modo === "nombres" ? nombresPacientes.length : cantidad;
 
   async function crear() {
     if (!nombre.trim() || cantidadFinal === 0) return;
@@ -180,7 +181,8 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
         numeroEspacios,
         grupoId: grupoId || null,
         situaciones: esOdonto ? [] : situaciones.filter((c) => catalogo.some((s) => s.codigo === c)),
-        casosOdontologiaIds: esOdonto ? casosElegidos : [],
+        casosOdontologiaIds: esOdonto && !pacientesReales ? casosElegidos : [],
+        pacientesReales: esOdonto && pacientesReales,
         proporcionNormales: porcentajeNormales / 100,
         ...body,
       }),
@@ -235,6 +237,35 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
       </div>
 
       {esOdonto && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-500 mb-1">¿Con qué pacientes?</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[
+              { valor: false, titulo: "Casos con tarjeta", texto: "Un compañero interpreta un caso preparado. Se califica solo." },
+              {
+                valor: true,
+                titulo: "Pacientes reales",
+                texto: "Se examinan entre compañeros, de verdad. Tú calificas con una rúbrica; al cerrar se borran sus datos.",
+              },
+            ].map((o) => (
+              <label
+                key={String(o.valor)}
+                className={`flex gap-2 rounded-lg border p-2.5 text-sm cursor-pointer ${
+                  pacientesReales === o.valor ? "border-cyan-600 bg-cyan-50" : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <input type="radio" name="pacientes" checked={pacientesReales === o.valor} onChange={() => setPacientesReales(o.valor)} className="mt-0.5" />
+                <span>
+                  <span className="font-medium text-slate-800">{o.titulo}</span>
+                  <span className="block text-xs text-slate-500">{o.texto}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {esOdonto && !pacientesReales && (
         <div className="mb-4">
           <p className="text-xs font-medium text-slate-500 mb-1">¿Qué casos se atienden hoy?</p>
           <p className="text-xs text-slate-400 mb-2">
@@ -397,8 +428,11 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
 
       <div className="mb-4">
         <label className="block text-xs font-medium text-slate-500 mb-1">
-          {esOdonto ? "Unidades (sillas) que se usan" : "Espacios / puestos del turnero"}
+          {esOdonto ? "Unidades (sillas) que se usan" : "Ventanillas que se usan"}
         </label>
+        <p className="text-xs text-slate-400 mb-1">
+          Al iniciar la jornada se crea una cuenta por cada una, con su contraseña, lista para cada computador.
+        </p>
         <input
           type="number"
           min={1}
@@ -418,7 +452,13 @@ function FormularioCrear({ onCreada, tiposPermitidos }: { onCreada: () => void; 
         disabled={enviando || !nombre.trim() || cantidadFinal === 0}
         className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
       >
-        {enviando ? "Creando..." : esOdonto ? `Crear jornada con ${cantidadFinal} caso(s)` : `Generar ${cantidadFinal || ""} paciente(s)`}
+        {enviando
+          ? "Creando..."
+          : esOdonto
+            ? pacientesReales
+              ? "Crear jornada con pacientes reales"
+              : `Crear jornada con ${cantidadFinal} caso(s)`
+            : `Generar ${cantidadFinal || ""} paciente(s)`}
       </button>
     </div>
   );

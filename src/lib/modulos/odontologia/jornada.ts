@@ -25,7 +25,7 @@ export async function jornadaActiva(usuario: Usuario) {
   return prisma.simulacion.findFirst({
     where: donde,
     orderBy: { abiertaEn: "desc" },
-    select: { id: true, nombre: true, turnero: { select: { numeroEspacios: true } } },
+    select: { id: true, nombre: true, pacientesReales: true, turnero: { select: { numeroEspacios: true } } },
   });
 }
 
@@ -83,6 +83,51 @@ export async function abrirAtencion(usuario: Usuario, simulacionId: string, caso
       participanteId: await participanteEnUnidad(simulacionId, unidad),
       pacienteNombre: [p.nombres, p.primerApellido, p.segundoApellido].filter(Boolean).join(" "),
       pacienteCedula: p.documento,
+    },
+  });
+}
+
+export type PacienteRealDatos = {
+  nombres: string;
+  primerApellido: string;
+  segundoApellido: string | null;
+  tipoDocumento: string;
+  documento: string;
+  sexo: string;
+  fechaNacimiento: string;
+  eps: string | null;
+  ocupacion: string | null;
+};
+
+/**
+ * Jornada con pacientes reales: el estudiante registra al compañero (datos mínimos, con su
+ * consentimiento) y abre su historia; o retoma la que dejó abierta para ese documento.
+ */
+export async function abrirAtencionReal(
+  usuario: Usuario,
+  simulacionId: string,
+  paciente: PacienteRealDatos,
+  denticion: string,
+  unidad: number
+) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion?.pacientesReales) throw new Error("Esta jornada es con casos, no con pacientes reales");
+  const abierta = await prisma.atencionJornada.findFirst({
+    where: { simulacionId, pacienteCedula: paciente.documento, espacioNumero: unidad, usuarioId: usuario.id, cerradaEn: null },
+    orderBy: { creadoEn: "desc" },
+  });
+  if (abierta) return abierta;
+  return prisma.atencionJornada.create({
+    data: {
+      simulacionId,
+      usuarioId: usuario.id,
+      espacioNumero: unidad,
+      llamadoEn: new Date(),
+      participanteId: await participanteEnUnidad(simulacionId, unidad),
+      pacienteNombre: [paciente.nombres, paciente.primerApellido, paciente.segundoApellido].filter(Boolean).join(" "),
+      pacienteCedula: paciente.documento,
+      pacienteReal: paciente,
+      denticion: denticionDe(denticion),
     },
   });
 }

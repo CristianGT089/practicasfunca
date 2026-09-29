@@ -25,6 +25,8 @@ export async function crearPuestosTemporales(opts: {
   prefijo?: string;
   /** Docente o admin que los crea: un docente vuelve a ver los puestos que creó. */
   creadoPorId?: string | null;
+  /** true = la cuenta N queda como el espacio N del turnero (ventanilla/unidad N). */
+  numerarEspacios?: boolean;
 }) {
   const modulos = await prisma.modulo.findMany({ where: { id: { in: opts.moduloIds } } });
   if (modulos.length === 0) throw new Error("Selecciona al menos un módulo");
@@ -41,7 +43,7 @@ export async function crearPuestosTemporales(opts: {
 
   const creados: { nombre: string; usuario: string; password: string }[] = [];
 
-  for (const alumno of lista) {
+  for (const [indice, alumno] of lista.entries()) {
     const nombre = alumno.nombre.trim();
     if (!nombre) continue;
 
@@ -68,6 +70,7 @@ export async function crearPuestosTemporales(opts: {
         genero: alumno.genero ?? null,
         rutaDirecta: opts.rutaDirecta,
         sesionTurneroId: opts.sesionTurneroId ?? null,
+        espacioNumero: opts.numerarEspacios ? indice + 1 : null,
         matriculas: { create: modulos.map((m) => ({ moduloId: m.id })) },
       },
     });

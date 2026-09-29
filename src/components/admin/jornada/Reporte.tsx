@@ -184,6 +184,12 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
                   </div>
                 )}
 
+                {a.comentario && (
+                  <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <b className="text-slate-800">Comentario del docente:</b> {a.comentario}
+                  </p>
+                )}
+
                 {a.criterios.length > 0 && (
                   <ul className="mt-3 flex flex-col gap-1 text-sm">
                     {a.criterios.map((c, j) => (

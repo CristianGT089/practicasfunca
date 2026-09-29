@@ -43,3 +43,11 @@ test("el guion se sanea: sin entrada no hay guion; efectos acotados", () => {
   assert.equal(g.respuestas.saludo?.length, 1);
   assert.equal(g.respuestas.saludo?.[0].efecto, 3);
 });
+
+import { puntajeRubrica } from "../src/lib/modulos/odontologia/rubrica";
+
+test("rúbrica: sin todos los criterios no hay nota; cumple todo = 100", () => {
+  assert.equal(puntajeRubrica({ historia: 2 }), null);
+  assert.equal(puntajeRubrica({ historia: 2, odontograma: 2, alerta: 2, bioseguridad: 2 }), 100);
+  assert.equal(puntajeRubrica({ historia: 2, odontograma: 1, alerta: 2, bioseguridad: 2 }), 88);
+});
