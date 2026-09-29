@@ -2,7 +2,9 @@ import { prisma } from "@/lib/nucleo/prisma";
 import type { TipoSimulacion } from "@prisma/client";
 import { CATEGORIAS_PRIORIDAD_DEFAULT, SERVICIOS_DEFAULT } from "@/lib/turnero/config";
 import { abrirSesion, cerrarSesion } from "@/lib/turnero/operaciones";
+import { eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
 import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
+import { planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
 
 const incluirPacientes = {
   pacientes: {
@@ -24,15 +26,44 @@ export async function crearSimulacionBorrador(opts: {
   pacientes?: NombreSolicitado[];
   cantidadPacientes?: number;
   numeroEspacios?: number;
+  // Jornada presencial evaluada:
+  grupoId?: string | null;
+  creadaPorId?: string | null;
+  /** Situaciones que el docente quiere practicar. Vacío = modo libre (se sortean). */
+  situaciones?: CodigoSituacion[];
+  /** Fracción de pacientes sin ninguna situación (0-1). */
+  proporcionNormales?: number;
+  /** Jornada de Odontología: ids de los casos (Escenario) que se atienden ese día. */
+  casosOdontologiaIds?: string[];
 }) {
-  const generados = await generarPacientes(
-    opts.pacientes && opts.pacientes.length > 0 ? opts.pacientes : opts.cantidadPacientes ?? 0
-  );
+  if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
+
+  const solicitud = opts.pacientes && opts.pacientes.length > 0 ? opts.pacientes : opts.cantidadPacientes ?? 0;
+  const total = Array.isArray(solicitud) ? solicitud.length : solicitud;
+  const situaciones = opts.situaciones ?? [];
+  const plan =
+    situaciones.length > 0
+      ? planDeSituaciones(total, situaciones, opts.proporcionNormales ?? PROPORCION_NORMALES_DEFAULT)
+      : undefined;
+  const generados = await generarPacientes(solicitud, { plan });
+
+  // Los estudiantes del grupo quedan como participantes; se pueden sumar más en el momento.
+  const estudiantesGrupo = opts.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
+        orderBy: { nombre: "asc" },
+        select: { id: true, nombre: true },
+      })
+    : [];
 
   const simulacion = await prisma.simulacion.create({
     data: {
       nombre: opts.nombre,
       tipo: opts.tipo,
+      ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
+      ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
+      situaciones,
+      participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
       turnero: {
         create: {
           nombre: `Turnero — ${opts.nombre}`,
@@ -64,6 +95,7 @@ function aDatosPaciente(p: PacienteGenerado) {
     personaRecogeNombre: p.personaRecogeNombre,
     personaRecogeCedula: p.personaRecogeCedula,
     personaRecogeRelacion: p.personaRecogeRelacion,
+    situaciones: p.situaciones,
     recetas: {
       create: p.renglones.map((r) => ({
         medicamentoId: r.medicamentoId,
@@ -88,7 +120,12 @@ export async function regenerarPaciente(simulacionId: string, pacienteId: string
   // El nombre (y género) del paciente se conserva — es lo que el admin eligió a propósito
   // o ya se imprimió/mostró; "regenerar" es para el resto de la historia clínica, no para
   // cambiar de quién se trata.
-  const [generado] = await generarPacientes([{ nombre: paciente.nombre, genero: paciente.genero }]);
+  // Conserva las situaciones que le tocaron (las eligió el docente); en modo libre se
+  // vuelven a sortear.
+  const [generado] = await generarPacientes(
+    [{ nombre: paciente.nombre, genero: paciente.genero }],
+    simulacion.situaciones.length > 0 ? { plan: [paciente.situaciones as CodigoSituacion[]] } : {}
+  );
 
   await prisma.recetaElectronica.deleteMany({ where: { pacienteId } });
   await prisma.paciente.update({ where: { id: pacienteId }, data: aDatosPaciente(generado) });
@@ -123,14 +160,22 @@ export async function cerrarSimulacion(simulacionId: string) {
   const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
   if (!simulacion) throw new Error("Simulación no encontrada");
 
+  // Primero las entregas: referencian a las cuentas de los puestos, que cerrarSesion borra.
+  await prisma.entregaSimulacion.deleteMany({ where: { simulacionId } });
+
   if (simulacion.sesionTurneroId) {
-    await cerrarSesion(simulacion.sesionTurneroId);
+    const sesion = await prisma.sesionTurnero.findUnique({ where: { id: simulacion.sesionTurneroId } });
+    if (sesion?.estado === "ABIERTA") {
+      await cerrarSesion(simulacion.sesionTurneroId);
+    } else {
+      // Ya se cerró al finalizar la jornada: quedan por borrar sus puestos.
+      await cerrarSesionYPuestos(simulacion.sesionTurneroId);
+    }
   }
 
   const pacientes = await prisma.paciente.findMany({ where: { simulacionId }, select: { id: true } });
   const pacienteIds = pacientes.map((p) => p.id);
 
-  await prisma.entregaSimulacion.deleteMany({ where: { simulacionId } });
   await prisma.recetaElectronica.deleteMany({ where: { pacienteId: { in: pacienteIds } } });
   await prisma.ticket.updateMany({ where: { pacienteId: { in: pacienteIds } }, data: { pacienteId: null } });
   await prisma.paciente.deleteMany({ where: { id: { in: pacienteIds } } });
@@ -143,5 +188,72 @@ export async function cerrarSimulacion(simulacionId: string) {
 }
 
 export async function obtenerSimulacion(simulacionId: string) {
-  return prisma.simulacion.findUnique({ where: { id: simulacionId }, include: incluirPacientes });
+  return prisma.simulacion.findUnique({
+    where: { id: simulacionId },
+    include: {
+      ...incluirPacientes,
+      grupo: { select: { id: true, nombre: true } },
+      participantes: { orderBy: { creadoEn: "asc" }, select: { id: true, nombre: true, invitado: true, usuarioId: true } },
+      turnero: { select: { numeroEspacios: true } },
+      casosOdontologia: {
+        orderBy: { orden: "asc" },
+        include: {
+          escenarioOdontologia: {
+            include: { paciente: true, escenario: { select: { titulo: true, resultadoEsperado: true } } },
+          },
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Jornada de Odontología: no hay pacientes generados. Los pacientes son casos de la práctica
+ * virtual que interpretan compañeros con una tarjeta impresa; el estudiante los busca por
+ * documento en el consultorio (/panel/odontologia).
+ */
+async function crearJornadaOdontologia(opts: {
+  nombre: string;
+  numeroEspacios?: number;
+  grupoId?: string | null;
+  creadaPorId?: string | null;
+  casosOdontologiaIds?: string[];
+}) {
+  // Los ids son de los casos (Escenario), como los lista Odontología → Casos.
+  const casos = await prisma.escenarioOdontologia.findMany({
+    where: { escenarioId: { in: opts.casosOdontologiaIds ?? [] }, escenario: { activo: true } },
+    select: { id: true },
+  });
+  if (casos.length === 0) throw new Error("Elige al menos un caso de odontología");
+  const estudiantesGrupo = opts.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
+        orderBy: { nombre: "asc" },
+        select: { id: true, nombre: true },
+      })
+    : [];
+  return prisma.simulacion.create({
+    data: {
+      nombre: opts.nombre,
+      tipo: "ODONTOLOGIA",
+      ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
+      ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
+      participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
+      casosOdontologia: { create: casos.map((c, i) => ({ escenarioOdontologiaId: c.id, orden: i })) },
+      turnero: {
+        create: {
+          nombre: `Unidades — ${opts.nombre}`,
+          numeroEspacios: opts.numeroEspacios ?? 3,
+          servicios: SERVICIOS_DEFAULT,
+          categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
+        },
+      },
+    },
+    include: incluirPacientes,
+  });
+}
+
+async function cerrarSesionYPuestos(sesionId: string) {
+  const puestos = await prisma.usuario.findMany({ where: { sesionTurneroId: sesionId }, select: { id: true } });
+  await eliminarUsuarios(puestos.map((u) => u.id));
 }

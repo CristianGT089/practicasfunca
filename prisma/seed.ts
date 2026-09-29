@@ -1,5 +1,8 @@
 import { PrismaClient, ActitudCedula } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { sembrarOdontologia } from "./seed-odontologia";
+import { sembrarRoles } from "./seed-roles";
+import { sembrarEscenas } from "./seed-escenas";
 
 const prisma = new PrismaClient();
 
@@ -2248,6 +2251,15 @@ async function main() {
   ]);
 
   console.log("Módulo Dispensación sembrado:", 6, "casos.");
+
+  // ---------- Módulo Odontología ----------
+  await sembrarOdontologia(prisma, [estudiante1.id, admin.id]);
+
+  // ---------- Roles de demostración (docentes y grupos) ----------
+  await sembrarRoles(prisma, estudiante1.id);
+
+  // ---------- Personas animadas de la práctica virtual ----------
+  await sembrarEscenas(prisma);
 }
 
 main()

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { RUTAS_DIRECTAS } from "@/lib/nucleo/rutasDirectas";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
+import { useSesionGestor } from "@/components/admin/useSesionGestor";
 
 type Genero = "MASCULINO" | "FEMENINO" | "OTRO";
 
@@ -15,7 +16,10 @@ type Estudiante = {
   rutaDirecta: string | null;
   genero: Genero | null;
   creadoEn: string;
+  gruposComoEstudiante: { id: string; nombre: string }[];
 };
+
+type GrupoOpcion = { id: string; nombre: string };
 
 function etiquetaRuta(ruta: string): string {
   return RUTAS_DIRECTAS.find((r) => r.valor === ruta)?.etiqueta ?? ruta;
@@ -42,11 +46,17 @@ export default function EstudiantesPage() {
   const [genero, setGenero] = useState<Genero | "">("");
   const [error, setError] = useState<string | null>(null);
   const [credenciales, setCredenciales] = useState<{ usuario: string; password: string } | null>(null);
+  const [grupos, setGrupos] = useState<GrupoOpcion[]>([]);
+  const [grupoIds, setGrupoIds] = useState<string[]>([]);
+  const [filtroGrupo, setFiltroGrupo] = useState("");
+  const sesion = useSesionGestor();
 
   const cargar = useCallback(async () => {
-    const res = await fetch("/api/admin/estudiantes");
+    const [res, resGrupos] = await Promise.all([fetch("/api/admin/estudiantes"), fetch("/api/admin/grupos")]);
     const data = await res.json();
+    const dataGrupos = await resGrupos.json();
     setEstudiantes(data.estudiantes ?? []);
+    setGrupos((dataGrupos.grupos ?? []).map((g: GrupoOpcion) => ({ id: g.id, nombre: g.nombre })));
     setCargando(false);
   }, []);
 
@@ -60,7 +70,7 @@ export default function EstudiantesPage() {
     const res = await fetch("/api/admin/estudiantes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, usuario, genero: genero || null }),
+      body: JSON.stringify({ nombre, usuario, genero: genero || null, grupoIds }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -71,6 +81,7 @@ export default function EstudiantesPage() {
     setNombre("");
     setUsuario("");
     setGenero("");
+    setGrupoIds([]);
     cargar();
   }
 
@@ -90,6 +101,10 @@ export default function EstudiantesPage() {
   }
 
   const totalTemporales = estudiantes.filter((e) => e.temporal).length;
+  const visibles = filtroGrupo
+    ? estudiantes.filter((e) => e.gruposComoEstudiante.some((g) => g.id === filtroGrupo))
+    : estudiantes;
+  const esDocente = sesion?.rol === "DOCENTE";
 
   async function eliminarTemporales() {
     if (!confirm(`¿Eliminar las ${totalTemporales} cuentas temporales? Se borra su progreso y no se puede deshacer.`))
@@ -102,8 +117,8 @@ export default function EstudiantesPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Estudiantes</h1>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6 flex gap-3 items-end">
-        <div className="flex-1">
+      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6 flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-40">
           <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo</label>
           <input
             value={nombre}
@@ -112,7 +127,7 @@ export default function EstudiantesPage() {
             required
           />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-40">
           <label className="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
           <input
             value={usuario}
@@ -137,6 +152,30 @@ export default function EstudiantesPage() {
         <button type="submit" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Crear
         </button>
+        <div className="basis-full">
+          <p className="text-sm font-medium text-slate-700 mb-1">
+            Grupos {esDocente && <span className="text-xs font-normal text-slate-500">(elige al menos uno)</span>}
+          </p>
+          {grupos.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              Aún no hay grupos. <a href="/admin/grupos" className="underline">Crea uno</a> para que el estudiante quede matriculado en sus
+              módulos.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {grupos.map((g) => (
+                <label key={g.id} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={grupoIds.includes(g.id)}
+                    onChange={() => setGrupoIds((ids) => (ids.includes(g.id) ? ids.filter((x) => x !== g.id) : [...ids, g.id]))}
+                  />
+                  {g.nombre}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </form>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -151,33 +190,51 @@ export default function EstudiantesPage() {
 
       <PuestosTemporales onCreados={cargar} />
       <p className="text-xs text-slate-400 -mt-4 mb-6">
-        Para una sala con turnero, mejor créalos desde la <a href="/admin/simulacion" className="underline">Simulación</a> —
+        Para una sala con turnero, mejor créalos desde la <a href="/admin/simulacion" className="underline">jornada presencial</a>:
         se borran solos cuando la cierras.
       </p>
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
 
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-heading font-semibold text-blue-900">Todos</h2>
-        {totalTemporales > 0 && (
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-heading font-semibold text-blue-900">{esDocente ? "Mis estudiantes" : "Todos"}</h2>
+          {grupos.length > 0 && (
+            <select
+              value={filtroGrupo}
+              onChange={(e) => setFiltroGrupo(e.target.value)}
+              className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+              aria-label="Filtrar por grupo"
+            >
+              <option value="">Todos los grupos</option>
+              {grupos.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        {totalTemporales > 0 && !esDocente && (
           <button onClick={eliminarTemporales} className="text-xs text-red-600 hover:underline">
             Eliminar {totalTemporales} cuenta(s) temporal(es)
           </button>
         )}
       </div>
 
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>
               <th className="px-4 py-2 font-medium">Nombre</th>
               <th className="px-4 py-2 font-medium">Usuario</th>
+              <th className="px-4 py-2 font-medium">Grupos</th>
               <th className="px-4 py-2 font-medium">Estado</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
-            {estudiantes.map((est) => (
+            {visibles.map((est) => (
               <tr key={est.id} className="border-t border-slate-100">
                 <td className="px-4 py-2 text-slate-800">
                   {est.nombre}
@@ -198,6 +255,9 @@ export default function EstudiantesPage() {
                   )}
                 </td>
                 <td className="px-4 py-2 text-slate-600 font-mono">{est.usuario}</td>
+                <td className="px-4 py-2 text-xs text-slate-600">
+                  {est.gruposComoEstudiante.map((g) => g.nombre).join(", ") || <span className="text-slate-400">—</span>}
+                </td>
                 <td className="px-4 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded ${est.activo ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
                     {est.activo ? "Activo" : "Inactivo"}

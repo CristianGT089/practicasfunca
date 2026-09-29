@@ -611,21 +611,29 @@ function CuotaModeradoraCard({
   esAltoCostoReal: boolean | null;
 }) {
   if (cuota.cobrada) {
+    // Durante la jornada no se dice si acertó (es evaluada): solo lo que se cobró.
+    const conResultado = cuota.correcto !== null;
     return (
       <div
         className={`rounded-xl border p-4 shadow-sm mb-4 ${
-          cuota.correcto ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"
+          !conResultado ? "bg-slate-50 border-slate-200" : cuota.correcto ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"
         }`}
       >
         <div className="flex items-center justify-between">
-          <p className={`text-sm font-semibold ${cuota.correcto ? "text-emerald-800" : "text-amber-800"}`}>
-            {cuota.correcto ? "✓ Cuota moderadora aplicada correctamente" : "✗ Revisa: marcaste mal el alto costo"}
+          <p className={`text-sm font-semibold ${!conResultado ? "text-slate-700" : cuota.correcto ? "text-emerald-800" : "text-amber-800"}`}>
+            {!conResultado
+              ? "Cuota moderadora cobrada"
+              : cuota.correcto
+                ? "✓ Cuota moderadora aplicada correctamente"
+                : "✗ Revisa: marcaste mal el alto costo"}
           </p>
           <p className="font-heading text-lg font-bold text-blue-900">{pesos(cuota.montoAplicado ?? 0)}</p>
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          Marcaste: {cuota.altoCostoMarcado ? "alto costo" : "no alto costo"}. En el sistema, este paciente{" "}
-          {esAltoCostoReal ? "sí tiene" : "no tiene"} un diagnóstico de alto costo.
+          Marcaste: {cuota.altoCostoMarcado ? "alto costo" : "no alto costo"}.
+          {esAltoCostoReal !== null && (
+            <> En el sistema, este paciente {esAltoCostoReal ? "sí tiene" : "no tiene"} un diagnóstico de alto costo.</>
+          )}
         </p>
       </div>
     );

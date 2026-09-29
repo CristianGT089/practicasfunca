@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireGestorDeJornada } from "@/lib/simulacion/permisos";
 import { abrirSimulacion } from "@/lib/simulacion/operaciones";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-
   const { id } = await params;
+  if (!(await requireGestorDeJornada(id))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   try {
     const resultado = await abrirSimulacion(id);
     return NextResponse.json(resultado);

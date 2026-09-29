@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { filtroModulos, puedeGestionarModulo, requireGestor } from "@/lib/nucleo/permisos";
 
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const escenarios = await prisma.escenario.findMany({
+    where: { modulo: await filtroModulos(gestor) },
     orderBy: { creadoEn: "desc" },
     include: {
       modulo: { select: { slug: true, nombre: true } },
@@ -34,8 +35,8 @@ type PasoEntrada = {
 };
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const titulo = (body?.titulo as string | undefined)?.trim();
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (!(await puedeGestionarModulo(gestor, moduloSlug))) {
+    return NextResponse.json({ error: "No gestionas ese módulo" }, { status: 403 });
+  }
   const modulo = await prisma.modulo.findUnique({ where: { slug: moduloSlug } });
   if (!modulo) {
     return NextResponse.json({ error: `Módulo '${moduloSlug}' no existe` }, { status: 400 });

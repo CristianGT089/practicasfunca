@@ -9,7 +9,7 @@ const secret = new TextEncoder().encode(
 
 export type SessionPayload = {
   sub: string; // usuario id
-  rol: "ESTUDIANTE" | "ADMIN";
+  rol: "ESTUDIANTE" | "DOCENTE" | "ADMIN";
 };
 
 export async function createSession(payload: SessionPayload) {

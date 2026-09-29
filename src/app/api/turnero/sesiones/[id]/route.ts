@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin, requireUser } from "@/lib/nucleo/auth";
+import { requireUser } from "@/lib/nucleo/auth";
+import { requireGestor } from "@/lib/nucleo/permisos";
 import { construirSnapshot } from "@/lib/turnero/snapshot";
 import { ajustarEspacios, cerrarSesion } from "@/lib/turnero/operaciones";
 
@@ -22,7 +23,7 @@ const patchSchema = z.union([
 ]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
+  const admin = await requireGestor();
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { id } = await params;

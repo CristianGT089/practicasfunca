@@ -44,8 +44,8 @@ export type ResultadoBusquedaSimulacion = {
     antecedentes: string | null;
     diagnostico: string | null;
     categoriaAfiliado: CategoriaAfiliado | null;
-    // Solo se revela una vez que ya se cobró la cuota (ver `cuota` abajo) — antes de eso
-    // el estudiante tiene que decidirlo leyendo el diagnóstico, no consultarlo.
+    // Nunca se revela durante la jornada: es evaluada, y el acierto se ve en el reporte
+    // que el docente muestra al final. Se deja el campo por compatibilidad (siempre null).
     esAltoCosto: boolean | null;
   } | null;
   // Aplica una vez por atención, no por renglón (ver docs/simulacion.md).
@@ -55,7 +55,7 @@ export type ResultadoBusquedaSimulacion = {
     montoAplicado: number | null;
     /** lo que marcó el ESTUDIANTE al cobrar; null mientras no se ha decidido */
     altoCostoMarcado: boolean | null;
-    /** si acertó comparado con el diagnóstico real; null mientras no se ha decidido */
+    /** si acertó: siempre null durante la jornada (evaluada); se ve en el reporte final */
     correcto: boolean | null;
   };
   // Quién está realmente en la ventanilla (fase 5): null si es el paciente mismo.
@@ -113,13 +113,13 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
       antecedentes: paciente.antecedentes,
       diagnostico: paciente.diagnostico,
       categoriaAfiliado: paciente.categoriaAfiliado,
-      esAltoCosto: yaDecidida ? paciente.esAltoCosto : null,
+      esAltoCosto: null,
     },
     cuota: {
       cobrada: yaDecidida,
       montoAplicado: entregaConCuota?.cuotaModeradora ?? null,
       altoCostoMarcado: entregaConCuota?.altoCostoMarcado ?? null,
-      correcto: yaDecidida ? entregaConCuota!.altoCostoMarcado === paciente.esAltoCosto : null,
+      correcto: null,
     },
     personaEnVentanilla:
       paciente.tipoRecogida === "EL_MISMO"
@@ -236,7 +236,12 @@ async function registrarEntrega(opts: {
   const paciente = await pacienteDeLaSimulacion(opts.simulacionId, opts.cedula);
   if (!paciente) throw new Error("Paciente no encontrado en esta simulación");
 
-  const cuota = await decidirCuota(opts.simulacionId, paciente.id, paciente.categoriaAfiliado, opts.altoCostoMarcado);
+  // La cuota se cobra con la primera ENTREGA: si solo se rechaza, no se entregó ningún
+  // servicio y no hay nada que cobrar.
+  const cuota =
+    opts.resultado === "ENTREGADO"
+      ? await decidirCuota(opts.simulacionId, paciente.id, paciente.categoriaAfiliado, opts.altoCostoMarcado)
+      : { cuotaModeradora: 0, altoCostoMarcado: null };
 
   await prisma.entregaSimulacion.deleteMany({
     where: opts.recetaId

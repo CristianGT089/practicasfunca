@@ -63,9 +63,43 @@ export async function POST(req: NextRequest) {
       return actualizados;
     });
 
+    await registrarVentaDeJornada(body?.simulacionId, body?.cedulaPaciente, usuario.id, items);
     return NextResponse.json({ ok: true, medicamentos: resultado });
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : "No se pudo completar la venta";
     return NextResponse.json({ error: mensaje }, { status: 409 });
   }
+}
+
+/**
+ * Jornada presencial de Farmacia: la venta queda registrada a nombre del paciente del turno
+ * de esta ventanilla, para calificarla al finalizar (lib/simulacion/evaluacion.ts). Si no hay
+ * jornada abierta o el paciente no es de ella, no se registra nada extra.
+ */
+async function registrarVentaDeJornada(
+  simulacionId: unknown,
+  cedula: unknown,
+  usuarioId: string,
+  items: { medicamentoId: string; cantidad: number }[]
+) {
+  if (typeof simulacionId !== "string" || typeof cedula !== "string") return;
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion || simulacion.estado !== "ABIERTA" || simulacion.tipo !== "FARMACIA") return;
+  const paciente = await prisma.paciente.findFirst({ where: { simulacionId, cedula }, include: { recetas: true } });
+  if (!paciente) return;
+  await prisma.entregaSimulacion.createMany({
+    data: items.map((item) => {
+      const receta = paciente.recetas.find((r) => r.medicamentoId === item.medicamentoId);
+      return {
+        simulacionId,
+        pacienteId: paciente.id,
+        recetaElectronicaId: receta?.id ?? null,
+        medicamentoId: receta ? null : item.medicamentoId,
+        usuarioId,
+        cantidad: item.cantidad,
+        resultado: "ENTREGADO" as const,
+        cuotaModeradora: 0,
+      };
+    }),
+  });
 }

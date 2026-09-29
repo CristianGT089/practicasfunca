@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
-    "seed:catalogo-real": "tsx scripts/modulos/farmacia/importar-catalogo-real.ts"
+    "seed:catalogo-real": "tsx scripts/modulos/farmacia/importar-catalogo-real.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

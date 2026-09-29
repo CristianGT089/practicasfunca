@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireGestorDeModulo } from "@/lib/nucleo/permisos";
 
 export async function GET() {
-  const admin = await requireAdmin();
+  const admin = await requireGestorDeModulo("dispensacion");
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const [autorizaciones, pacientes, medicamentos] = await Promise.all([
@@ -34,7 +34,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
+  const admin = await requireGestorDeModulo("dispensacion");
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const parsed = schema.safeParse(await req.json().catch(() => null));

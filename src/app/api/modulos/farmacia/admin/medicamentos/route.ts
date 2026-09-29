@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireGestorDeModulo } from "@/lib/nucleo/permisos";
 
 export async function GET() {
-  const admin = await requireAdmin();
+  const admin = await requireGestorDeModulo("farmacia");
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   // Esta pantalla administra los medicamentos ficticios de los escenarios calificados.
@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
+  const admin = await requireGestorDeModulo("farmacia");
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json().catch(() => null);

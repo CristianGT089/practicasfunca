@@ -32,8 +32,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // ---------- Evaluar si esta acción es un error en tiempo real ----------
   // El motor no conoce las reglas de cada módulo: delega en su `ModuloSimulacion`.
+  // RESPONDER (elegir qué decirle a la persona en la escena) nunca es un error clínico: el
+  // trato se califica aparte al finalizar (lib/escena/guion.ts).
   const modulo = obtenerModuloSimulacion(intento.escenario.modulo.slug);
-  const { peligros, fueraDeChecklist } = modulo
+  const { peligros, fueraDeChecklist } = tipo === "RESPONDER"
+    ? { peligros: [] as string[], fueraDeChecklist: false }
+    : modulo
     ? await modulo.evaluarAccion({
         tipo,
         payload,

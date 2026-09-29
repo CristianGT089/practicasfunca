@@ -21,6 +21,7 @@ import {
   familiaAlergenica,
   type DiagnosticoConEdad,
 } from "./bancos";
+import type { CodigoSituacion } from "./situaciones";
 
 /** Un nombre puntual que el admin le da al generador — ver `generarPacientes`. */
 export type NombreSolicitado = { nombre: string; genero?: Genero | null };
@@ -50,6 +51,8 @@ export type PacienteGenerado = {
   personaRecogeNombre: string | null;
   personaRecogeCedula: string | null;
   personaRecogeRelacion: string | null;
+  /** Situaciones de práctica que trae este paciente (vacío = caso normal). */
+  situaciones: CodigoSituacion[];
 };
 
 function elegir<T>(lista: readonly T[]): T {
@@ -115,7 +118,14 @@ export async function generarPacientes(
     probabilidadRecetaVencida = 0.15,
     probabilidadTercero = 0.2,
     probabilidadSuplantacionSiTercero = 0.3,
+    plan,
   }: {
+    /**
+     * Situaciones exactas por paciente (ver `planDeSituaciones`). Con plan, nada se sortea:
+     * cada paciente trae justo sus situaciones y ninguna otra, para que la "respuesta" del
+     * caso sea la que eligió el docente. Sin plan, se usan las probabilidades (modo libre).
+     */
+    plan?: CodigoSituacion[][];
     probabilidadAltoCosto?: number;
     probabilidadRecetaVencida?: number;
     /** fracción que trae a alguien distinto del paciente a recoger (tercero o suplantador) */
@@ -126,8 +136,12 @@ export async function generarPacientes(
 ): Promise<PacienteGenerado[]> {
   const catalogo = await prisma.medicamento.findMany({
     where: { origen: "CATALOGO_REAL", stock: { gt: 0 } },
-    select: { id: true, nombre: true, principioActivo: true },
+    select: { id: true, nombre: true, principioActivo: true, stock: true },
   });
+  // Con plan, los medicamentos de los casos sin alergia se toman de los que no pertenecen a
+  // ninguna familia alergénica, y el de alergia de los que sí (para que el caso funcione).
+  const conFamilia = catalogo.filter((m) => familiaAlergenica(m.principioActivo) !== null);
+  const sinFamilia = catalogo.filter((m) => familiaAlergenica(m.principioActivo) === null);
   if (catalogo.length === 0) {
     throw new Error("No hay medicamentos del catálogo real con stock disponible para generar recetas.");
   }
@@ -138,7 +152,9 @@ export async function generarPacientes(
 
   const pacientes: PacienteGenerado[] = [];
 
-  for (const solicitado of solicitados) {
+  for (const [indice, solicitado] of solicitados.entries()) {
+    const situaciones = plan ? [...(plan[indice] ?? [])] : null;
+    const tiene = (c: CodigoSituacion) => situaciones?.includes(c) ?? false;
     // Sin nombre puntual: sortea género primero y saca un nombre del banco que corresponda.
     const genero: Genero | null = solicitado?.genero ?? (solicitado ? null : (elegirPesado(PESOS_GENERO) as Genero));
     const bancoNombres = genero === "FEMENINO" ? NOMBRES_FEMENINOS : genero === "MASCULINO" ? NOMBRES_MASCULINOS : NOMBRES;
@@ -146,7 +162,7 @@ export async function generarPacientes(
     const cedula = await cedulaDisponible();
     const edad = entero(1, 90);
 
-    const esAltoCosto = Math.random() < probabilidadAltoCosto;
+    const esAltoCosto = situaciones ? tiene("ALTO_COSTO") : Math.random() < probabilidadAltoCosto;
     const diagnostico = elegirPorEdad(esAltoCosto ? DIAGNOSTICOS_ALTO_COSTO : DIAGNOSTICOS_COMUNES, edad, genero);
     const categoriaAfiliado = elegirPesado(PESOS_CATEGORIA_AFILIADO) as CategoriaAfiliado;
 
@@ -157,21 +173,34 @@ export async function generarPacientes(
     const alergias = new Set<string>();
 
     for (let r = 0; r < numRenglones; r++) {
-      const medicamento = elegir(catalogo);
-      const familia = familiaAlergenica(medicamento.principioActivo);
-      // ~30% de las veces que el renglón toca una familia conocida, se marca alérgico a
-      // propósito — es el caso de práctica, no todos los pacientes deben serlo.
-      if (familia && Math.random() < 0.3) alergias.add(familia);
+      let medicamento: (typeof catalogo)[number];
+      if (!situaciones) {
+        medicamento = elegir(catalogo);
+        const familia = familiaAlergenica(medicamento.principioActivo);
+        // ~30% de las veces que el renglón toca una familia conocida, se marca alérgico a
+        // propósito — es el caso de práctica, no todos los pacientes deben serlo.
+        if (familia && Math.random() < 0.3) alergias.add(familia);
+      } else if (r === 0 && tiene("ALERGIA") && conFamilia.length > 0) {
+        medicamento = elegir(conFamilia);
+        alergias.add(familiaAlergenica(medicamento.principioActivo)!);
+      } else {
+        medicamento = elegir(sinFamilia.length > 0 ? sinFamilia : catalogo);
+      }
 
       const fechaEmision = new Date(Date.now() - entero(0, 20) * 86_400_000);
-      const vencida = Math.random() < probabilidadRecetaVencida;
+      // Con plan: si el caso es de fórmula vencida, se vence el último renglón (así, con
+      // alergia en el primero, cada renglón enseña una sola cosa).
+      const vencida = situaciones
+        ? tiene("FORMULA_VENCIDA") && r === numRenglones - 1
+        : Math.random() < probabilidadRecetaVencida;
       const diasVigencia = vencida ? -entero(1, 15) : entero(20, 35);
       const fechaVigencia = new Date(fechaEmision.getTime() + diasVigencia * 86_400_000);
 
       renglones.push({
         medicamentoId: medicamento.id,
         medicamentoNombre: medicamento.nombre,
-        cantidadAutorizada: entero(5, 30),
+        // Nunca más de lo que hay en inventario: si no, el caso sería imposible de atender.
+        cantidadAutorizada: Math.min(entero(5, 30), medicamento.stock),
         medico: elegir(MEDICOS),
         fechaEmision,
         fechaVigencia,
@@ -185,8 +214,11 @@ export async function generarPacientes(
     let personaRecogeNombre: string | null = null;
     let personaRecogeCedula: string | null = null;
     let personaRecogeRelacion: string | null = null;
-    if (Math.random() < probabilidadTercero) {
-      const esSuplantacion = Math.random() < probabilidadSuplantacionSiTercero;
+    const llegaOtro = situaciones
+      ? tiene("SUPLANTACION") || tiene("TERCERO_AUTORIZADO")
+      : Math.random() < probabilidadTercero;
+    if (llegaOtro) {
+      const esSuplantacion = situaciones ? tiene("SUPLANTACION") : Math.random() < probabilidadSuplantacionSiTercero;
       tipoRecogida = esSuplantacion ? "SUPLANTACION" : "TERCERO_AUTORIZADO";
       personaRecogeNombre = `${elegir(NOMBRES)} ${elegir(APELLIDOS)} ${elegir(APELLIDOS)}`;
       personaRecogeCedula = String(entero(1_000_000_000, 1_099_999_999));
@@ -208,8 +240,27 @@ export async function generarPacientes(
       personaRecogeNombre,
       personaRecogeCedula,
       personaRecogeRelacion,
+      situaciones:
+        situaciones?.filter((c) => c !== "ALERGIA" || alergias.size > 0) ??
+        situacionesDetectadas({ esAltoCosto, tipoRecogida, alergias: [...alergias], renglones }),
     });
   }
 
   return pacientes;
+}
+
+/** En modo libre (sin plan), deduce las situaciones que salieron al azar. */
+function situacionesDetectadas(p: {
+  esAltoCosto: boolean;
+  tipoRecogida: TipoRecogida;
+  alergias: string[];
+  renglones: RenglonGenerado[];
+}): CodigoSituacion[] {
+  const s: CodigoSituacion[] = [];
+  if (p.renglones.some((r) => r.fechaVigencia.getTime() < Date.now())) s.push("FORMULA_VENCIDA");
+  if (p.tipoRecogida === "SUPLANTACION") s.push("SUPLANTACION");
+  if (p.tipoRecogida === "TERCERO_AUTORIZADO") s.push("TERCERO_AUTORIZADO");
+  if (p.alergias.length > 0) s.push("ALERGIA");
+  if (p.esAltoCosto) s.push("ALTO_COSTO");
+  return s;
 }

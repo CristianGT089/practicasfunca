@@ -7,8 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ADMIN = coordinación (ve todo, crea docentes y módulos). DOCENTE = ve y administra solo
+// los módulos en los que está matriculado y los grupos de los que es docente; crea a sus
+// estudiantes. ESTUDIANTE = su panel. Ver docs/plan-mejoras.md.
 enum Rol {
   ESTUDIANTE
+  DOCENTE
   ADMIN
 }
 
@@ -33,6 +37,7 @@ model Modulo {
   matriculas Matricula[]
   escenarios Escenario[]
   turnos     Turno[]
+  grupos     Grupo[]     @relation("GrupoModulos")
 
   @@map("modulos")
 }
@@ -60,33 +65,60 @@ enum Genero {
 }
 
 model Usuario {
-  id           String   @id @default(cuid())
-  nombre       String
-  usuario      String   @unique
-  passwordHash String
-  rol          Rol      @default(ESTUDIANTE)
-  activo       Boolean  @default(true)
-  genero       Genero?
+  id              String         @id @default(cuid())
+  nombre          String
+  usuario         String         @unique
+  passwordHash    String
+  rol             Rol            @default(ESTUDIANTE)
+  activo          Boolean        @default(true)
+  genero          Genero?
   // Cuenta creada para un puesto de una sala de cómputo (ej. "Dispensación 2"), no para un
   // estudiante inscrito de forma permanente. Se puede limpiar en bloque tras la sesión.
-  temporal     Boolean  @default(false)
+  temporal        Boolean        @default(false)
   // Solo para cuentas temporales: a qué pantalla entra derecho al iniciar sesión, sin pasar
   // por /panel (ej. "/panel/dispensacion"). Null = panel normal (estudiantes permanentes).
-  rutaDirecta  String?
+  rutaDirecta     String?
   // Si el puesto se creó desde el Control de un turnero, queda enlazado a esa sesión: al
   // cerrarla, la cuenta se borra con ella (ver operaciones.ts#cerrarSesion). Null = puesto
   // creado desde Estudiantes, sin turnero de por medio.
   sesionTurneroId String?
   sesionTurnero   SesionTurnero? @relation(fields: [sesionTurneroId], references: [id], onDelete: SetNull)
-  creadoEn     DateTime @default(now())
+  creadoEn        DateTime       @default(now())
 
-  intentos            Intento[]
-  intentosTurno       IntentoTurno[]
-  matriculas          Matricula[]
+  intentos             Intento[]
+  intentosTurno        IntentoTurno[]
+  matriculas           Matricula[]
   sesionesDispensacion SesionDispensacion[]
   entregasSimulacion   EntregaSimulacion[]
 
+  // Quién creó la cuenta (un docente crea a sus estudiantes). Null = creada por admin o seed.
+  creadoPorId String?
+  creadoPor   Usuario?  @relation("UsuariosCreados", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  creados     Usuario[] @relation("UsuariosCreados")
+
+  gruposComoDocente    Grupo[]               @relation("GrupoDocentes")
+  gruposComoEstudiante Grupo[]               @relation("GrupoEstudiantes")
+  participaciones      ParticipanteJornada[]
+  simulacionesCreadas  Simulacion[]          @relation("SimulacionesCreadas")
+
   @@map("usuarios")
+}
+
+// Un curso/cohorte (ej. "Técnico en Farmacia — sábado 2026-2"): sus docentes, sus
+// estudiantes y los módulos que practican. Un docente puede tener varios grupos.
+model Grupo {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+
+  docentes     Usuario[]    @relation("GrupoDocentes")
+  estudiantes  Usuario[]    @relation("GrupoEstudiantes")
+  modulos      Modulo[]     @relation("GrupoModulos")
+  simulaciones Simulacion[]
+
+  @@map("grupos")
 }
 
 enum OrigenMedicamento {
@@ -114,11 +146,11 @@ model Medicamento {
   // Campos de ficha técnica, propios del catálogo real (origen = CATALOGO_REAL), tal como
   // vienen en el inventario importado. Quedan opcionales porque el catálogo de práctica no
   // los usa.
-  laboratorio      String?
+  laboratorio       String?
   formaFarmaceutica String?
-  concentracion    String?
-  registroInvima   String?
-  numeroLote       String?
+  concentracion     String?
+  registroInvima    String?
+  numeroLote        String?
 
   // Clave de deduplicación del catálogo real: principioActivo + presentacion + numeroLote,
   // normalizados (trim + mayúsculas) para que "Amoxicilina" y "AMOXICILINA " no cuenten como
@@ -129,9 +161,9 @@ model Medicamento {
   movimientos          MovimientoInventario[]
   itemsEscenario       FarmaciaItemEscenario[]
   recetasElectronicas  RecetaElectronica[]
-  renglonesFormula     RenglonFormula[]      @relation("MedicamentoRenglonesFormula")
-  entregasDispensacion EntregaDispensacion[] @relation("MedicamentoEntregasDispensacion")
-  entregasSimulacion   EntregaSimulacion[]   @relation("MedicamentoEntregasSimulacion")
+  renglonesFormula     RenglonFormula[]        @relation("MedicamentoRenglonesFormula")
+  entregasDispensacion EntregaDispensacion[]   @relation("MedicamentoEntregasDispensacion")
+  entregasSimulacion   EntregaSimulacion[]     @relation("MedicamentoEntregasSimulacion")
 
   @@map("medicamentos")
 }
@@ -170,39 +202,43 @@ enum TipoRecogida {
 }
 
 model Paciente {
-  id              String    @id @default(cuid())
-  nombre          String
-  cedula          String    @unique
-  edad            Int
-  alergias        String[] // tags que cruzan contra Medicamento.tags
-  antecedentes    String? // texto libre: enfermedades, medicación crónica
-  fechaNacimiento DateTime?
-  lugarNacimiento String?
-  tipoSangre      String?
+  id                    String             @id @default(cuid())
+  nombre                String
+  cedula                String             @unique
+  edad                  Int
+  alergias              String[] // tags que cruzan contra Medicamento.tags
+  antecedentes          String? // texto libre: enfermedades, medicación crónica
+  fechaNacimiento       DateTime?
+  lugarNacimiento       String?
+  tipoSangre            String?
   // Campos de una Simulación (ver docs/simulacion.md): null en los pacientes sembrados o
   // creados a mano para Farmacia/Dispensación de siempre.
-  diagnostico       String?
-  esAltoCosto       Boolean            @default(false) // Cuenta de Alto Costo -> exento de cuota moderadora
-  categoriaAfiliado CategoriaAfiliado?
+  diagnostico           String?
+  esAltoCosto           Boolean            @default(false) // Cuenta de Alto Costo -> exento de cuota moderadora
+  categoriaAfiliado     CategoriaAfiliado?
   // El admin lo puede fijar al pedirle un nombre puntual al generador (para armar la
   // historia clínica alrededor de ese nombre); si no, se sortea junto con el nombre —
   // ver generador.ts. Null en los pacientes sembrados/manuales de siempre.
-  genero            Genero?
-  simulacionId      String? // generado para esta simulación; se borra con ella
-  simulacion        Simulacion?        @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  genero                Genero?
+  simulacionId          String? // generado para esta simulación; se borra con ella
+  simulacion            Simulacion?        @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
   // Quién se presenta realmente en la ventanilla a recoger (fase 5, ver docs/simulacion.md):
   // EL_MISMO (default) = coincide con el paciente, sin caso de verificación de identidad.
-  tipoRecogida         TipoRecogida @default(EL_MISMO)
-  personaRecogeNombre  String? // solo si tipoRecogida != EL_MISMO
-  personaRecogeCedula  String? // documento que presenta esa persona (no el del paciente)
+  tipoRecogida          TipoRecogida       @default(EL_MISMO)
+  personaRecogeNombre   String? // solo si tipoRecogida != EL_MISMO
+  personaRecogeCedula   String? // documento que presenta esa persona (no el del paciente)
   personaRecogeRelacion String? // solo si TERCERO_AUTORIZADO, ej "esposo(a)", "hijo(a)"
-  creadoEn        DateTime  @default(now())
+  // Situaciones de práctica que trae este paciente de una jornada presencial (códigos de
+  // lib/simulacion/situaciones.ts). Vacío = caso normal. Es la "respuesta" del caso.
+  situaciones           String[]           @default([])
+  creadoEn              DateTime           @default(now())
 
   escenarios         EscenarioFarmacia[]
   recetas            RecetaElectronica[]
-  casosDispensacion  CasoDispensacion[] @relation("PacienteCasosDispensacion")
+  casosDispensacion  CasoDispensacion[]  @relation("PacienteCasosDispensacion")
   ticketsTurnero     Ticket[]
   entregasSimulacion EntregaSimulacion[]
+  atencionesJornada  AtencionJornada[]
 
   @@map("pacientes")
 }
@@ -249,6 +285,12 @@ model Escenario {
   // "VENTA_CORRECTA" / "RECHAZO_CORRECTO"; Enfermería: "ADMINISTRAR_CORRECTO" / "NO_ADMINISTRAR_CORRECTO").
   resultadoEsperado String
 
+  // Práctica virtual lúdica: persona animada que aparece en la escena (slug de
+  // lib/escena/personajes.ts) y su guion de diálogo (frases y opciones de respuesta con su
+  // efecto en el ánimo; forma en lib/escena/guion.ts). Null = el caso se ve sin escena.
+  personaje String?
+  guion     Json?
+
   activo   Boolean  @default(true)
   creadoEn DateTime @default(now())
 
@@ -256,9 +298,10 @@ model Escenario {
   intentos   Intento[]
   turnoItems TurnoItem[]
 
-  farmacia   EscenarioFarmacia?
-  enfermeria EscenarioEnfermeria?
-  infancia   EscenarioPrimeraInfancia?
+  farmacia    EscenarioFarmacia?
+  enfermeria  EscenarioEnfermeria?
+  infancia    EscenarioPrimeraInfancia?
+  odontologia EscenarioOdontologia?
 
   @@map("escenarios")
 }
@@ -365,8 +408,8 @@ model EscenarioEnfermeria {
 
 // Niño ficticio evaluado en los casos de Primera Infancia.
 model Nino {
-  id     String   @id @default(cuid())
-  nombre String
+  id                         String   @id @default(cuid())
+  nombre                     String
   // Edad real se deriva de fechaNacimiento. semanasGestacionNacimiento permite detectar
   // prematurez (<37 semanas) y calcular edad corregida en los casos que lo requieren.
   fechaNacimiento            DateTime
@@ -412,6 +455,60 @@ model EscenarioPrimeraInfancia {
   hitosEsperados Json?
 
   @@map("escenarios_primera_infancia")
+}
+
+// ---------- Módulo Odontología ----------
+
+// Paciente ficticio de los casos de Odontología: los datos de "Identificación del paciente"
+// de la historia clínica odontológica FUNCA. El estudiante los ve ya cargados (vienen de
+// admisiones); lo que diligencia es el resto de la historia.
+model PacienteOdontologia {
+  id                 String   @id @default(cuid())
+  nombres            String
+  primerApellido     String
+  segundoApellido    String?
+  tipoDocumento      String // CC | TI | RC | CE
+  documento          String
+  sexo               String // M | F
+  fechaNacimiento    DateTime
+  eps                String?
+  profesion          String?
+  ocupacion          String?
+  estadoCivil        String?
+  telefono           String?
+  direccion          String?
+  contactoEmergencia String?
+  parentescoContacto String?
+  telefonoContacto   String?
+  creadoEn           DateTime @default(now())
+
+  escenarios EscenarioOdontologia[]
+
+  @@map("pacientes_odontologia")
+}
+
+// Extensión de Escenario específica del módulo Odontología. Los relatos son lo que el
+// estudiante "descubre" al interrogar/examinar; `esperado` es la historia correcta con la
+// que se califica (odontograma, antecedentes, alerta médica, índice de placa...). Su forma
+// está en src/lib/modulos/odontologia/historia.ts (EsperadoOdontologia).
+model EscenarioOdontologia {
+  id          String    @id @default(cuid())
+  escenarioId String    @unique
+  escenario   Escenario @relation(fields: [escenarioId], references: [id], onDelete: Cascade)
+
+  pacienteId String
+  paciente   PacienteOdontologia @relation(fields: [pacienteId], references: [id])
+
+  denticion         String // PERMANENTE | TEMPORAL | MIXTA: qué filas del odontograma se muestran
+  motivoConsulta    String // en palabras del paciente
+  relatoAnamnesis   String // lo que cuenta el paciente al interrogarlo (enfermedad actual, antecedentes, hábitos)
+  relatoExamen      String? // hallazgos extra/intraorales narrados, además de los del odontograma
+  relatoRadiografia String? // lectura radiográfica narrada, además de los hallazgos radiográficos del odontograma
+  esperado          Json
+
+  casosJornada CasoJornadaOdontologia[]
+
+  @@map("escenarios_odontologia")
 }
 
 // Secuencia de varios escenarios encadenados con un solo pool de 3 vidas compartido
@@ -604,10 +701,10 @@ model SesionTurnero {
   iniciadaEn     DateTime            @default(now())
   cerradaEn      DateTime?
 
-  espacios Espacio[]
-  tickets  Ticket[]
+  espacios   Espacio[]
+  tickets    Ticket[]
   // Cuentas temporales creadas desde Control para esta sesión (ver Usuario.sesionTurneroId).
-  puestos  Usuario[]
+  puestos    Usuario[]
   // Si este turnero corre dentro de una Simulación (ver Simulacion.sesionTurneroId).
   simulacion Simulacion?
 
@@ -643,8 +740,8 @@ model Ticket {
   cerradoEn      DateTime?
   // Solo en el turnero de una Simulación: a qué paciente corresponde este turno (se pidió
   // por cédula al sacarlo). El turnero de mostrador libre lo deja vacío.
-  pacienteId String?
-  paciente   Paciente? @relation(fields: [pacienteId], references: [id])
+  pacienteId     String?
+  paciente       Paciente?     @relation(fields: [pacienteId], references: [id])
 
   espacio Espacio? @relation("TicketEnEspacio")
 
@@ -679,17 +776,17 @@ model CasoDispensacion {
 
 // Una fórmula médica física que el paciente entrega. Se renderiza como documento.
 model FormulaPresentada {
-  id             String   @id @default(cuid())
-  casoId         String
-  caso           CasoDispensacion @relation(fields: [casoId], references: [id], onDelete: Cascade)
-  medico         String
-  registroMedico String
-  ips            String?
-  fechaEmision   DateTime
-  diasVigencia   Int      @default(30)
+  id               String           @id @default(cuid())
+  casoId           String
+  caso             CasoDispensacion @relation(fields: [casoId], references: [id], onDelete: Cascade)
+  medico           String
+  registroMedico   String
+  ips              String?
+  fechaEmision     DateTime
+  diasVigencia     Int              @default(30)
   // false = receta de médico particular / no cargada al sistema de la EPS: no se dispensa por acá.
-  cargadaEnSistema Boolean @default(true)
-  nota           String? // contexto de una irregularidad ("cantidad corregida a mano", etc.)
+  cargadaEnSistema Boolean          @default(true)
+  nota             String? // contexto de una irregularidad ("cantidad corregida a mano", etc.)
 
   renglones RenglonFormula[]
 
@@ -760,12 +857,14 @@ model EntregaDispensacion {
 enum TipoSimulacion {
   FARMACIA // venta/mostrador, sobre /panel/catalogo
   DISPENSARIO // por fórmula, sobre /panel/dispensacion, con cuota moderadora
+  ODONTOLOGIA // historia clínica + odontograma, sobre /panel/odontologia; pacientes interpretados con tarjeta
 }
 
 enum EstadoSimulacion {
   BORRADOR // pacientes generados, en revisión; aún no se puede sacar turno
   ABIERTA
-  CERRADA
+  EN_REVISION // el docente la finalizó: turnero cerrado, falta confirmar quién atendió a quién
+  CERRADA // calificada; los pacientes generados ya se borraron (el reporte queda en AtencionJornada)
 }
 
 model Simulacion {
@@ -781,10 +880,107 @@ model Simulacion {
   abiertaEn       DateTime?
   cerradaEn       DateTime?
 
-  pacientes Paciente[]
-  entregas  EntregaSimulacion[]
+  // Jornada presencial: grupo que la hace, quién la creó y qué situaciones eligió el docente.
+  grupoId     String?
+  grupo       Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  creadaPorId String?
+  creadaPor   Usuario? @relation("SimulacionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  situaciones String[] @default([])
+
+  pacientes        Paciente[]
+  entregas         EntregaSimulacion[]
+  participantes    ParticipanteJornada[]
+  asignaciones     AsignacionEspacio[]
+  atenciones       AtencionJornada[]
+  casosOdontologia CasoJornadaOdontologia[]
 
   @@map("simulaciones")
+}
+
+// Quién participa en una jornada presencial: estudiantes del grupo (con usuario) o
+// invitados que llegan en el momento (solo nombre).
+model ParticipanteJornada {
+  id           String     @id @default(cuid())
+  simulacionId String
+  simulacion   Simulacion @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  nombre       String
+  usuarioId    String?
+  usuario      Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  invitado     Boolean    @default(false)
+  creadoEn     DateTime   @default(now())
+
+  asignaciones AsignacionEspacio[]
+  atenciones   AtencionJornada[]
+
+  @@map("participantes_jornada")
+}
+
+// "En la ventanilla N está sentado X desde tal hora." El docente la cambia al rotar; la
+// atención de un turno se atribuye a la asignación vigente cuando se llamó ese turno.
+model AsignacionEspacio {
+  id             String               @id @default(cuid())
+  simulacionId   String
+  simulacion     Simulacion           @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  espacioNumero  Int
+  participanteId String?
+  participante   ParticipanteJornada? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  desde          DateTime             @default(now())
+
+  @@index([simulacionId, espacioNumero])
+  @@map("asignaciones_espacio")
+}
+
+// Un paciente atendido en la jornada. Se crea al finalizarla (desde los turnos y las
+// entregas), el docente confirma quién lo atendió y ahí se califica. Guarda una copia de
+// todo lo necesario para el reporte, porque los pacientes generados se borran al cerrar.
+model AtencionJornada {
+  id             String               @id @default(cuid())
+  simulacionId   String
+  simulacion     Simulacion           @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  pacienteId     String?
+  paciente       Paciente?            @relation(fields: [pacienteId], references: [id], onDelete: SetNull)
+  participanteId String?
+  participante   ParticipanteJornada? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  ticketCodigo   String?
+  espacioNumero  Int?
+  llamadoEn      DateTime?
+  pacienteNombre String
+  pacienteCedula String
+  situaciones    String[]             @default([])
+  // Lista de criterios verificados: [{ descripcion, cumplido, detalle }]
+  criterios      Json?
+  puntaje        Float?
+  calificadaEn   DateTime?
+  creadoEn       DateTime             @default(now())
+
+  // Jornada de Odontología: la historia que el estudiante va redactando (se guarda sola),
+  // el caso que atiende y desde qué cuenta. `detalle` guarda la revisión del odontograma.
+  casoOdontologiaId String?
+  casoOdontologia   CasoJornadaOdontologia? @relation(fields: [casoOdontologiaId], references: [id], onDelete: SetNull)
+  usuarioId         String?
+  historia          Json?
+  remision          String?
+  actualizadaEn     DateTime?
+  cerradaEn         DateTime?
+  detalle           Json?
+
+  @@index([simulacionId])
+  @@map("atenciones_jornada")
+}
+
+// Un caso de Odontología que el docente eligió para la jornada. Lo interpreta un compañero
+// con una tarjeta impresa; puede atenderlo más de un estudiante (una atención cada vez).
+model CasoJornadaOdontologia {
+  id                     String               @id @default(cuid())
+  simulacionId           String
+  simulacion             Simulacion           @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  escenarioOdontologiaId String
+  escenarioOdontologia   EscenarioOdontologia @relation(fields: [escenarioOdontologiaId], references: [id])
+  orden                  Int                  @default(0)
+
+  atenciones AtencionJornada[]
+
+  @@map("casos_jornada_odontologia")
 }
 
 // Consumo COMPARTIDO por simulación (no por estudiante) contra una autorización del
@@ -792,13 +988,13 @@ model Simulacion {
 // es una sola farmacia/dispensario compartido ese día, no N prácticas aisladas en paralelo
 // (a diferencia de EntregaDispensacion, que sí aísla por sesión/usuario).
 model EntregaSimulacion {
-  id           String     @id @default(cuid())
-  simulacionId String
-  simulacion   Simulacion @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  id                  String             @id @default(cuid())
+  simulacionId        String
+  simulacion          Simulacion         @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
   // De qué paciente es esta atención — antes se sacaba de la receta, pero un medicamento
   // sin autorización no tiene receta y de todas formas hay que saber de quién es.
-  pacienteId String
-  paciente   Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  pacienteId          String
+  paciente            Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
   // Con receta (el paciente sí tiene autorización) o null: el estudiante buscó un
   // medicamento del catálogo que este paciente no tiene autorizado — a propósito no hay
   // ningún aviso que se lo diga (ver docs/simulacion.md); si igual lo entrega o lo
@@ -815,8 +1011,8 @@ model EntregaSimulacion {
   // Solo se llena en la entrega que cobra la cuota (la primera del paciente en la
   // simulación): qué marcó el ESTUDIANTE al leer el diagnóstico, no la verdad del sistema
   // — así se puede dar retroalimentación de si acertó. Null en las demás entregas.
-  altoCostoMarcado Boolean?
-  creadoEn         DateTime @default(now())
+  altoCostoMarcado    Boolean?
+  creadoEn            DateTime           @default(now())
 
   @@index([simulacionId])
   @@index([pacienteId])

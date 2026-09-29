@@ -9,6 +9,7 @@
  * solo llena el lado izquierdo — no hay problema, se recorta igual.
  */
 import { jsPDF } from "jspdf";
+import { definicionSituacion } from "./situaciones";
 
 const AZUL: [number, number, number] = [27, 58, 107];
 const GRIS: [number, number, number] = [100, 116, 139];
@@ -51,7 +52,32 @@ export type PacienteParaPDF = {
     cantidadAutorizada: number;
     medicamento: { nombre: string; presentacion: string };
   }[];
+  // Para la hoja de indicaciones de quien interpreta al paciente (jornada presencial).
+  situaciones?: string[];
+  tipoRecogida?: "EL_MISMO" | "TERCERO_AUTORIZADO" | "SUPLANTACION";
+  personaRecogeNombre?: string | null;
+  personaRecogeCedula?: string | null;
+  personaRecogeRelacion?: string | null;
 };
+
+/** Qué debe hacer el compañero que interpreta a este paciente (vacío = actuar normal). */
+export function indicacionesActor(p: PacienteParaPDF): string[] {
+  const lineas: string[] = [];
+  if (p.tipoRecogida === "SUPLANTACION" && p.personaRecogeNombre) {
+    lineas.push(
+      `Tú NO eres ${p.nombre}: eres ${p.personaRecogeNombre} (CC ${p.personaRecogeCedula ?? "-"}) y te haces pasar por el paciente. Muestra tu propia cédula si te la piden.`
+    );
+  } else if (p.tipoRecogida === "TERCERO_AUTORIZADO" && p.personaRecogeNombre) {
+    lineas.push(
+      `Eres ${p.personaRecogeNombre} (CC ${p.personaRecogeCedula ?? "-"}), ${p.personaRecogeRelacion ?? "familiar"} de ${p.nombre}, y vienes a reclamar por el paciente.`
+    );
+  }
+  for (const c of p.situaciones ?? []) {
+    const ind = definicionSituacion(c)?.indicacionActor;
+    if (ind && c !== "SUPLANTACION" && c !== "TERCERO_AUTORIZADO") lineas.push(ind);
+  }
+  return lineas;
+}
 
 export async function generarRecetasPDF(params: { nombreSimulacion: string; pacientes: PacienteParaPDF[] }) {
   const { nombreSimulacion, pacientes } = params;
@@ -159,6 +185,43 @@ export async function generarRecetasPDF(params: { nombreSimulacion: string; paci
     if (segundo) {
       dibujarFormula(segundo, xDerecha);
       lineaDeCorte(); // solo si de verdad hay dos — con una sola no hace falta recortar
+    }
+  }
+
+  // Hoja aparte, para entregar en privado a quienes interpretan a los pacientes: no va con la
+  // fórmula, porque el estudiante que atiende no debe verla.
+  const conIndicaciones = pacientes.map((p) => ({ p, lineas: indicacionesActor(p) })).filter((x) => x.lineas.length > 0);
+  if (conIndicaciones.length > 0) {
+    doc.addPage();
+    let y = margenExterior + 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...AZUL);
+    doc.text("Indicaciones para quienes interpretan a los pacientes", margenExterior, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRIS);
+    doc.text("Recorta y entrega cada indicación en privado. No va con la fórmula: quien atiende no debe verla.", margenExterior, y + 6);
+    y += 14;
+    const anchoCaja = anchoPagina - margenExterior * 2;
+    for (const { p, lineas } of conIndicaciones) {
+      const texto = lineas.flatMap((l) => doc.splitTextToSize(`- ${l}`, anchoCaja - 8) as string[]);
+      const alto = 9 + texto.length * 4.2;
+      if (y + alto > altoPagina - 12) {
+        doc.addPage();
+        y = margenExterior + 4;
+      }
+      doc.setDrawColor(...GRIS_CLARO);
+      doc.roundedRect(margenExterior, y, anchoCaja, alto, 2, 2, "S");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...AZUL);
+      doc.text(`${p.nombre}  (CC ${p.cedula})`, margenExterior + 4, y + 6);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(40, 40, 40);
+      doc.text(texto, margenExterior + 4, y + 11);
+      y += alto + 4;
     }
   }
 

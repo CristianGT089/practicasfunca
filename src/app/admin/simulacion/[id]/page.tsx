@@ -6,6 +6,14 @@ import Link from "next/link";
 import { generarRecetasPDF } from "@/lib/simulacion/recetaPdf";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
+import Participantes from "@/components/admin/jornada/Participantes";
+import Ventanillas from "@/components/admin/jornada/Ventanillas";
+import Confirmacion from "@/components/admin/jornada/Confirmacion";
+import Reporte from "@/components/admin/jornada/Reporte";
+import ControlOdontologia from "@/components/admin/jornada/ControlOdontologia";
+import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjetasPdf";
+import type { Participante } from "@/components/admin/jornada/tipos";
+import { definicionSituacion } from "@/lib/simulacion/situaciones";
 
 type Receta = {
   id: string;
@@ -29,18 +37,60 @@ type Paciente = {
   categoriaAfiliado: string | null;
   tipoRecogida: "EL_MISMO" | "TERCERO_AUTORIZADO" | "SUPLANTACION";
   personaRecogeNombre: string | null;
+  personaRecogeCedula: string | null;
   personaRecogeRelacion: string | null;
+  situaciones: string[];
   recetas: Receta[];
 };
 
 type Simulacion = {
   id: string;
   nombre: string;
-  tipo: "FARMACIA" | "DISPENSARIO";
-  estado: "BORRADOR" | "ABIERTA" | "CERRADA";
+  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA";
+  estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
+  turnero: { numeroEspacios: number };
+  casosOdontologia: CasoOdontologiaJornada[];
   turneroId: string;
   sesionTurneroId: string | null;
+  situaciones: string[];
+  grupo: { id: string; nombre: string } | null;
+  participantes: Participante[];
   pacientes: Paciente[];
+};
+
+type CasoOdontologiaJornada = {
+  id: string;
+  escenarioOdontologia: {
+    denticion: string;
+    motivoConsulta: string;
+    relatoAnamnesis: string;
+    relatoExamen: string | null;
+    relatoRadiografia: string | null;
+    esperado: unknown;
+    escenario: { titulo: string };
+    paciente: {
+      nombres: string;
+      primerApellido: string;
+      segundoApellido: string | null;
+      tipoDocumento: string;
+      documento: string;
+      fechaNacimiento: string;
+      ocupacion: string | null;
+    };
+  };
+};
+
+const ETIQUETA_TIPO: Record<Simulacion["tipo"], string> = {
+  FARMACIA: "Farmacia",
+  DISPENSARIO: "Dispensario",
+  ODONTOLOGIA: "Odontología (historia clínica)",
+};
+
+const ETIQUETA_ESTADO: Record<Simulacion["estado"], string> = {
+  BORRADOR: "Preparando",
+  ABIERTA: "En curso",
+  EN_REVISION: "Por confirmar",
+  CERRADA: "Calificada",
 };
 
 export default function SimulacionDetallePage() {
@@ -51,11 +101,16 @@ export default function SimulacionDetallePage() {
   const [regenerando, setRegenerando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [ventanillas, setVentanillas] = useState<Record<number, string | null>>({});
+  const [confirmandoFin, setConfirmandoFin] = useState(false);
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/simulaciones/${id}`);
     const data = await res.json();
-    if (res.ok) setSimulacion(data.simulacion);
+    if (res.ok) {
+      setSimulacion(data.simulacion);
+      setVentanillas(data.ventanillas ?? {});
+    }
     setCargando(false);
   }, [id]);
 
@@ -85,6 +140,21 @@ export default function SimulacionDetallePage() {
     if (!simulacion || generandoPdf) return;
     setGenerandoPdf(true);
     try {
+      if (simulacion.tipo === "ODONTOLOGIA") {
+        generarTarjetasOdontologiaPDF(
+          simulacion.nombre,
+          simulacion.casosOdontologia.map((c) => ({
+            titulo: c.escenarioOdontologia.escenario.titulo,
+            paciente: c.escenarioOdontologia.paciente,
+            motivoConsulta: c.escenarioOdontologia.motivoConsulta,
+            relatoAnamnesis: c.escenarioOdontologia.relatoAnamnesis,
+            relatoExamen: c.escenarioOdontologia.relatoExamen,
+            relatoRadiografia: c.escenarioOdontologia.relatoRadiografia,
+            esperado: c.escenarioOdontologia.esperado,
+          }))
+        );
+        return;
+      }
       await generarRecetasPDF({ nombreSimulacion: simulacion.nombre, pacientes: simulacion.pacientes });
     } finally {
       setGenerandoPdf(false);
@@ -92,45 +162,77 @@ export default function SimulacionDetallePage() {
   }
 
   async function cerrar() {
-    if (!confirm("Esto cierra el turnero y borra los pacientes generados para esta simulación. ¿Continuar?")) return;
+    if (!confirm("Esto cancela la jornada SIN calificarla: cierra el turnero y borra los pacientes. ¿Continuar?")) return;
     setError(null);
     const res = await fetch(`/api/simulaciones/${id}/cerrar`, { method: "POST" });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error ?? "No se pudo cerrar la simulación");
+      setError(data.error ?? "No se pudo cancelar la jornada");
       return;
     }
     router.push("/admin/simulacion");
   }
 
+  async function finalizar() {
+    setConfirmandoFin(false);
+    setError(null);
+    const res = await fetch(`/api/simulaciones/${id}/finalizar`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "No se pudo finalizar la jornada");
+      return;
+    }
+    cargar();
+  }
+
+  async function calificar() {
+    setError(null);
+    const res = await fetch(`/api/simulaciones/${id}/calificar`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "No se pudo calificar la jornada");
+      return;
+    }
+    cargar();
+  }
+
   if (cargando) return <p className="text-slate-500 text-sm">Cargando...</p>;
-  if (!simulacion) return <p className="text-slate-500 text-sm">Simulación no encontrada.</p>;
+  if (!simulacion) return <p className="text-slate-500 text-sm">Jornada no encontrada.</p>;
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Link href="/admin/simulacion" className="text-sm text-slate-400 hover:text-blue-800">
-            ← Simulación
+            ← Jornadas presenciales
           </Link>
         </div>
       </div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="font-heading text-2xl font-bold text-blue-900">{simulacion.nombre}</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {simulacion.tipo === "FARMACIA" ? "Farmacia" : "Dispensario"} · {simulacion.pacientes.length} pacientes ·{" "}
-            {simulacion.estado === "BORRADOR" ? "Borrador" : simulacion.estado === "ABIERTA" ? "Abierta" : "Cerrada"}
+            {ETIQUETA_TIPO[simulacion.tipo]}
+            {simulacion.grupo && ` · ${simulacion.grupo.nombre}`}
+            {simulacion.tipo === "ODONTOLOGIA"
+              ? ` · ${simulacion.casosOdontologia.length} casos · ${simulacion.turnero.numeroEspacios} unidades`
+              : simulacion.estado !== "CERRADA" && ` · ${simulacion.pacientes.length} pacientes`}{" "}
+            · {ETIQUETA_ESTADO[simulacion.estado]}
           </p>
+          {simulacion.situaciones.length > 0 && (
+            <p className="text-xs text-slate-500 mt-1">
+              Practicando: {simulacion.situaciones.map((c) => definicionSituacion(c)?.nombre ?? c).join(", ")}
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          {simulacion.pacientes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          {(simulacion.pacientes.length > 0 || (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA")) && (
             <button
               onClick={descargarPdf}
               disabled={generandoPdf}
               className="text-sm text-blue-700 hover:underline disabled:opacity-40"
             >
-              {generandoPdf ? "Generando..." : "Descargar recetas (PDF)"}
+              {generandoPdf ? "Generando..." : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
             </button>
           )}
           {simulacion.estado === "BORRADOR" && (
@@ -138,30 +240,104 @@ export default function SimulacionDetallePage() {
               onClick={abrir}
               className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
             >
-              Abrir simulación
+              Iniciar jornada
             </button>
           )}
           {simulacion.estado === "ABIERTA" && (
-            <button onClick={cerrar} className="text-sm text-slate-500 hover:text-red-600">
-              Cerrar simulación
-            </button>
+            <>
+              <button onClick={cerrar} className="text-sm text-slate-500 hover:text-red-600">
+                Cancelar sin calificar
+              </button>
+              <button
+                onClick={() => setConfirmandoFin(true)}
+                className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
+              >
+                Finalizar jornada
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {confirmandoFin && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-6 text-sm text-amber-900">
+          <p className="font-semibold">¿Finalizar la jornada?</p>
+          <p className="text-xs mt-1">
+            Se cierra el turnero: nadie más podrá sacar ni llamar turnos. Después confirmas quién atendió a cada paciente y calificas.
+          </p>
+          <div className="flex gap-2 mt-3">
+            <button onClick={finalizar} className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900">
+              Sí, finalizar
+            </button>
+            <button onClick={() => setConfirmandoFin(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600">
+              Seguir con la jornada
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {simulacion.estado === "BORRADOR" && (
         <p className="text-xs text-slate-400 mb-4">
-          Revisa cada paciente antes de abrir. Puedes regenerar los que no sirvan para la clase.
+          Revisa cada paciente antes de iniciar. Puedes regenerar los que no sirvan para la clase. Descarga el PDF: trae la receta y las
+          indicaciones para el compañero que interpreta a cada paciente.
         </p>
       )}
 
-      {simulacion.estado === "ABIERTA" && simulacion.sesionTurneroId && (
-        <ControlTurnero sesionId={simulacion.sesionTurneroId} />
+      {(simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
+        <div className="mb-6">
+          <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
+        </div>
       )}
 
-      {simulacion.estado !== "ABIERTA" && (
+      {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && (
+        <ControlOdontologia
+          simulacionId={simulacion.id}
+          sesionTurneroId={simulacion.sesionTurneroId}
+          unidades={simulacion.turnero.numeroEspacios}
+          participantes={simulacion.participantes}
+          ventanillas={ventanillas}
+          onVentanillas={setVentanillas}
+        />
+      )}
+
+      {simulacion.estado === "ABIERTA" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.sesionTurneroId && (
+        <ControlTurnero
+          sesionId={simulacion.sesionTurneroId}
+          simulacionId={simulacion.id}
+          participantes={simulacion.participantes}
+          ventanillas={ventanillas}
+          onVentanillas={setVentanillas}
+        />
+      )}
+
+      {simulacion.estado === "EN_REVISION" && (
+        <Confirmacion simulacionId={simulacion.id} participantes={simulacion.participantes} onCalificar={calificar} />
+      )}
+
+      {simulacion.estado === "CERRADA" && <Reporte simulacionId={simulacion.id} />}
+
+      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-heading font-semibold text-blue-900">Casos de la jornada</h2>
+          {simulacion.casosOdontologia.map((c) => {
+            const p = c.escenarioOdontologia.paciente;
+            return (
+              <div key={c.id} className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm">
+                <p className="font-medium text-slate-800">{c.escenarioOdontologia.escenario.titulo}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {p.nombres} {p.primerApellido} · {p.tipoDocumento} {p.documento} · dentición{" "}
+                  {c.escenarioOdontologia.denticion.toLowerCase()}
+                </p>
+                <p className="text-xs text-slate-600 mt-1 italic">“{c.escenarioOdontologia.motivoConsulta}”</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {simulacion.estado === "BORRADOR" && simulacion.tipo !== "ODONTOLOGIA" && (
         <div className="flex flex-col gap-3">
           {simulacion.pacientes.map((p) => (
             <FilaPaciente
@@ -183,7 +359,19 @@ export default function SimulacionDetallePage() {
  * vive acá directamente: no hay una sección de "Turnero" aparte a la que ir. Cerrar la
  * Simulación (arriba) es lo único que cierra este turnero; acá solo se opera el día a día.
  */
-function ControlTurnero({ sesionId }: { sesionId: string }) {
+function ControlTurnero({
+  sesionId,
+  simulacionId,
+  participantes,
+  ventanillas,
+  onVentanillas,
+}: {
+  sesionId: string;
+  simulacionId: string;
+  participantes: Participante[];
+  ventanillas: Record<number, string | null>;
+  onVentanillas: (v: Record<number, string | null>) => void;
+}) {
   const { snapshot, conectado, finalizada } = useSnapshotTurnero(sesionId);
 
   async function api(url: string, body: unknown, method = "POST") {
@@ -202,7 +390,7 @@ function ControlTurnero({ sesionId }: { sesionId: string }) {
 
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-4 mb-4 text-sm">
+      <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
         <a href="/admin/turnero/registro" target="_blank" className="text-blue-700 hover:underline">
           Abrir pantalla de registro ↗
         </a>
@@ -214,11 +402,23 @@ function ControlTurnero({ sesionId }: { sesionId: string }) {
         </span>
       </div>
 
+      <div className="mb-5">
+        <Ventanillas
+          simulacionId={simulacionId}
+          espacios={espacios.map((e) => ({ numero: e.numero, nombre: e.nombre, ticketCodigo: e.ticket?.codigo ?? null }))}
+          participantes={participantes}
+          actuales={ventanillas}
+          onCambio={onVentanillas}
+        />
+      </div>
+
       <PuestosTemporales
         sesionTurneroId={sesionId}
         titulo="Puestos de este turnero"
-        descripcion="Crea las cuentas de sala de cómputo para esta sesión — se borran solas al cerrar la simulación."
+        descripcion="Crea una cuenta por computador de ventanilla (no por estudiante): se borran solas al cerrar la jornada."
         colapsable={false}
+        modoInicial="generico"
+        prefijoInicial="Ventanilla"
         onCreados={() => {}}
       />
 
@@ -235,7 +435,7 @@ function ControlTurnero({ sesionId }: { sesionId: string }) {
         </div>
       )}
 
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5 flex items-center gap-6 text-sm">
+      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <span className="text-slate-500">
           En espera <b className="text-slate-800">{contadores.enEspera}</b>
         </span>
@@ -381,6 +581,15 @@ function FilaPaciente({
               </span>
             )}
           </p>
+          {paciente.situaciones.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {paciente.situaciones.map((c) => (
+                <span key={c} className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-800">
+                  {definicionSituacion(c)?.nombre ?? c}
+                </span>
+              ))}
+            </div>
+          )}
           {paciente.alergias.length > 0 && (
             <p className="text-xs text-red-600 mt-1">Alergias: {paciente.alergias.join(", ")}</p>
           )}

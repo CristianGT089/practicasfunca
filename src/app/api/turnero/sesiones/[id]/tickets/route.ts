@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { requireGestor } from "@/lib/nucleo/permisos";
 import { emitirTicket } from "@/lib/turnero/operaciones";
 
 const schema = z.object({
@@ -12,7 +12,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
+  const admin = await requireGestor();
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { id } = await params;

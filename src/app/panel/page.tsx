@@ -255,7 +255,7 @@ export default function PanelPage() {
         <div className="mx-auto max-w-3xl">
           <div className="flex items-start justify-between gap-4 mb-1">
             <h1 className="font-heading text-2xl font-bold text-blue-900">
-              {esSimulador ? moduloActivo?.nombre : "Casos prácticos"}
+              {esSimulador ? moduloActivo?.nombre : "Práctica virtual"}
             </h1>
             {moduloActivo?.slug === "farmacia" && (
               <button

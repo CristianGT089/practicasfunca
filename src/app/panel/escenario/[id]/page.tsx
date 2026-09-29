@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FarmaciaSoftware from "./_modulos/farmacia/Software";
 import EnfermeriaSoftware from "./_modulos/enfermeria/Software";
 import PrimeraInfanciaSoftware from "./_modulos/primera-infancia/Software";
+import OdontologiaSoftware from "./_modulos/odontologia/Software";
 
 /**
  * Shell genérico: decide qué "software simulado" mostrar según el módulo del escenario.
@@ -39,5 +40,6 @@ export default function EscenarioPage({ params }: { params: Promise<{ id: string
 
   if (moduloSlug === "enfermeria") return <EnfermeriaSoftware intentoId={intentoId} />;
   if (moduloSlug === "primera_infancia") return <PrimeraInfanciaSoftware intentoId={intentoId} />;
+  if (moduloSlug === "odontologia") return <OdontologiaSoftware intentoId={intentoId} />;
   return <FarmaciaSoftware intentoId={intentoId} />;
 }

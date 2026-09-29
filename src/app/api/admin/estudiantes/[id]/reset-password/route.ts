@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { puedeGestionarEstudiante, requireGestor } from "@/lib/nucleo/permisos";
 import { generarPassword } from "@/lib/nucleo/passwords";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { id } = await params;
+  if (!(await puedeGestionarEstudiante(gestor, id))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
   const passwordTemporal = generarPassword();
   const passwordHash = await bcrypt.hash(passwordTemporal, 10);
 

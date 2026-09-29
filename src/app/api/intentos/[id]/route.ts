@@ -51,6 +51,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     : escenarioBaseSeguro(intento.escenario, intento.modo);
   const datosModulo = modulo?.cargarDatosIniciales ? await modulo.cargarDatosIniciales(prisma) : {};
 
+  // Un intento ya completado se puede volver a revisar: el módulo que califica por su cuenta
+  // recalcula la revisión (es pura) para que la pantalla de resultado sobreviva a un recargo.
+  const revision =
+    intento.estado === "COMPLETADO" && modulo?.calificar
+      ? modulo.calificar({
+          escenario: intento.escenario,
+          acciones: intento.acciones,
+          resultadoObtenido: intento.resultadoObtenido,
+        })
+      : null;
+
   return NextResponse.json({
     intento: {
       ...intento,
@@ -58,6 +69,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       intentoTurno: intentoTurnoInfo,
     },
     ...datosModulo,
+    ...(revision ? { detallePasos: revision.detallePasos, ...revision.extra } : {}),
     progreso,
     precision,
   });

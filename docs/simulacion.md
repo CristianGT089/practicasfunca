@@ -194,3 +194,40 @@ El nombre real del documento/registro de "lo que no se pudo entregar por falta d
 (no encontré un formato oficial fijo — el mecanismo real es una constancia con radicado,
 ver conversación). Por ahora se muestra como aviso en pantalla, sin generar un documento
 aparte.
+
+## Jornada presencial evaluada (2026-09-28)
+
+En la interfaz, "Simulación" pasó a llamarse **Jornada presencial** (el modelo sigue siendo
+`Simulacion`). Ver `docs/plan-mejoras.md`, Fase 2.
+
+**Estados:** `BORRADOR` (preparando) → `ABIERTA` (en curso) → `EN_REVISION` (el docente
+la finalizó; falta confirmar quién atendió) → `CERRADA` (calificada).
+
+1. **Crear:** el docente elige su grupo, el tipo, y las **situaciones** del día
+   (`lib/simulacion/situaciones.ts`). `planDeSituaciones` garantiza que cada una aparezca
+   y mezcla casos normales (por defecto un tercio, ajustable). Con plan, el generador no
+   sortea nada: cada paciente trae exactamente sus situaciones (`Paciente.situaciones`).
+   Los estudiantes del grupo quedan como `ParticipanteJornada`.
+2. **PDF:** además de las recetas, una hoja aparte con las indicaciones para quien
+   interpreta a cada paciente (suplantación, "no quiere mostrar la cédula", "molesto").
+3. **En curso:** el docente indica quién está en cada ventanilla (`AsignacionEspacio`,
+   con hora). Se pueden sumar invitados (solo nombre) en cualquier momento. Las cuentas de
+   los puestos son por computador ("Ventanilla 1"), no por estudiante.
+4. **Durante la jornada no se revela nada:** el dispensario ya no dice si la cuota fue
+   correcta. La cuota solo se cobra con la primera entrega real (un rechazo no cobra).
+5. **Finalizar** (`jornada.ts#finalizarJornada`): cierra el turnero y arma una
+   `AtencionJornada` por paciente atendido, con el participante que estaba en esa
+   ventanilla cuando se llamó el turno.
+6. **Confirmar:** el docente corrige quién atendió a quién.
+7. **Calificar** (`calificarJornada`): `evaluacion.ts` compara lo registrado con la verdad
+   del paciente (vencida, alergia, suplantación, cantidad, no autorizado, cuota). Los
+   criterios quedan copiados en la atención y luego se borran pacientes, entregas y puestos.
+8. **Reporte:** "Repaso en clase" (caso por caso, sin nombres por defecto) y "Notas por
+   estudiante" (0-100, promedio de sus atenciones). Exportable a CSV.
+
+Las jornadas de tipo Farmacia (mostrador) todavía no registran ventas por paciente: el
+reporte muestra las situaciones de cada caso, pero sin verificación automática.
+
+**Corrección:** antes, cerrar una simulación con puestos que ya habían dispensado fallaba
+(las entregas referencian a las cuentas de los puestos y se borraban después). Ahora se
+borran primero las entregas.

@@ -20,6 +20,7 @@ export const intentoConEscenarioInclude = {
       farmacia: { include: { paciente: true } },
       enfermeria: { include: { paciente: true, ordenMedica: true } },
       infancia: { include: { nino: { include: { registrosCrecimiento: { orderBy: { fecha: "asc" } } } } } },
+      odontologia: { include: { paciente: true } },
     },
   },
   acciones: { orderBy: { creadoEn: "asc" } },
@@ -62,7 +63,30 @@ export interface ModuloSimulacion {
    * (ej. Farmacia devuelve el catálogo de medicamentos). Opcional.
    */
   cargarDatosIniciales?(prisma: PrismaClient): Promise<Record<string, unknown>>;
+  /**
+   * Calificación propia del módulo, para cuando el checklist de acciones + resultado no
+   * alcanza (ej. Odontología califica el contenido del odontograma). Opcional: si no está,
+   * el motor usa `calificarIntento` genérico. También se usa para la revisión de un intento
+   * ya completado, así que debe ser pura (sin escribir en la base).
+   */
+  calificar?(ctx: ContextoCalificacion): CalificacionModulo;
 }
+
+export type ContextoCalificacion = {
+  escenario: EscenarioConExtensiones;
+  acciones: Accion[];
+  resultadoObtenido: string | null;
+};
+
+export type CalificacionModulo = {
+  puntajeProceso: number;
+  puntajeResultado: number;
+  puntajeFinal: number;
+  detallePasos: { descripcion: string; obligatorio: boolean; cumplido: boolean }[];
+  accionesEvaluadas: { accion: Accion; esCorrecta: boolean }[];
+  /** Datos extra para la pantalla de resultado (se agregan tal cual a la respuesta). */
+  extra?: Record<string, unknown>;
+};
 
 export const SIN_PELIGRO: ResultadoEvaluacion = { peligros: [], fueraDeChecklist: false };
 
@@ -72,11 +96,12 @@ export const SIN_PELIGRO: ResultadoEvaluacion = { peligros: [], fueraDeChecklist
  * resuelve `descripcion` según el modo de juego.
  */
 export function escenarioBaseSeguro(escenario: EscenarioConExtensiones, modo: ModoJuego) {
-  const { descripcionDificil, pasos, farmacia, enfermeria, infancia, ...base } = escenario;
+  const { descripcionDificil, pasos, farmacia, enfermeria, infancia, odontologia, ...base } = escenario;
   void pasos;
   void farmacia;
   void enfermeria;
   void infancia;
+  void odontologia;
   return {
     ...base,
     descripcion: modo === "DIFICIL" && descripcionDificil ? descripcionDificil : base.descripcion,

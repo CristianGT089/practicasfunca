@@ -23,6 +23,8 @@ export async function crearPuestosTemporales(opts: {
   alumnos?: AlumnoPuesto[];
   cantidad?: number;
   prefijo?: string;
+  /** Docente o admin que los crea: un docente vuelve a ver los puestos que creó. */
+  creadoPorId?: string | null;
 }) {
   const modulos = await prisma.modulo.findMany({ where: { id: { in: opts.moduloIds } } });
   if (modulos.length === 0) throw new Error("Selecciona al menos un módulo");
@@ -57,6 +59,7 @@ export async function crearPuestosTemporales(opts: {
 
     const creado = await prisma.usuario.create({
       data: {
+        creadoPorId: opts.creadoPorId ?? null,
         nombre,
         usuario,
         passwordHash,

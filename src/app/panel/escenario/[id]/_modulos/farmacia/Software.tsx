@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import CedulaCard, { DatosCedula } from "@/components/modulos/farmacia/CedulaCard";
 import RecetaFisicaCard, { DatosRecetaFisica } from "@/components/modulos/farmacia/RecetaFisicaCard";
+import EscenaVentanilla, { type DocumentoEnMostrador, type OpcionEscena } from "@/components/escena/EscenaVentanilla";
+import { ESCENAS, obtenerPersonaje, type Frame } from "@/lib/escena/personajes";
+import { normalizarGuion, type MomentoRespuesta } from "@/lib/escena/guion";
 
 type EstadoRecetaOnline = "VIGENTE" | "VENCIDA" | "AGOTADA";
 type ResultadoRecetaOnline = {
@@ -72,6 +75,8 @@ type Intento = {
     recetaFisicaFechaEmision: string | null;
     recetaFisicaDiasVigencia: number | null;
     recetaFisicaControlado: boolean;
+    personaje: string | null;
+    guion: unknown;
   };
   intentoTurno: { id: string; indice: number; total: number; vidas: number; titulo: string } | null;
 };
@@ -108,6 +113,19 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
   const [alertaError, setAlertaError] = useState<string[] | null>(null);
   const [perdido, setPerdido] = useState(false);
 
+  // ---------- Escena (práctica virtual lúdica): solo si el caso tiene personaje y guion ----------
+  const [frame, setFrame] = useState<Frame>("base");
+  const [linea, setLinea] = useState<{ texto: string; narracion?: boolean } | null>(null);
+  const [opcionesEscena, setOpcionesEscena] = useState<OpcionEscena[] | null>(null);
+  const [ofreceReceta, setOfreceReceta] = useState(false);
+  const [recetaRecibida, setRecetaRecibida] = useState(false);
+  const [cedulaEnMostrador, setCedulaEnMostrador] = useState(false);
+  const [animo, setAnimo] = useState<number | null>(null);
+  const [incomodar, setIncomodar] = useState(0);
+  const [destello, setDestello] = useState(0);
+  const [saliendo, setSaliendo] = useState(false);
+  const [docAbierto, setDocAbierto] = useState<"receta" | "cedula" | null>(null);
+
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/intentos/${intentoId}`);
     if (res.status === 401) {
@@ -117,6 +135,11 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
     const data = await res.json();
     setIntento(data.intento);
     setMedicamentos(data.medicamentos ?? []);
+    const g = normalizarGuion(data.intento.escenario.guion);
+    if (g && obtenerPersonaje(data.intento.escenario.personaje) && data.intento.estado === "EN_PROGRESO") {
+      setAnimo(g.animoInicial);
+      setLinea({ texto: g.entrada });
+    }
     setVidas(data.intento.vidas);
     setProgreso(data.progreso ?? { completados: 0, total: 0 });
     setPrecision(data.precision ?? 100);
@@ -126,6 +149,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
 
   async function registrarAccion(tipo: string, payload?: Record<string, unknown>) {
     const res = await fetch(`/api/intentos/${intentoId}/acciones`, {
@@ -140,10 +164,58 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
     if (data.error) {
       setAlertaError(data.error.peligros?.length ? data.error.peligros : ["Ese clic no era necesario para este caso."]);
       setTimeout(() => setAlertaError(null), 6000);
+      reaccionarAError();
     }
     if (data.estado === "PERDIDO") setPerdido(true);
     return data;
   }
+
+  const guion = intento ? normalizarGuion(intento.escenario.guion) : null;
+  const personaje = intento ? obtenerPersonaje(intento.escenario.personaje) : null;
+  const conEscena = Boolean(guion && personaje);
+
+  function cambiarAnimo(delta: number) {
+    setAnimo((a) => (a === null ? a : Math.max(0, Math.min(4, a + delta))));
+    if (delta < 0) setIncomodar((n) => n + 1);
+  }
+
+  function reaccionarAError() {
+    if (!conEscena) return;
+    setDestello((n) => n + 1);
+    cambiarAnimo(-1);
+    if (guion?.frases.error) setLinea({ texto: guion.frases.error });
+  }
+
+  /** Muestra las respuestas de un momento del guion; al elegir, registra RESPONDER y sigue. */
+  function preguntar(momento: MomentoRespuesta, despues?: () => void) {
+    const lista = guion?.respuestas[momento];
+    if (!lista?.length) {
+      despues?.();
+      return;
+    }
+    setOpcionesEscena(
+      lista.map((o, indice) => ({
+        texto: o.texto,
+        onElegir: () => {
+          setOpcionesEscena(null);
+          cambiarAnimo(o.efecto);
+          setLinea({ texto: o.respuesta });
+          registrarAccion("RESPONDER", { momento, indice });
+          if (despues) setTimeout(despues, 1800);
+        },
+      }))
+    );
+  }
+
+  // Al llegar la persona, el estudiante elige cómo saludarla (si el guion lo trae).
+  const saludoMostrado = useRef(false);
+  useEffect(() => {
+    if (!conEscena || saludoMostrado.current || !guion?.respuestas.saludo) return;
+    saludoMostrado.current = true;
+    const t = setTimeout(() => preguntar("saludo"), 1600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conEscena]);
 
   async function buscar(nombre: string) {
     setBusqueda(nombre);
@@ -156,6 +228,22 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
   async function verificarReceta() {
     setRecetaVerificada(true);
     await registrarAccion("VERIFICAR_RECETA");
+    if (!conEscena || !intento) return;
+    if (intento.escenario.recetaPresentada) {
+      setFrame("entregandoDocumento");
+      setOfreceReceta(true);
+      setLinea({ texto: guion?.frases.entregarReceta ?? "Aquí está la fórmula." });
+    } else {
+      setLinea({ texto: guion?.frases.sinReceta ?? "No, no traigo fórmula." });
+    }
+  }
+
+  function recibirReceta() {
+    setOfreceReceta(false);
+    setRecetaRecibida(true);
+    setFrame("base");
+    setLinea({ texto: "(Deja la fórmula en el mostrador.)", narracion: true });
+    setDocAbierto("receta");
   }
 
   async function solicitarCedula() {
@@ -166,6 +254,16 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
     if (typeof data.precision === "number") setPrecision(data.precision);
     if (data.estado === "PERDIDO") setPerdido(true);
     setCedula({ entregada: data.entregada, datos: data.datos });
+    if (!conEscena) return;
+    if (data.entregada) {
+      setLinea({ texto: guion?.frases.pedirCedula ?? "Tome." });
+      setCedulaEnMostrador(true);
+    } else {
+      setFrame("seNiega");
+      cambiarAnimo(-1);
+      setLinea({ texto: guion?.frases.negarCedula ?? "¿Mi cédula? No, ¿para qué?" });
+      preguntar("alNegarCedula");
+    }
   }
 
   async function buscarFichaPaciente() {
@@ -207,14 +305,29 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
     setMotivosSeleccionados((m) => (m.includes(codigo) ? m.filter((x) => x !== codigo) : [...m, codigo]));
   }
 
+  /** Con escena: antes de cerrar un rechazo, el estudiante elige cómo explicarlo. */
+  function despedirRechazo() {
+    if (!conEscena) return finalizar("RECHAZO_CORRECTO");
+    setFrame("seNiega");
+    if (guion?.frases.rechazo) setLinea({ texto: guion.frases.rechazo });
+    preguntar("alRechazar", () => {
+      setSaliendo(true);
+      setTimeout(() => finalizar("RECHAZO_CORRECTO"), 900);
+    });
+    if (!guion?.respuestas.alRechazar?.length) {
+      setSaliendo(true);
+      setTimeout(() => finalizar("RECHAZO_CORRECTO"), 1800);
+    }
+  }
+
   async function confirmarRechazo() {
     const data = await registrarAccion("RECHAZAR_VENTA", { motivos: motivosSeleccionados });
-    if (data.estado !== "PERDIDO") await finalizar("RECHAZO_CORRECTO");
+    if (data.estado !== "PERDIDO") await despedirRechazo();
   }
 
   async function escalarASupervisor() {
     const data = await registrarAccion("ESCALAR_A_SUPERVISOR");
-    if (data.estado !== "PERDIDO") await finalizar("RECHAZO_CORRECTO");
+    if (data.estado !== "PERDIDO") await despedirRechazo();
   }
 
   async function registrarControlado(med: Medicamento) {
@@ -234,7 +347,14 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
 
   async function completarVenta() {
     const data = await registrarAccion("COMPLETAR_VENTA");
-    if (data.estado !== "PERDIDO") await finalizar("VENTA_CORRECTA");
+    if (data.estado === "PERDIDO") return;
+    if (conEscena) {
+      setLinea({ texto: guion?.frases.venta ?? "Gracias." });
+      setSaliendo(true);
+      setTimeout(() => finalizar("VENTA_CORRECTA"), 1500);
+      return;
+    }
+    await finalizar("VENTA_CORRECTA");
   }
 
   async function finalizar(resultado: "VENTA_CORRECTA" | "RECHAZO_CORRECTO") {
@@ -417,6 +537,44 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
         </div>
       </header>
 
+      {docAbierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/55 p-4"
+          onClick={() => setDocAbierto(null)}
+          role="dialog"
+          aria-label={docAbierto === "receta" ? "Fórmula médica" : "Cédula"}
+        >
+          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            {docAbierto === "cedula" && cedula?.datos && <CedulaCard datos={cedula.datos} />}
+            {docAbierto === "receta" && intento.escenario.recetaFisicaMedicamento && intento.escenario.recetaFisicaFechaEmision && (
+              <RecetaFisicaCard
+                datos={{
+                  pacienteNombre: intento.escenario.recetaFisicaPacienteNombre ?? "—",
+                  medicamento: intento.escenario.recetaFisicaMedicamento,
+                  posologia: intento.escenario.recetaFisicaPosologia ?? "",
+                  cantidad: intento.escenario.recetaFisicaCantidad ?? "",
+                  cantidadTachada: intento.escenario.recetaFisicaCantidadTachada,
+                  medico: intento.escenario.recetaFisicaMedico ?? "",
+                  registroMedico: intento.escenario.recetaFisicaRegistroMedico ?? "",
+                  fechaEmision: intento.escenario.recetaFisicaFechaEmision,
+                  diasVigencia: intento.escenario.recetaFisicaDiasVigencia ?? 30,
+                  controlado: intento.escenario.recetaFisicaControlado,
+                }}
+              />
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setDocAbierto(null)}
+                autoFocus
+                className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-900 hover:bg-slate-100"
+              >
+                Devolver al mostrador
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {alertaError && (
         <div className="bg-red-600 text-white px-6 py-3 animate-pulse">
           <div className="mx-auto max-w-5xl text-sm">
@@ -432,6 +590,33 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
 
       <div className="px-6 py-8">
         <div className="mx-auto max-w-5xl">
+          {conEscena && personaje && (
+            <div className="mb-4">
+              <EscenaVentanilla
+                escena={ESCENAS.farmacia}
+                personaje={personaje}
+                nombre={intento.escenario.recetaFisicaPacienteNombre ?? "Cliente"}
+                frame={frame}
+                linea={linea}
+                opciones={opcionesEscena}
+                ofreceDocumento={ofreceReceta ? { etiqueta: "la fórmula", onRecibir: recibirReceta } : null}
+                documentos={
+                  [
+                    cedulaEnMostrador && cedula?.datos
+                      ? { clave: "cedula", tipo: "cedula", etiqueta: "la cédula", onAbrir: () => setDocAbierto("cedula") }
+                      : null,
+                    recetaRecibida ? { clave: "receta", tipo: "receta", etiqueta: "la fórmula", onAbrir: () => setDocAbierto("receta") } : null,
+                  ].filter(Boolean) as DocumentoEnMostrador[]
+                }
+                animo={animo}
+                incomodar={incomodar}
+                destello={destello}
+                saliendo={saliendo}
+                turno={`A-${String(enTurno ? enTurno.indice + 1 : (intento.id.charCodeAt(intento.id.length - 1) % 90) + 10).padStart(3, "0")}`}
+              />
+            </div>
+          )}
+
           <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-4 border-l-4 border-l-gold-500">
             <h1 className="font-heading font-semibold text-blue-900">{intento.escenario.titulo}</h1>
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{intento.escenario.descripcion}</p>
@@ -569,7 +754,11 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                     )}
                   </div>
                 )}
+                {recetaVerificada && conEscena && intento.escenario.recetaPresentada && !recetaRecibida && (
+                  <p className="text-sm text-slate-600">Te está pasando la fórmula: recíbela en la ventanilla.</p>
+                )}
                 {recetaVerificada &&
+                  (!conEscena || recetaRecibida) &&
                   intento.escenario.recetaPresentada &&
                   intento.escenario.recetaFisicaMedicamento &&
                   intento.escenario.recetaFisicaFechaEmision && (

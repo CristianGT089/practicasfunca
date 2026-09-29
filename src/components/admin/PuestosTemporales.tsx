@@ -28,22 +28,30 @@ export default function PuestosTemporales({
   titulo = "Puestos temporales para sala de cómputo",
   descripcion = "Crea varias cuentas de una vez (una por computador) ya matriculadas en el módulo que necesites.",
   colapsable = true,
+  modoInicial = "nombres",
+  prefijoInicial = "Dispensación",
+  rutaInicial = "/panel/dispensacion",
   onCreados,
 }: {
   sesionTurneroId?: string;
   titulo?: string;
   descripcion?: string;
   colapsable?: boolean;
+  /** En una jornada presencial la cuenta es del computador, no del estudiante: "generico". */
+  modoInicial?: "nombres" | "generico";
+  prefijoInicial?: string;
+  /** Pantalla a la que entran directo las cuentas (ej. el consultorio de Odontología). */
+  rutaInicial?: string;
   onCreados: () => void;
 }) {
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [abierto, setAbierto] = useState(!colapsable);
-  const [modo, setModo] = useState<"nombres" | "generico">("nombres");
+  const [modo, setModo] = useState<"nombres" | "generico">(modoInicial);
   const [nombresTexto, setNombresTexto] = useState("");
   const [generos, setGeneros] = useState<Record<string, Genero | "">>({});
   const [cantidad, setCantidad] = useState(3);
-  const [prefijo, setPrefijo] = useState("Dispensación");
-  const [rutaDirecta, setRutaDirecta] = useState<string>("/panel/dispensacion");
+  const [prefijo, setPrefijo] = useState(prefijoInicial);
+  const [rutaDirecta, setRutaDirecta] = useState<string>(rutaInicial);
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [creando, setCreando] = useState(false);
   const [creados, setCreados] = useState<Credencial[] | null>(null);
@@ -56,7 +64,8 @@ export default function PuestosTemporales({
   }, []);
 
   // El módulo que hace falta matricular según la pantalla directa elegida.
-  const sloguModuloSugerido = rutaDirecta === "/panel/catalogo" ? "farmacia" : "dispensacion";
+  const sloguModuloSugerido =
+    rutaDirecta === "/panel/catalogo" ? "farmacia" : rutaDirecta === "/panel/odontologia" ? "odontologia" : "dispensacion";
 
   // Preselecciona el módulo sugerido la primera vez que llegan los módulos, y cuando
   // cambia la pantalla directa (sin des-marcar lo que el admin ya haya elegido a mano).

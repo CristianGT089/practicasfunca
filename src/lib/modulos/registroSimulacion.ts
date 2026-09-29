@@ -7,11 +7,13 @@ import type { ModuloSimulacion } from "./contrato";
 import { simulacionFarmacia } from "./farmacia/simulacion";
 import { simulacionEnfermeria } from "./enfermeria/simulacion";
 import { simulacionPrimeraInfancia } from "./primera-infancia/simulacion";
+import { simulacionOdontologia } from "./odontologia/simulacion";
 
 const SIMULACIONES: Record<string, ModuloSimulacion> = {
   farmacia: simulacionFarmacia,
   enfermeria: simulacionEnfermeria,
   primera_infancia: simulacionPrimeraInfancia,
+  odontologia: simulacionOdontologia,
 };
 
 export function obtenerModuloSimulacion(slug: string): ModuloSimulacion | undefined {

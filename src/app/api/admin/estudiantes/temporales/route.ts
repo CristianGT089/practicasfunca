@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/nucleo/prisma";
 import { requireAdmin } from "@/lib/nucleo/auth";
+import { modulosGestionados, requireGestor } from "@/lib/nucleo/permisos";
 import { esRutaDirectaValida } from "@/lib/nucleo/rutasDirectas";
 import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
 import { emitirCambio } from "@/lib/turnero/eventos";
@@ -45,12 +46,16 @@ const schema = z
   });
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos", detalle: parsed.error.issues }, { status: 400 });
+  }
+  const permitidos = await modulosGestionados(gestor);
+  if (permitidos !== null && parsed.data.moduloIds.some((id) => !permitidos.includes(id))) {
+    return NextResponse.json({ error: "Solo puedes crear puestos en tus módulos" }, { status: 403 });
   }
 
   if (parsed.data.sesionTurneroId) {
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const creados = await crearPuestosTemporales(parsed.data);
+    const creados = await crearPuestosTemporales({ ...parsed.data, creadoPorId: gestor.id });
     // Control tiene el snapshot de la sesión abierto por SSE: sin esto, los puestos nuevos
     // no aparecerían ahí hasta el respaldo de 10s.
     if (parsed.data.sesionTurneroId) emitirCambio(parsed.data.sesionTurneroId);

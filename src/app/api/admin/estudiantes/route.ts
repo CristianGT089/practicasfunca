@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { filtroEstudiantes, filtroGrupos, requireGestor } from "@/lib/nucleo/permisos";
 import { generarPassword } from "@/lib/nucleo/passwords";
 
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const estudiantes = await prisma.usuario.findMany({
-    where: { rol: "ESTUDIANTE" },
+    where: filtroEstudiantes(gestor),
     orderBy: { creadoEn: "desc" },
     select: {
       id: true,
@@ -20,6 +20,7 @@ export async function GET() {
       rutaDirecta: true,
       genero: true,
       creadoEn: true,
+      gruposComoEstudiante: { select: { id: true, nombre: true } },
     },
   });
 
@@ -28,9 +29,13 @@ export async function GET() {
 
 const GENEROS_VALIDOS = new Set(["MASCULINO", "FEMENINO", "OTRO"]);
 
+/**
+ * Crea un estudiante. Un docente debe ponerlo en al menos uno de sus grupos (si no, no lo
+ * volvería a ver); queda matriculado en los módulos de esos grupos.
+ */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const nombre = (body?.nombre as string | undefined)?.trim();
@@ -42,6 +47,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nombre y usuario son requeridos" }, { status: 400 });
   }
 
+  const grupoIdsPedidos = Array.isArray(body?.grupoIds) ? (body.grupoIds as unknown[]).filter((g): g is string => typeof g === "string") : [];
+  const grupos = await prisma.grupo.findMany({
+    where: { AND: [{ id: { in: grupoIdsPedidos } }, filtroGrupos(gestor)] },
+    include: { modulos: { select: { id: true } } },
+  });
+  if (gestor.rol === "DOCENTE" && grupos.length === 0) {
+    return NextResponse.json({ error: "Elige al menos uno de tus grupos para el estudiante" }, { status: 400 });
+  }
+  const moduloIds = [...new Set(grupos.flatMap((g) => g.modulos.map((m) => m.id)))];
+
   const existente = await prisma.usuario.findUnique({ where: { usuario } });
   if (existente) {
     return NextResponse.json({ error: "Ese nombre de usuario ya existe" }, { status: 409 });
@@ -51,7 +66,16 @@ export async function POST(req: NextRequest) {
   const passwordHash = await bcrypt.hash(passwordTemporal, 10);
 
   const creado = await prisma.usuario.create({
-    data: { nombre, usuario, passwordHash, rol: "ESTUDIANTE", genero: genero as "MASCULINO" | "FEMENINO" | "OTRO" | null },
+    data: {
+      nombre,
+      usuario,
+      passwordHash,
+      rol: "ESTUDIANTE",
+      genero: genero as "MASCULINO" | "FEMENINO" | "OTRO" | null,
+      creadoPorId: gestor.id,
+      gruposComoEstudiante: { connect: grupos.map((g) => ({ id: g.id })) },
+      matriculas: { create: moduloIds.map((moduloId) => ({ moduloId })) },
+    },
     select: {
       id: true,
       nombre: true,
@@ -61,6 +85,7 @@ export async function POST(req: NextRequest) {
       rutaDirecta: true,
       genero: true,
       creadoEn: true,
+      gruposComoEstudiante: { select: { id: true, nombre: true } },
     },
   });
 

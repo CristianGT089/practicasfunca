@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import PanelMiEspacio from "@/components/turnero/PanelMiEspacio";
+import PanelMiEspacio, { type EstadoMiEspacio } from "@/components/turnero/PanelMiEspacio";
 
 type Medicamento = {
   id: string;
@@ -38,6 +38,9 @@ export default function CatalogoRealPage() {
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const [vendiendo, setVendiendo] = useState(false);
+  // En una jornada presencial, la venta queda a nombre del paciente del turno de esta
+  // ventanilla (para calificarla después; no se le muestra nada al estudiante).
+  const [estadoTurno, setEstadoTurno] = useState<EstadoMiEspacio>({ simulacionId: null, paciente: null });
 
   // Un puesto temporal (entró derecho aquí, sin panel) no tiene a dónde "volver": mejor
   // cerrarle la sesión que mandarlo a un /panel que lo rebota de vuelta acá.
@@ -139,6 +142,8 @@ export default function CatalogoRealPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          simulacionId: estadoTurno.simulacionId,
+          cedulaPaciente: estadoTurno.paciente?.cedula ?? null,
           items: carrito.map((i) => ({ medicamentoId: i.medicamento.id, cantidad: i.cantidad })),
         }),
       });
@@ -176,7 +181,7 @@ export default function CatalogoRealPage() {
 
       <div className="px-6 py-10">
         <div className="mx-auto max-w-6xl">
-          <PanelMiEspacio />
+          <PanelMiEspacio onEstado={setEstadoTurno} />
 
           <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Expediente y venta de medicamentos</h1>
           <p className="text-sm text-slate-500 mb-6">

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/nucleo/prisma";
-import { requireAdmin } from "@/lib/nucleo/auth";
+import { puedeGestionarEstudiante, requireGestor } from "@/lib/nucleo/permisos";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { id } = await params;
+  if (!(await puedeGestionarEstudiante(gestor, id))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
   const body = await req.json().catch(() => null);
   const activo = body?.activo as boolean | undefined;
 

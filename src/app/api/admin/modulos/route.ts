@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/nucleo/prisma";
 import { requireAdmin } from "@/lib/nucleo/auth";
+import { filtroModulos, requireGestor } from "@/lib/nucleo/permisos";
 
+/** Lectura: coordinación ve todos; un docente, solo los suyos. Crear y editar es solo del admin. */
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  const gestor = await requireGestor();
+  if (!gestor) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const modulos = await prisma.modulo.findMany({
+    where: await filtroModulos(gestor),
     orderBy: { nombre: "asc" },
     include: { _count: { select: { escenarios: true, matriculas: true } } },
   });

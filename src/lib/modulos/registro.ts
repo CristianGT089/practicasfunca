@@ -7,6 +7,7 @@
 import { TIPOS_ACCION_FARMACIA, RESULTADOS_FARMACIA } from "./farmacia/acciones";
 import { TIPOS_ACCION_ENFERMERIA, RESULTADOS_ENFERMERIA } from "./enfermeria/acciones";
 import { TIPOS_ACCION_INFANCIA, RESULTADOS_INFANCIA } from "./primera-infancia/acciones";
+import { TIPOS_ACCION_ODONTOLOGIA, RESULTADOS_ODONTOLOGIA } from "./odontologia/acciones";
 
 export type SeccionAdmin = { href: string; label: string };
 
@@ -44,6 +45,16 @@ export const MODULOS: Record<string, DefinicionModulo> = {
     tiposAccion: TIPOS_ACCION_INFANCIA,
     resultados: RESULTADOS_INFANCIA,
     seccionesAdmin: [],
+  },
+  odontologia: {
+    slug: "odontologia",
+    nombre: "Odontología",
+    tiposAccion: TIPOS_ACCION_ODONTOLOGIA,
+    resultados: RESULTADOS_ODONTOLOGIA,
+    seccionesAdmin: [
+      { href: "/admin/modulos/odontologia/casos", label: "Casos (odontograma)" },
+      { href: "/admin/modulos/odontologia/historias", label: "Historias diligenciadas" },
+    ],
   },
   // Módulo-herramienta (tipo SIMULADOR): no usa el motor de escenarios, por eso no aporta
   // vocabulario de acciones; sí tiene datos maestros propios que administrar.
