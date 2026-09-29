@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/nucleo/prisma";
+import { cifrar } from "./cifrado";
 import type { Genero } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { generarPassword } from "@/lib/nucleo/passwords";
@@ -71,6 +72,8 @@ export async function crearPuestosTemporales(opts: {
         rutaDirecta: opts.rutaDirecta,
         sesionTurneroId: opts.sesionTurneroId ?? null,
         espacioNumero: opts.numerarEspacios ? indice + 1 : null,
+        // Cuentas de computador de una jornada: el docente puede volver a ver la contraseña.
+        passwordCifrada: opts.sesionTurneroId ? cifrar(passwordTemporal) : null,
         matriculas: { create: modulos.map((m) => ({ moduloId: m.id })) },
       },
     });

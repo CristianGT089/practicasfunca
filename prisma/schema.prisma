@@ -84,6 +84,9 @@ model Usuario {
   // Espacio (ventanilla/unidad) que es esta cuenta de computador en su jornada. Con esto el
   // computador no tiene que elegirlo. Null en las demás cuentas.
   espacioNumero   Int?
+  // Solo cuentas de computador de una jornada: su contraseña cifrada con AUTH_SECRET, para
+  // que el docente la vuelva a ver (confirmando su propia contraseña). Se borra con la cuenta.
+  passwordCifrada String?
   sesionTurneroId String?
   sesionTurnero   SesionTurnero? @relation(fields: [sesionTurneroId], references: [id], onDelete: SetNull)
   creadoEn        DateTime       @default(now())

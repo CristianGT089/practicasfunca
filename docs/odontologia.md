@@ -126,5 +126,10 @@ Al crear la jornada de Odontología se elige **"Pacientes reales"** en vez de ca
 
 Al **iniciar** cualquier jornada se crea una cuenta por espacio ("Ventanilla 1", "Unidad 2"...)
 con su contraseña, que se muestra en ese momento. Cada cuenta entra directo a su pantalla y ya
-sabe qué espacio es (`Usuario.espacioNumero`). Las contraseñas no se guardan; si se pierden,
-"Generar contraseñas nuevas" crea otras sin sacar a los computadores que ya entraron.
+sabe qué espacio es (`Usuario.espacioNumero`).
+
+- **Ver contraseñas:** el docente las vuelve a ver cuando quiera, confirmando **su propia
+  contraseña**. Se guardan cifradas (AES-256-GCM con una clave derivada de `AUTH_SECRET`,
+  `lib/nucleo/cifrado.ts`), solo para estas cuentas de computador, y se borran con ellas al
+  cerrar la jornada. Si cambia `AUTH_SECRET`, ya no se pueden descifrar: hay que generar nuevas.
+- **Generar contraseñas nuevas:** crea otras sin sacar a los computadores que ya entraron.

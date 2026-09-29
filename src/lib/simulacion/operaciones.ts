@@ -4,6 +4,7 @@ import { CATEGORIAS_PRIORIDAD_DEFAULT, SERVICIOS_DEFAULT } from "@/lib/turnero/c
 import { abrirSesion, cerrarSesion } from "@/lib/turnero/operaciones";
 import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
 import { generarPassword } from "@/lib/nucleo/passwords";
+import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
 import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
@@ -182,6 +183,25 @@ export async function abrirSimulacion(simulacionId: string, creadoPorId?: string
 }
 
 /**
+ * Las contraseñas actuales de las cuentas de los computadores (descifradas), para volver a
+ * mostrarlas. Quien llama ya verificó la contraseña del docente.
+ */
+export async function verCredencialesPuestos(simulacionId: string) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion?.sesionTurneroId || simulacion.estado !== "ABIERTA") throw new Error("La jornada no está en curso");
+  const puestos = await prisma.usuario.findMany({
+    where: { sesionTurneroId: simulacion.sesionTurneroId },
+    orderBy: [{ espacioNumero: "asc" }, { nombre: "asc" }],
+  });
+  return puestos.map((p) => ({
+    nombre: p.nombre,
+    usuario: p.usuario,
+    // null = cuenta creada antes de guardar contraseñas cifradas: hay que generar una nueva.
+    password: p.passwordCifrada ? descifrar(p.passwordCifrada) : null,
+  }));
+}
+
+/**
  * Nuevas contraseñas para las cuentas de los computadores de la jornada (por si se
  * perdieron las primeras). Los computadores que ya entraron siguen dentro: la sesión no
  * depende de la contraseña.
@@ -196,7 +216,10 @@ export async function regenerarCredencialesPuestos(simulacionId: string) {
   const cuentas: { nombre: string; usuario: string; password: string }[] = [];
   for (const p of puestos) {
     const password = generarPassword();
-    await prisma.usuario.update({ where: { id: p.id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+    await prisma.usuario.update({
+      where: { id: p.id },
+      data: { passwordHash: await bcrypt.hash(password, 10), passwordCifrada: cifrar(password) },
+    });
     cuentas.push({ nombre: p.nombre, usuario: p.usuario, password });
   }
   return cuentas;

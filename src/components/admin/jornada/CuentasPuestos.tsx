@@ -2,18 +2,39 @@
 
 import { useState } from "react";
 
-export type CuentaPuesto = { nombre: string; usuario: string; password: string };
+export type CuentaPuesto = { nombre: string; usuario: string; password: string | null };
 
 /**
  * Cuentas de los computadores de la jornada (una por ventanilla o unidad), creadas al
- * iniciarla. Las contraseñas no se guardan: se muestran al iniciar y, si se pierden, se
- * generan otras (los computadores que ya entraron siguen dentro).
+ * iniciarla. Se muestran al iniciar; después se pueden volver a ver confirmando la
+ * contraseña del docente, o generar otras (los computadores que ya entraron siguen dentro).
  */
 export default function CuentasPuestos({ simulacionId, iniciales }: { simulacionId: string; iniciales: CuentaPuesto[] | null }) {
   const [cuentas, setCuentas] = useState<CuentaPuesto[] | null>(iniciales);
   const [generando, setGenerando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [pidiendoClave, setPidiendoClave] = useState(false);
+  const [clave, setClave] = useState("");
+  const [errorClave, setErrorClave] = useState<string | null>(null);
+
+  async function verConClave(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorClave(null);
+    const res = await fetch(`/api/simulaciones/${simulacionId}/credenciales/ver`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: clave }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setErrorClave(data.error ?? "No se pudieron mostrar");
+      return;
+    }
+    setCuentas(data.cuentas);
+    setPidiendoClave(false);
+    setClave("");
+  }
 
   async function regenerar() {
     setConfirmando(false);
@@ -25,7 +46,7 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
 
   async function copiar() {
     if (!cuentas) return;
-    const texto = cuentas.map((c) => `${c.nombre}: usuario ${c.usuario} · contraseña ${c.password}`).join("\n");
+    const texto = cuentas.map((c) => `${c.nombre}: usuario ${c.usuario} · contraseña ${c.password ?? "(generar nueva)"}`).join("\n");
     try {
       await navigator.clipboard.writeText(texto);
       setCopiado(true);
@@ -44,15 +65,24 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
             Una por espacio. Cada una entra directo a su pantalla y ya sabe qué espacio es. Se borran al cerrar la jornada.
           </p>
         </div>
-        <div className="flex gap-3 text-xs">
-          {cuentas && (
-            <button onClick={copiar} className="font-semibold text-blue-700 hover:underline">
-              {copiado ? "Copiado" : "Copiar todas"}
+        <div className="flex flex-wrap gap-3 text-xs">
+          {cuentas ? (
+            <>
+              <button onClick={copiar} className="font-semibold text-blue-700 hover:underline">
+                {copiado ? "Copiado" : "Copiar todas"}
+              </button>
+              <button onClick={() => setCuentas(null)} className="text-slate-500 hover:underline">
+                Ocultar
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setPidiendoClave(true)} className="font-semibold text-blue-700 hover:underline">
+              Ver contraseñas
             </button>
           )}
           {!confirmando ? (
             <button onClick={() => setConfirmando(true)} disabled={generando} className="text-slate-500 hover:underline disabled:opacity-40">
-              {cuentas ? "Generar contraseñas nuevas" : "Ver contraseñas"}
+              Generar contraseñas nuevas
             </button>
           ) : (
             <span className="flex items-center gap-2">
@@ -86,16 +116,40 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
                   <tr key={c.usuario} className="border-t border-slate-100">
                     <td className="py-1.5 pr-3 text-slate-800">{c.nombre}</td>
                     <td className="py-1.5 pr-3 font-mono font-semibold text-blue-900">{c.usuario}</td>
-                    <td className="py-1.5 font-mono font-semibold text-blue-900">{c.password}</td>
+                    <td className="py-1.5 font-mono font-semibold text-blue-900">
+                      {c.password ?? <span className="font-sans text-xs font-normal text-slate-500">No disponible: genera contraseñas nuevas</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )
+      ) : pidiendoClave ? (
+        <form onSubmit={verConClave} className="mt-3 flex flex-wrap items-center gap-2">
+          <label htmlFor="clave-docente" className="text-xs text-slate-600">
+            Para verlas, escribe tu contraseña:
+          </label>
+          <input
+            id="clave-docente"
+            type="password"
+            autoComplete="current-password"
+            autoFocus
+            value={clave}
+            onChange={(e) => setClave(e.target.value)}
+            className="min-w-44 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button type="submit" disabled={!clave} className="rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40">
+            Mostrar
+          </button>
+          <button type="button" onClick={() => setPidiendoClave(false)} className="text-xs text-slate-500">
+            Cancelar
+          </button>
+          {errorClave && <p className="basis-full text-xs text-red-600">{errorClave}</p>}
+        </form>
       ) : (
         <p className="mt-3 text-xs text-slate-500">
-          Las contraseñas se mostraron al iniciar la jornada. Si las perdiste, genera unas nuevas.
+          Para volver a ver el usuario y la contraseña de cada computador, pulsa &ldquo;Ver contraseñas&rdquo; y confirma con tu contraseña.
         </p>
       )}
     </section>
