@@ -133,3 +133,33 @@ sabe qué espacio es (`Usuario.espacioNumero`).
   `lib/nucleo/cifrado.ts`), solo para estas cuentas de computador, y se borran con ellas al
   cerrar la jornada. Si cambia `AUTH_SECRET`, ya no se pueden descifrar: hay que generar nuevas.
 - **Generar contraseñas nuevas:** crea otras sin sacar a los computadores que ya entraron.
+
+## Dictado
+
+Tercera forma de jornada presencial de Odontología (además de casos con tarjeta y pacientes
+reales). El docente lee un caso en voz alta y **todo el grupo lo registra a la vez, cada uno con
+su propia cuenta**; cada estudiante recibe su nota.
+
+- **Crear** (Jornadas presenciales → Nueva jornada → *Dictado*): qué se dicta (*solo el
+  odontograma* o *la historia completa*: alerta, antecedentes, exámenes y odontograma) y de dónde
+  sale el caso: *al azar* (vista previa, "Otro al azar", se puede retocar), *lo marco yo*
+  (odontograma y grillas en el mismo asistente) o *un caso creado*. El paciente (nombre,
+  documento) se inventa. Los casos creados para un dictado quedan inactivos con el título
+  `Dictado: …` y no aparecen en Odontología → Casos.
+- **Iniciar**: no se crean cuentas de computadores ni turnero. Los estudiantes del grupo ven
+  "Tienes un dictado en curso" en `/panel` y entran a `/panel/dictado` (paciente ya cargado,
+  solo las secciones dictadas, guardado automático).
+- **Mientras dicta**: el docente tiene el guion en orden de dictado (por cuadrantes, con las
+  caras por nombre), marca cada línea al leerla y ve cuántas marcas de lo ya dictado tiene bien
+  cada estudiante. *Pausar* bloquea la escritura de todos; *Terminar dictado* entrega las
+  historias como estén, califica y cierra (no hay paso de confirmación).
+- **Nota**: solo lo dictado. Odontograma (igual que en la práctica virtual: marcas de más
+  bajan la nota); con historia completa también alerta, antecedentes y exámenes. No hay placa
+  ni conducta.
+- **Reporte**: además de las notas y los errores comunes, un **mapa por diente**: el
+  odontograma del caso con cada diente en verde/ámbar/rojo según qué porcentaje del grupo lo
+  registró exacto.
+
+Código: `dictado.ts` (puro: caso al azar, guion, avance, mapa), `dictadoJornada.ts` (base de
+datos), `/api/modulos/odontologia/dictado` (estudiante), `/api/simulaciones/[id]/dictado`
+(docente: estado, pausar, terminar). Por ahora solo Odontología (ver CLAUDE.md).

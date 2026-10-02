@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import PanelMiEspacio, { type EstadoMiEspacio } from "@/components/turnero/PanelMiEspacio";
+import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
 
 type Medicamento = {
   id: string;
@@ -167,23 +167,17 @@ export default function CatalogoRealPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      <header className="bg-blue-900 px-6 py-4">
-        <div className="mx-auto max-w-6xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
-            <span className="font-heading text-sm font-semibold text-white">Catálogo real de medicamentos</span>
-          </div>
-          <button onClick={volverOSalir} className="text-sm text-blue-100 hover:text-white transition-colors">
-            {cuentaConRutaDirecta ? "Cerrar sesión" : "Volver a casos prácticos"}
-          </button>
-        </div>
-      </header>
+      <BarraTrabajo titulo="Expediente de medicamentos" subtitulo="Catálogo real y venta">
+        <button onClick={volverOSalir} className={claseAccionBarra}>
+          {cuentaConRutaDirecta ? "Cerrar sesión" : "← Volver a mis casos"}
+        </button>
+      </BarraTrabajo>
 
       <div className="px-6 py-10">
         <div className="mx-auto max-w-6xl">
           <PanelMiEspacio onEstado={setEstadoTurno} />
 
-          <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Expediente y venta de medicamentos</h1>
+          <h1 className="titulo-pagina mb-1">Expediente y venta de medicamentos</h1>
           <p className="text-sm text-slate-500 mb-6">
             Consulta el inventario real y practica el flujo de venta: agrega medicamentos al carrito y completa la
             venta para descontar existencias. No tiene checklist ni calificación.
@@ -193,7 +187,7 @@ export default function CatalogoRealPage() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por principio activo, nombre comercial o laboratorio..."
-            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm mb-6 bg-white"
+            className="w-full rounded-xl border border-blue-200 px-4 py-2.5 text-sm mb-6 bg-white"
           />
 
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -204,7 +198,7 @@ export default function CatalogoRealPage() {
           )}
 
           <div className="grid gap-6 md:grid-cols-[1fr_1fr_0.9fr]">
-            <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden max-h-[65vh] overflow-y-auto">
+            <div className="tarjeta-sm overflow-hidden max-h-[65vh] overflow-y-auto">
               {agrupados.map(([principioActivo, lotes]) => (
                 <div key={principioActivo} className="border-b border-slate-100 last:border-0">
                   <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide">
@@ -239,7 +233,7 @@ export default function CatalogoRealPage() {
               ))}
             </div>
 
-            <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-5">
+            <div className="tarjeta-sm p-5">
               {!seleccionado ? (
                 <p className="text-sm text-slate-400">Selecciona un medicamento para ver su expediente.</p>
               ) : (
@@ -293,7 +287,7 @@ export default function CatalogoRealPage() {
               )}
             </div>
 
-            <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-5 h-fit sticky top-4">
+            <div className="tarjeta-sm p-5 h-fit sticky top-4">
               <h2 className="font-heading text-sm font-semibold text-blue-900 mb-3">Venta en curso</h2>
 
               {carrito.length === 0 ? (
@@ -318,7 +312,7 @@ export default function CatalogoRealPage() {
                           max={item.medicamento.stock}
                           value={item.cantidad}
                           onChange={(e) => cambiarCantidad(item.medicamento.id, Number(e.target.value))}
-                          className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                          className="w-16 rounded-xl border border-blue-200 px-2 py-1 text-sm"
                         />
                         <span className="text-xs text-slate-400">de {item.medicamento.stock} disponibles</span>
                       </div>

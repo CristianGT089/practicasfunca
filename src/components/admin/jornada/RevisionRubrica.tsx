@@ -157,14 +157,14 @@ export default function RevisionRubrica({
             rows={2}
             value={comentario}
             onChange={(e) => setComentario(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
         </label>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={guardar}
             disabled={guardando}
-            className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
+            className="rounded-full font-heading bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
           >
             {guardando ? "Guardando..." : "Guardar calificación"}
           </button>

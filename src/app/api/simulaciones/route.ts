@@ -24,6 +24,7 @@ export async function GET() {
       cerradaEn: true,
       situaciones: true,
       pacientesReales: true,
+      dictado: true,
       grupo: { select: { nombre: true } },
       turnero: { select: { nombre: true } },
       _count: { select: { pacientes: true, atenciones: true, participantes: true } },
@@ -52,6 +53,17 @@ const crearSchema = z
     // Odontología: casos de la práctica virtual que se atienden ese día.
     casosOdontologiaIds: z.array(z.string().min(1)).max(40).default([]),
     pacientesReales: z.boolean().default(false),
+    // Dictado: un caso que lee el docente y todos registran a la vez (solo Odontología por ahora).
+    dictado: z
+      .object({
+        secciones: z.enum(["ODONTOGRAMA", "COMPLETA"]),
+        fuente: z.enum(["ALEATORIO", "PROPIO", "EXISTENTE"]),
+        denticion: z.enum(["PERMANENTE", "TEMPORAL"]).default("PERMANENTE"),
+        esperado: z.unknown().optional(),
+        escenarioId: z.string().min(1).optional(),
+      })
+      .nullable()
+      .default(null),
   })
   .refine((d) => d.tipo === "ODONTOLOGIA" || (d.pacientes && d.pacientes.length > 0) || (d.cantidadPacientes ?? 0) > 0, {
     message: "Agrega nombres o una cantidad de pacientes",
@@ -74,6 +86,9 @@ export async function POST(req: NextRequest) {
   }
   if (gestor.rol === "DOCENTE" && !d.grupoId) {
     return NextResponse.json({ error: "Elige el grupo que hace la jornada" }, { status: 400 });
+  }
+  if (d.dictado && d.tipo !== "ODONTOLOGIA") {
+    return NextResponse.json({ error: "Por ahora el dictado es solo de Odontología" }, { status: 400 });
   }
   const situaciones = d.situaciones.filter((c) => definicionSituacion(c)?.tipos.includes(d.tipo)) as CodigoSituacion[];
 

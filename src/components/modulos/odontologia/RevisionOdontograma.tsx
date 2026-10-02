@@ -16,7 +16,8 @@ export type RevisionOdontologia = {
   odontogramaObtenido: Marca[];
   comparacion: ComparacionOdontograma;
   placaEsperada: MarcaPlaca[];
-  remisionEsperada: string;
+  /** null = no se califica la conducta (dictado). */
+  remisionEsperada: string | null;
   remisionObtenida: string | null;
 };
 
@@ -70,6 +71,7 @@ export default function RevisionOdontograma({ revision }: { revision: RevisionOd
             );
           })}
         </ul>
+        {revision.remisionEsperada !== null && (
         <p className="text-xs text-slate-600 mt-3">
           Remisión elegida: <span className="font-semibold">{etiquetaRemision(revision.remisionObtenida)}</span>
           {revision.remisionObtenida !== revision.remisionEsperada && (
@@ -79,6 +81,7 @@ export default function RevisionOdontograma({ revision }: { revision: RevisionOd
             </>
           )}
         </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">

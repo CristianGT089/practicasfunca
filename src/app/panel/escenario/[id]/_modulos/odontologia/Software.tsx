@@ -227,7 +227,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
         {encabezado("Odontología", "max-w-6xl")}
         <div className="px-6 py-8">
           <div className="mx-auto max-w-6xl flex flex-col gap-4">
-            <div className="rounded-xl bg-white border border-slate-200 p-6 shadow-sm text-center">
+            <div className="tarjeta p-6 text-center">
               <h1 className="font-heading text-xl font-bold text-cyan-800 mb-2">{terminado.titulo}</h1>
               {terminado.puntaje !== null && <p className="text-4xl font-heading font-extrabold mb-2 text-cyan-700">{terminado.puntaje}/100</p>}
               {(peligrosCierre.length > 0 || (terminado.puntaje === null && alertaError)) && (
@@ -259,13 +259,13 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
             </div>
 
             {resultadoFinal?.revision && (
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <RevisionOdontograma revision={resultadoFinal.revision} />
               </div>
             )}
 
             {lineasProceso.length > 0 && (
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h3 className="text-sm font-heading font-semibold text-cyan-900 mb-2">Resto de la historia</h3>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                   {lineasProceso.map((p, i) => (
@@ -311,11 +311,11 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
       <div className="px-4 lg:px-6 py-6">
         <div className="mx-auto max-w-[1400px]">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-4 mb-4">
-            <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm border-l-4 border-l-cyan-500">
+            <div className="tarjeta-sm p-4 border-l-4 border-l-cyan-500">
               <h1 className="font-heading font-semibold text-cyan-900">{intento.escenario.titulo}</h1>
               <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{intento.escenario.descripcion}</p>
             </div>
-            <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <div className="tarjeta-sm p-4">
               <div className="flex items-center justify-between mb-2 gap-4">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Progreso</span>
                 <span className="text-xs font-semibold text-slate-500">Precisión: {precision}%</span>
@@ -332,7 +332,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
             {/* Consultorio: lo que el estudiante va descubriendo */}
             <aside className="flex flex-col gap-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col gap-2">
+              <div className="tarjeta-sm p-4 flex flex-col gap-2">
                 <h2 className="text-sm font-heading font-semibold text-cyan-900">Consultorio</h2>
                 <button onClick={() => revelar("INTERROGAR_PACIENTE")} disabled={Boolean(info.anamnesis)} className={botonConsultorio(Boolean(info.anamnesis))}>
                   {info.anamnesis ? "✓ Paciente interrogado" : "Interrogar al paciente"}
@@ -351,7 +351,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
                   <select
                     value={tipoRx}
                     onChange={(e) => setTipoRx(e.target.value as "PERIAPICAL" | "PANORAMICA")}
-                    className="rounded-lg border border-slate-300 px-2 text-sm"
+                    className="rounded-xl border border-blue-200 px-2 text-sm"
                   >
                     <option value="PERIAPICAL">Periapical</option>
                     <option value="PANORAMICA">Panorámica</option>
@@ -369,14 +369,14 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
               </div>
 
               {info.anamnesis && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm text-slate-700">
+                <div className="tarjeta-sm p-4 text-sm text-slate-700">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Lo que cuenta el paciente</h3>
                   <p className="italic text-cyan-900 mb-2">“{info.anamnesis.motivoConsulta}”</p>
                   <p className="whitespace-pre-line">{info.anamnesis.relato}</p>
                 </div>
               )}
               {info.examen && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm text-slate-700">
+                <div className="tarjeta-sm p-4 text-sm text-slate-700">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Examen clínico</h3>
                   {info.examen.relato && <p className="whitespace-pre-line mb-2">{info.examen.relato}</p>}
                   {info.examen.hallazgosDentales.length > 0 ? (
@@ -391,7 +391,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
                 </div>
               )}
               {info.placa && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm text-slate-700">
+                <div className="tarjeta-sm p-4 text-sm text-slate-700">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Revelador de placa</h3>
                   {info.placa.tenidas.length ? (
                     <>
@@ -408,7 +408,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
                 </div>
               )}
               {info.radiografia && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm text-slate-700">
+                <div className="tarjeta-sm p-4 text-sm text-slate-700">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
                     Radiografía ({info.radiografia.tipos.map((t) => t.toLowerCase()).join(", ")})
                   </h3>
@@ -428,7 +428,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
 
             {/* Historia clínica */}
             <main className="min-w-0 flex flex-col gap-4">
-              <div className="rounded-xl bg-white border border-slate-200 p-2 shadow-sm flex flex-wrap items-center gap-1 sticky top-0 z-10">
+              <div className="tarjeta-sm p-2 flex flex-wrap items-center gap-1 sticky top-0 z-10">
                 {PESTANAS.map((p) => (
                   <button
                     key={p.id}

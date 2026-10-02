@@ -5,6 +5,8 @@ import { definicionSituacion } from "@/lib/simulacion/situaciones";
 import { ETIQUETA_ERROR, type ClaveCriterio } from "@/lib/simulacion/evaluacion";
 import { hora, type Reporte as ReporteDatos } from "./tipos";
 import RevisionOdontograma, { type RevisionOdontologia } from "@/components/modulos/odontologia/RevisionOdontograma";
+import Odontograma from "@/components/modulos/odontologia/Odontograma";
+import { nombreDiente } from "@/lib/modulos/odontologia/odontograma";
 
 const colorPuntaje = (p: number | null) =>
   p === null ? "text-slate-400" : p >= 80 ? "text-emerald-700" : p >= 50 ? "text-amber-700" : "text-red-600";
@@ -48,6 +50,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
     : null;
   const sinVerificacion = datos.simulacion.tipo === "FARMACIA";
   const esOdonto = datos.simulacion.tipo === "ODONTOLOGIA";
+  const dictado = datos.dictado ?? null;
 
   function exportar() {
     if (!datos) return;
@@ -79,11 +82,13 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
           ["Atenciones", String(datos.atenciones.length)],
           ["Promedio del grupo", promedio === null ? "—" : `${promedio}%`],
           ["Participantes", String(datos.porEstudiante.length)],
-          esOdonto
+          dictado
+            ? ["Dientes del caso", String(dictado.mapa.length)]
+            : esOdonto
             ? ["Historias cerradas", String(datos.atenciones.filter((a) => a.cerrada).length)]
             : ["Situaciones", datos.simulacion.situaciones.length ? String(datos.simulacion.situaciones.length) : "Al azar"],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-white border border-slate-200 p-3">
+          <div key={k} className="tarjeta-sm p-3">
             <p className="text-[11px] uppercase tracking-wide text-slate-500">{k}</p>
             <p className="font-heading text-xl font-bold text-blue-900">{v}</p>
           </div>
@@ -103,7 +108,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
         {vista === "repaso" && (
           <label className="ml-auto flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={conNombres} onChange={(e) => setConNombres(e.target.checked)} />
-            Mostrar quién atendió
+            {dictado ? "Mostrar nombres" : "Mostrar quién atendió"}
           </label>
         )}
         <button onClick={exportar} className={`${vista === "notas" ? "ml-auto" : ""} text-sm text-blue-700 hover:underline`}>
@@ -119,8 +124,10 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
 
       {vista === "repaso" ? (
         <>
+          {dictado && <MapaDictado dictado={dictado} />}
+
           {datos.erroresComunes.length > 0 && (
-            <div className="rounded-xl bg-white border border-slate-200 p-4">
+            <div className="tarjeta-sm p-4">
               <h3 className="text-sm font-heading font-semibold text-blue-900">Errores más comunes</h3>
               <p className="text-xs text-slate-500 mb-2">En cuántos casos apareció cada uno.</p>
               <ul className="flex flex-col gap-1 text-sm">
@@ -136,19 +143,21 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
 
           <div className="flex flex-col gap-3">
             {datos.atenciones.map((a, i) => (
-              <article key={a.id} className="rounded-xl bg-white border border-slate-200 p-4">
+              <article key={a.id} className="tarjeta-sm p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h3 className="font-heading font-semibold text-blue-900">
-                      Caso {i + 1}
+                      {dictado ? (conNombres ? a.participante?.nombre ?? `Estudiante ${i + 1}` : `Estudiante ${i + 1}`) : `Caso ${i + 1}`}
                       {a.ticketCodigo && <span className="ml-2 text-sm font-medium text-slate-500">{a.ticketCodigo}</span>}
                     </h3>
+                    {!dictado && (
                     <p className="text-xs text-slate-500">
                       {a.pacienteNombre} · {a.espacioNumero ? `${esOdonto ? "unidad" : "ventanilla"} ${a.espacioNumero}` : "sin turno"} ·{" "}
                       {hora(a.llamadoEn)}
                       {esOdonto && !a.cerrada && " · no cerró la historia"}
                       {conNombres && <> · atendió <b className="text-slate-700">{a.participante?.nombre ?? "sin confirmar"}</b></>}
                     </p>
+                    )}
                   </div>
                   {a.puntaje !== null && <p className={`font-heading text-2xl font-bold ${colorPuntaje(a.puntaje)}`}>{a.puntaje}%</p>}
                 </div>
@@ -211,7 +220,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
           </div>
         </>
       ) : (
-        <div className="rounded-xl bg-white border border-slate-200 overflow-x-auto">
+        <div className="tarjeta-sm overflow-x-auto">
           <table className="w-full text-sm min-w-[420px]">
             <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
@@ -238,5 +247,39 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Dictado: el odontograma del caso con cada diente coloreado según cuántos estudiantes lo
+ * registraron exacto. Lo rojo es lo que hay que repasar en clase.
+ */
+function MapaDictado({ dictado }: { dictado: NonNullable<ReporteDatos["dictado"]> }) {
+  const estados = new Map(
+    dictado.mapa.map((c) => [c.diente, c.porcentaje >= 80 ? ("ok" as const) : c.porcentaje >= 50 ? ("parcial" as const) : ("error" as const)])
+  );
+  const total = dictado.mapa[0]?.total ?? 0;
+  return (
+    <div className="tarjeta-sm p-4">
+      <h3 className="text-sm font-heading font-semibold text-blue-900">Mapa por diente</h3>
+      <p className="text-xs text-slate-500 mb-3">
+        El caso dictado. Número en <span className="font-semibold text-green-700">verde</span>: 80 % o más del grupo lo registró exacto;{" "}
+        <span className="font-semibold text-amber-700">ámbar</span>: entre 50 y 79 %; <span className="font-semibold text-red-600">rojo</span>: menos de la
+        mitad. {total} historia(s) calificada(s).
+      </p>
+      <Odontograma denticion={dictado.denticion} marcas={dictado.odontogramaEsperado} estados={estados} mostrarResumen={false} />
+      <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        {dictado.mapa.map((c) => (
+          <li key={c.diente} className="flex items-center justify-between gap-3">
+            <span className="text-slate-700">
+              <b>{c.diente}</b> <span className="text-xs text-slate-500">{nombreDiente(c.diente)}</span>
+            </span>
+            <span className={`tabular-nums font-semibold ${colorPuntaje(c.porcentaje)}`}>
+              {c.porcentaje}% <span className="text-xs font-normal text-slate-500">({c.bien}/{c.total})</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -887,14 +887,20 @@ model Simulacion {
   cerradaEn       DateTime?
 
   // Jornada presencial: grupo que la hace, quién la creó y qué situaciones eligió el docente.
-  grupoId         String?
-  grupo           Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
-  creadaPorId     String?
-  creadaPor       Usuario? @relation("SimulacionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
-  situaciones     String[] @default([])
+  grupoId          String?
+  grupo            Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  creadaPorId      String?
+  creadaPor        Usuario? @relation("SimulacionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  situaciones      String[] @default([])
   // Odontología: true = los pacientes son compañeros examinados de verdad (sin caso ni
   // respuesta previa); el docente califica con rúbrica y al cerrar se borran sus datos.
-  pacientesReales Boolean  @default(false)
+  pacientesReales  Boolean  @default(false)
+  // Odontología, modalidad dictado: todos los estudiantes (cada uno con su cuenta) redactan
+  // a la vez el mismo caso que dicta el docente. `dictadoSecciones`: ODONTOGRAMA | COMPLETA.
+  // `dictadoPausado`: el docente congela la edición mientras explica algo.
+  dictado          Boolean  @default(false)
+  dictadoSecciones String?
+  dictadoPausado   Boolean  @default(false)
 
   pacientes        Paciente[]
   entregas         EntregaSimulacion[]

@@ -59,16 +59,16 @@ export default function PacientesPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Pacientes</h1>
+      <h1 className="titulo-pagina mb-6">Pacientes</h1>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6">
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
             <input
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -77,7 +77,7 @@ export default function PacientesPage() {
             <input
               value={form.cedula}
               onChange={(e) => setForm({ ...form, cedula: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -87,7 +87,7 @@ export default function PacientesPage() {
               type="number"
               value={form.edad}
               onChange={(e) => setForm({ ...form, edad: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function PacientesPage() {
               value={form.alergias}
               onChange={(e) => setForm({ ...form, alergias: e.target.value })}
               placeholder="ej: penicilina"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -108,19 +108,19 @@ export default function PacientesPage() {
             <input
               value={form.antecedentes}
               onChange={(e) => setForm({ ...form, antecedentes: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
         </div>
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-        <button type="submit" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+        <button type="submit" className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Agregar paciente
         </button>
       </form>
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
 
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+      <div className="tarjeta-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>

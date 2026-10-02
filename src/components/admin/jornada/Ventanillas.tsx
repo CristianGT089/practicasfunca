@@ -40,7 +40,7 @@ export default function Ventanillas({
   const ocupados = new Set(Object.values(actuales).filter(Boolean));
 
   return (
-    <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+    <section className="tarjeta-sm p-4">
       <h2 className="text-sm font-heading font-semibold text-blue-900">¿Quién está en cada {etiqueta.toLowerCase()}?</h2>
       <p className="text-xs text-slate-500 mb-3">
         Cámbialo cada vez que rotes. Lo que se atienda desde ahí queda a nombre de esa persona.

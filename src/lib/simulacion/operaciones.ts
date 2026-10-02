@@ -8,6 +8,7 @@ import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
 import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
+import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
 import { planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
 
 const incluirPacientes = {
@@ -41,6 +42,8 @@ export async function crearSimulacionBorrador(opts: {
   casosOdontologiaIds?: string[];
   /** Jornada de Odontología con compañeros examinados de verdad (sin casos). */
   pacientesReales?: boolean;
+  /** Dictado de Odontología: el docente lee un caso y todos lo registran a la vez. */
+  dictado?: OpcionesDictado | null;
 }) {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
 
@@ -157,6 +160,12 @@ const PUESTOS_POR_TIPO = {
 export async function abrirSimulacion(simulacionId: string, creadoPorId?: string | null) {
   const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId }, include: { turnero: true } });
   if (!simulacion || simulacion.estado !== "BORRADOR") throw new Error("La simulación ya está abierta o cerrada");
+
+  // Dictado: cada estudiante entra con su propia cuenta; no hay turnos ni computadores.
+  if (simulacion.dictado) {
+    await prisma.simulacion.update({ where: { id: simulacionId }, data: { estado: "ABIERTA", abiertaEn: new Date() } });
+    return { sesionTurneroId: null, cuentas: [] };
+  }
 
   const sesion = await abrirSesion(simulacion.turneroId);
 
@@ -293,7 +302,9 @@ async function crearJornadaOdontologia(opts: {
   creadaPorId?: string | null;
   casosOdontologiaIds?: string[];
   pacientesReales?: boolean;
+  dictado?: OpcionesDictado | null;
 }) {
+  if (opts.dictado) return crearDictado({ ...opts, dictado: opts.dictado });
   // Los ids son de los casos (Escenario), como los lista Odontología → Casos. Con pacientes
   // reales no hay casos: el estudiante registra al compañero que examina.
   const casos = opts.pacientesReales
@@ -323,6 +334,42 @@ async function crearJornadaOdontologia(opts: {
         create: {
           nombre: `Unidades — ${opts.nombre}`,
           numeroEspacios: opts.numeroEspacios ?? 3,
+          servicios: SERVICIOS_DEFAULT,
+          categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
+        },
+      },
+    },
+    include: incluirPacientes,
+  });
+}
+
+/**
+ * Dictado: un solo caso (al azar, marcado por el docente o uno existente) y los estudiantes
+ * del grupo como participantes. Cada uno abre su historia al entrar.
+ */
+async function crearDictado(opts: { nombre: string; grupoId?: string | null; creadaPorId?: string | null; dictado: OpcionesDictado }) {
+  const escenarioOdontologiaId = await crearCasoDictado(opts.nombre, opts.dictado);
+  const estudiantesGrupo = opts.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
+        orderBy: { nombre: "asc" },
+        select: { id: true, nombre: true },
+      })
+    : [];
+  return prisma.simulacion.create({
+    data: {
+      nombre: opts.nombre,
+      tipo: "ODONTOLOGIA",
+      dictado: true,
+      dictadoSecciones: opts.dictado.secciones,
+      ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
+      ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
+      participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
+      casosOdontologia: { create: [{ escenarioOdontologiaId, orden: 0 }] },
+      turnero: {
+        create: {
+          nombre: `Dictado — ${opts.nombre}`,
+          numeroEspacios: 1,
           servicios: SERVICIOS_DEFAULT,
           categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
         },

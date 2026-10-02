@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FUNCA Prácticas",
-  description: "Simulador de prácticas para el programa de Auxiliar en Farmacia — FUNCA",
+  description: "Plataforma de prácticas de FUNCA: casos virtuales, jornadas presenciales y dictados",
   icons: { icon: "/funca-logo.png" },
 };
 

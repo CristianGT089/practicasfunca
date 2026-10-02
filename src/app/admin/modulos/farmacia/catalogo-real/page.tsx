@@ -82,20 +82,20 @@ export default function CatalogoRealAdminPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Catálogo real de medicamentos</h1>
+      <h1 className="titulo-pagina mb-1">Catálogo real de medicamentos</h1>
       <p className="text-sm text-slate-500 mb-6">
         Este catálogo alimenta la consulta libre del estudiante en /panel/catalogo (sin calificación). No se puede
         repetir un medicamento con el mismo principio activo, presentación y número de lote.
       </p>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6">
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Principio activo *</label>
             <input
               value={form.principioActivo}
               onChange={(e) => setForm({ ...form, principioActivo: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -105,7 +105,7 @@ export default function CatalogoRealAdminPage() {
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               placeholder="Si se deja vacío, se usa el principio activo"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -114,7 +114,7 @@ export default function CatalogoRealAdminPage() {
               value={form.presentacion}
               onChange={(e) => setForm({ ...form, presentacion: e.target.value })}
               placeholder="Ej: TABLETAS 500MG"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -125,7 +125,7 @@ export default function CatalogoRealAdminPage() {
             <input
               value={form.laboratorio}
               onChange={(e) => setForm({ ...form, laboratorio: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -133,7 +133,7 @@ export default function CatalogoRealAdminPage() {
             <input
               value={form.formaFarmaceutica}
               onChange={(e) => setForm({ ...form, formaFarmaceutica: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -141,7 +141,7 @@ export default function CatalogoRealAdminPage() {
             <input
               value={form.concentracion}
               onChange={(e) => setForm({ ...form, concentracion: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -149,7 +149,7 @@ export default function CatalogoRealAdminPage() {
             <input
               value={form.registroInvima}
               onChange={(e) => setForm({ ...form, registroInvima: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function CatalogoRealAdminPage() {
             <input
               value={form.numeroLote}
               onChange={(e) => setForm({ ...form, numeroLote: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -168,7 +168,7 @@ export default function CatalogoRealAdminPage() {
               type="date"
               value={form.loteVencimiento}
               onChange={(e) => setForm({ ...form, loteVencimiento: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -177,7 +177,7 @@ export default function CatalogoRealAdminPage() {
               type="number"
               value={form.stock}
               onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function CatalogoRealAdminPage() {
         <button
           type="submit"
           disabled={guardando}
-          className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-60"
+          className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-60"
         >
           {guardando ? "Guardando..." : "Agregar al catálogo"}
         </button>
@@ -193,7 +193,7 @@ export default function CatalogoRealAdminPage() {
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
 
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+      <div className="tarjeta-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>

@@ -168,7 +168,7 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
           </div>
         </header>
         <div className="px-6 py-10">
-          <div className="mx-auto max-w-2xl rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+          <div className="mx-auto max-w-2xl tarjeta p-8 text-center">
             <h1 className="font-heading text-xl font-bold text-emerald-800 mb-2">{terminado.titulo}</h1>
             {terminado.puntaje !== null && (
               <p className="text-4xl font-heading font-extrabold mb-4 text-emerald-700">{terminado.puntaje}/100</p>
@@ -243,12 +243,12 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
 
       <div className="px-6 py-8">
         <div className="mx-auto max-w-5xl">
-          <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-4 border-l-4 border-l-emerald-500">
+          <div className="tarjeta p-5 mb-4 border-l-4 border-l-emerald-500">
             <h1 className="font-heading font-semibold text-emerald-900">{intento.escenario.titulo}</h1>
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{intento.escenario.descripcion}</p>
           </div>
 
-          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-6">
+          <div className="tarjeta-sm p-4 mb-6">
             <div className="flex items-center justify-between mb-2 gap-4">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Progreso de este caso</span>
               <span className="text-xs font-semibold text-slate-500">Precisión: {precision}%</span>
@@ -263,7 +263,7 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
 
           <div className="grid grid-cols-2 gap-6">
             <div className="col-span-1 flex flex-col gap-4">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-emerald-900 mb-2">Ficha del paciente</h2>
                 {!fichaVista && (
                   <button
@@ -284,12 +284,12 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
                 )}
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-emerald-900 mb-2">Orden médica</h2>
                 {!ordenVerificada && (
                   <button
                     onClick={verificarOrden}
-                    className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     Verificar orden médica
                   </button>
@@ -301,12 +301,12 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
                 )}
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-emerald-900 mb-2">Alergias</h2>
                 {!alergiaVerificada && (
                   <button
                     onClick={verificarAlergia}
-                    className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     Verificar alergias registradas
                   </button>
@@ -320,24 +320,24 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
             </div>
 
             <div className="col-span-1">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col gap-3">
+              <div className="tarjeta-sm p-4 flex flex-col gap-3">
                 <h2 className="text-sm font-heading font-semibold text-emerald-900">Registrar administración</h2>
                 <input
                   value={medicamento}
                   onChange={(e) => setMedicamento(e.target.value)}
                   placeholder="Medicamento a administrar"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
                 <input
                   value={dosis}
                   onChange={(e) => setDosis(e.target.value)}
                   placeholder="Dosis (ej: 500mg)"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
                 <select
                   value={via}
                   onChange={(e) => setVia(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 >
                   {VIAS.map((v) => (
                     <option key={v} value={v}>
@@ -361,7 +361,7 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
                 </button>
                 <button
                   onClick={escalarASupervisor}
-                  className="rounded-lg border border-gold-500 text-gold-700 py-2 text-sm font-semibold hover:bg-gold-50 transition-colors"
+                  className="rounded-full font-heading border border-gold-500 text-gold-700 py-2 text-sm font-semibold hover:bg-gold-50 transition-colors"
                 >
                   Escalar al médico / supervisor
                 </button>

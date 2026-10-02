@@ -71,16 +71,16 @@ export default function MedicamentosPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Medicamentos</h1>
+      <h1 className="titulo-pagina mb-6">Medicamentos</h1>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6">
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Nombre comercial</label>
             <input
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -89,7 +89,7 @@ export default function MedicamentosPage() {
             <input
               value={form.principioActivo}
               onChange={(e) => setForm({ ...form, principioActivo: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -99,7 +99,7 @@ export default function MedicamentosPage() {
               value={form.presentacion}
               onChange={(e) => setForm({ ...form, presentacion: e.target.value })}
               placeholder="Ej: Tableta 500mg"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               required
             />
           </div>
@@ -111,7 +111,7 @@ export default function MedicamentosPage() {
               type="number"
               value={form.stock}
               onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -120,7 +120,7 @@ export default function MedicamentosPage() {
               type="number"
               value={form.precio}
               onChange={(e) => setForm({ ...form, precio: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
           <div className="col-span-2">
@@ -131,7 +131,7 @@ export default function MedicamentosPage() {
               value={form.tags}
               onChange={(e) => setForm({ ...form, tags: e.target.value })}
               placeholder="ej: penicilina, antibiotico"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -154,14 +154,14 @@ export default function MedicamentosPage() {
           </label>
         </div>
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-        <button type="submit" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+        <button type="submit" className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Agregar medicamento
         </button>
       </form>
 
       {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
 
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+      <div className="tarjeta-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>

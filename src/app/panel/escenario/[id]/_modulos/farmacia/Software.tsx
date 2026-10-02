@@ -395,7 +395,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
           </div>
         </header>
         <div className="px-6 py-10">
-          <div className="mx-auto max-w-2xl rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+          <div className="mx-auto max-w-2xl tarjeta p-8 text-center">
             <p className="text-5xl mb-3">🏆</p>
             <h1 className="font-heading text-xl font-bold text-purple-800 mb-2">¡Turno completo!</h1>
             <p className="text-sm text-slate-500 mb-4">Atendiste los 5 casos seguidos con las mismas 3 vidas.</p>
@@ -425,7 +425,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
           </div>
         </header>
         <div className="px-6 py-10">
-          <div className="mx-auto max-w-2xl rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+          <div className="mx-auto max-w-2xl tarjeta p-8 text-center">
             <p className="text-5xl mb-3">💔</p>
             <h1 className="font-heading text-xl font-bold text-red-600 mb-2">Te quedaste sin corazones</h1>
             <p className="text-sm text-slate-500 mb-6">
@@ -462,7 +462,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
           </div>
         </header>
         <div className="px-6 py-10">
-          <div className="mx-auto max-w-2xl rounded-xl bg-white border border-slate-200 p-8 shadow-sm">
+          <div className="mx-auto max-w-2xl tarjeta p-8">
             <h1 className="font-heading text-xl font-bold text-blue-900 mb-2">Resultado</h1>
             <p className={`text-4xl font-heading font-extrabold mb-1 ${colorPuntaje}`}>{puntaje}/100</p>
             <p className="text-sm text-slate-500 mb-6">
@@ -617,12 +617,12 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
             </div>
           )}
 
-          <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-4 border-l-4 border-l-gold-500">
+          <div className="tarjeta p-5 mb-4 border-l-4 border-l-gold-500">
             <h1 className="font-heading font-semibold text-blue-900">{intento.escenario.titulo}</h1>
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{intento.escenario.descripcion}</p>
           </div>
 
-          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-6">
+          <div className="tarjeta-sm p-4 mb-6">
             <div className="flex items-center justify-between mb-2 gap-4">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Progreso de este caso</span>
               <span className="text-xs font-semibold text-slate-500">
@@ -643,12 +643,12 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
             {/* Columna paciente */}
             <div className="col-span-1">
               {intento.escenario.mostrarIdentidad && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+                <div className="tarjeta-sm p-4">
                   <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Identidad del cliente</h2>
                   {!cedula && (
                     <button
                       onClick={solicitarCedula}
-                      className="w-full rounded-lg bg-blue-800 py-2 text-sm font-medium text-white hover:bg-blue-900 transition-colors"
+                      className="w-full rounded-full font-heading bg-blue-800 py-2 text-sm font-medium text-white hover:bg-blue-900 transition-colors"
                     >
                       Solicitar cédula
                     </button>
@@ -663,7 +663,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                       {!ficha && (
                         <button
                           onClick={buscarFichaPaciente}
-                          className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                          className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           Buscar en el sistema por esta cédula
                         </button>
@@ -686,12 +686,12 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                 </div>
               )}
 
-              <div className={`rounded-xl bg-white border border-slate-200 p-4 shadow-sm ${intento.escenario.mostrarIdentidad ? "mt-4" : ""}`}>
+              <div className={`tarjeta-sm p-4 ${intento.escenario.mostrarIdentidad ? "mt-4" : ""}`}>
                 <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Receta médica</h2>
                 {!recetaVerificada && (
                   <button
                     onClick={verificarReceta}
-                    className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     Verificar receta
                   </button>
@@ -702,7 +702,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                     {!recetaOnline && (
                       <button
                         onClick={buscarRecetaOnline}
-                        className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
                         Buscar receta en línea
                       </button>
@@ -781,7 +781,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                   )}
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mt-4 flex flex-col gap-2">
+              <div className="tarjeta-sm p-4 mt-4 flex flex-col gap-2">
                 <button
                   onClick={completarVenta}
                   disabled={carrito.length === 0}
@@ -827,7 +827,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
                           setMostrarMotivos(false);
                           setMotivosSeleccionados([]);
                         }}
-                        className="rounded-lg border border-slate-300 px-3 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+                        className="rounded-xl border border-blue-200 px-3 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
                       >
                         Cancelar
                       </button>
@@ -837,7 +837,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
 
                 <button
                   onClick={escalarASupervisor}
-                  className="rounded-lg border border-gold-500 text-gold-700 py-2 text-sm font-semibold hover:bg-gold-50 transition-colors"
+                  className="rounded-full font-heading border border-gold-500 text-gold-700 py-2 text-sm font-semibold hover:bg-gold-50 transition-colors"
                 >
                   Escalar a supervisor
                 </button>
@@ -846,13 +846,13 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
 
             {/* Columna medicamentos */}
             <div className="col-span-1">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Buscar medicamento</h2>
                 <input
                   value={busqueda}
                   onChange={(e) => buscar(e.target.value)}
                   placeholder="Nombre del medicamento..."
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+                  className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                 />
                 <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
                   {medicamentosFiltrados.map((m) => {
@@ -906,7 +906,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
 
             {/* Columna venta */}
             <div className="col-span-1">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Venta actual</h2>
                 {carrito.length === 0 && <p className="text-sm text-slate-400">Sin productos agregados.</p>}
                 <div className="flex flex-col gap-2">

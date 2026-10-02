@@ -57,7 +57,7 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
   }
 
   return (
-    <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+    <section className="tarjeta-sm p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-heading font-semibold text-blue-900">Cuentas de los computadores</h2>
@@ -137,9 +137,9 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
             autoFocus
             value={clave}
             onChange={(e) => setClave(e.target.value)}
-            className="min-w-44 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="min-w-44 flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
-          <button type="submit" disabled={!clave} className="rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40">
+          <button type="submit" disabled={!clave} className="rounded-full font-heading bg-blue-800 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40">
             Mostrar
           </button>
           <button type="button" onClick={() => setPidiendoClave(false)} className="text-xs text-slate-500">

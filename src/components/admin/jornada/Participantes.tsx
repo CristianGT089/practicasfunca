@@ -43,7 +43,7 @@ export default function Participantes({
   }
 
   return (
-    <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+    <section className="tarjeta-sm p-4">
       <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Participantes ({participantes.length})</h2>
       {participantes.length === 0 ? (
         <p className="text-xs text-slate-500 mb-3">Aún no hay participantes. Agrega a quienes van a atender.</p>
@@ -64,12 +64,12 @@ export default function Participantes({
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Nombre de un invitado"
             aria-label="Nombre del invitado"
-            className="flex-1 min-w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 min-w-40 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
           <button
             type="submit"
             disabled={enviando || !nombre.trim()}
-            className="rounded-lg border border-blue-700 px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-50 disabled:opacity-40"
+            className="rounded-full font-heading border border-blue-700 px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-50 disabled:opacity-40"
           >
             Agregar invitado
           </button>

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { historiaVacia, normalizarHistoria, REMISIONES, type HistoriaOdontologica } from "@/lib/modulos/odontologia/historia";
 import type { Denticion } from "@/lib/modulos/odontologia/odontograma";
 import {
@@ -16,6 +15,7 @@ import {
   SeccionPlacaHigiene,
   type PacienteOdontologia,
 } from "@/components/modulos/odontologia/SeccionesHistoria";
+import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
 
 type Jornada = { id: string; nombre: string; unidades: number; pacientesReales: boolean };
 
@@ -44,7 +44,7 @@ const ADMISION_VACIA: Admision = {
 };
 
 const claseCampo =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500";
+  "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500";
 type Encontrado = { casoId: string; paciente: PacienteOdontologia; denticion: Denticion };
 
 const CLAVE_UNIDAD = "odontologia-unidad";
@@ -264,28 +264,22 @@ export default function ConsultorioOdontologiaPage() {
   }[estadoGuardado];
 
   const barra = (
-    <header className="bg-cyan-800 px-4 sm:px-6">
-      <div className="mx-auto max-w-[1400px] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-        <div className="flex items-center gap-3">
-          <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
-          <div className="text-white">
-            <p className="font-heading text-sm font-semibold leading-tight">Consultorio odontológico</p>
-            {jornada && <p className="text-[11px] text-cyan-100 leading-tight">{jornada.nombre}</p>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-cyan-50">
-          {unidad && (
-            <button onClick={() => setUnidad(null)} disabled={Boolean(atencionId)} className="rounded bg-white/10 px-2 py-1 text-xs disabled:cursor-default" title="Cambiar de unidad">
-              Unidad {unidad}
-            </button>
-          )}
-          {usuario && <span className="hidden sm:inline">{usuario.nombre}</span>}
-          <button onClick={salir} className="hover:text-white">
-            Salir
-          </button>
-        </div>
-      </div>
-    </header>
+    <BarraTrabajo titulo="Consultorio odontológico" subtitulo={jornada?.nombre} ancho="max-w-[1400px]">
+      {unidad && (
+        <button
+          onClick={() => setUnidad(null)}
+          disabled={Boolean(atencionId)}
+          className="pildora bg-blue-100 text-blue-800 py-1 disabled:cursor-default"
+          title="Cambiar de unidad"
+        >
+          Unidad {unidad}
+        </button>
+      )}
+      {usuario && <span className="hidden sm:inline px-2 text-slate-600">{usuario.nombre}</span>}
+      <button onClick={salir} className={claseAccionBarra}>
+        Salir
+      </button>
+    </BarraTrabajo>
   );
 
   if (jornada === undefined) return <div className="p-8 text-sm text-slate-500">Cargando...</div>;
@@ -297,7 +291,7 @@ export default function ConsultorioOdontologiaPage() {
         <div className="mx-auto max-w-xl px-4 py-16 text-center">
           <h1 className="font-heading text-xl font-semibold text-cyan-900">No hay una jornada de odontología abierta</h1>
           <p className="mt-2 text-sm text-slate-600">Cuando el docente inicie la jornada, recarga esta página.</p>
-          <button onClick={cargar} className="mt-4 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800">
+          <button onClick={cargar} className="mt-4 rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">
             Volver a revisar
           </button>
         </div>
@@ -351,7 +345,7 @@ export default function ConsultorioOdontologiaPage() {
               </span>
               <button
                 onClick={() => setCerrando(true)}
-                className="rounded-lg bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+                className="rounded-full font-heading bg-blue-800 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-900"
               >
                 Cerrar y firmar historia
               </button>
@@ -396,7 +390,7 @@ export default function ConsultorioOdontologiaPage() {
               <SeccionEvolucion h={historia} set={cambiar} />
             </section>
             <div className="flex justify-end">
-              <button onClick={() => setCerrando(true)} className="rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">
+              <button onClick={() => setCerrando(true)} className="rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900">
                 Cerrar y firmar historia
               </button>
             </div>
@@ -440,7 +434,7 @@ export default function ConsultorioOdontologiaPage() {
           </div>
         )}
         {jornada.pacientesReales ? (
-          <form onSubmit={abrirHistoriaReal} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm flex flex-col gap-3">
+          <form onSubmit={abrirHistoriaReal} className="tarjeta p-5 flex flex-col gap-3">
             <div>
               <h1 className="font-heading text-lg font-semibold text-cyan-900">Admisión del paciente</h1>
               <p className="text-sm text-slate-600">
@@ -519,12 +513,12 @@ export default function ConsultorioOdontologiaPage() {
               Mi compañero aceptó que lo examine como parte de la práctica y que sus datos se usen solo durante esta jornada.
             </label>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <button type="submit" className="self-start rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">
+            <button type="submit" className="self-start rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900">
               Abrir historia clínica
             </button>
           </form>
         ) : (
-        <section className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+        <section className="tarjeta p-5">
           <h1 className="font-heading text-lg font-semibold text-cyan-900">Admisión del paciente</h1>
           <p className="text-sm text-slate-600 mb-3">Pídele el documento de identidad y búscalo en el sistema.</p>
           <form onSubmit={buscar} className="flex flex-wrap gap-2">
@@ -537,9 +531,9 @@ export default function ConsultorioOdontologiaPage() {
               onChange={(e) => setDocumento(e.target.value)}
               inputMode="numeric"
               placeholder="Número de documento"
-              className="flex-1 min-w-48 rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="flex-1 min-w-48 rounded-xl border border-blue-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-            <button type="submit" className="rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">
+            <button type="submit" className="rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900">
               Buscar
             </button>
           </form>
@@ -552,7 +546,7 @@ export default function ConsultorioOdontologiaPage() {
             <SeccionIdentificacion paciente={encontrado.paciente} />
             <button
               onClick={abrirHistoria}
-              className="self-start rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800"
+              className="self-start rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
             >
               Abrir historia clínica
             </button>

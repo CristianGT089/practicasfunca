@@ -10,7 +10,7 @@ import { denticionDe } from "./consultorio";
 
 /** La jornada de Odontología abierta que le corresponde a esta cuenta (puesto, participante o grupo). */
 export async function jornadaActiva(usuario: Usuario) {
-  const base = { tipo: "ODONTOLOGIA" as const, estado: "ABIERTA" as const };
+  const base = { tipo: "ODONTOLOGIA" as const, estado: "ABIERTA" as const, dictado: false };
   const donde = usuario.sesionTurneroId
     ? { ...base, sesionTurneroId: usuario.sesionTurneroId }
     : usuario.rol === "ESTUDIANTE"
@@ -138,6 +138,7 @@ async function atencionEditable(usuario: Usuario, atencionId: string) {
   if (!a || a.simulacion.tipo !== "ODONTOLOGIA" || a.usuarioId !== usuario.id) throw new Error("Atención no encontrada");
   if (a.simulacion.estado !== "ABIERTA") throw new Error("La jornada ya terminó");
   if (a.cerradaEn) throw new Error("Esta historia ya se cerró");
+  if (a.simulacion.dictadoPausado) throw new Error("El docente pausó el dictado");
   return a;
 }
 

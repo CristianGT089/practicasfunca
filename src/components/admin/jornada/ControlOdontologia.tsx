@@ -66,7 +66,7 @@ export default function ControlOdontologia({
         etiqueta="Unidad"
       />
 
-      <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+      <section className="tarjeta-sm p-4">
         <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Historias de la jornada</h2>
         {atenciones.length === 0 ? (
           <p className="text-xs text-slate-500">Todavía nadie ha abierto una historia. Se ven aquí apenas un estudiante busca a su paciente.</p>

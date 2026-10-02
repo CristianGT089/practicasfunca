@@ -175,7 +175,7 @@ export default function CasosDispensacionPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="font-heading text-2xl font-bold text-blue-900">Casos de dispensación</h1>
+        <h1 className="titulo-pagina">Casos de dispensación</h1>
         <button
           onClick={() => setEditando(casoVacio())}
           className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
@@ -267,12 +267,12 @@ function Editor({
             value={caso.titulo}
             onChange={(e) => set({ titulo: e.target.value })}
             placeholder="Título"
-            className="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="col-span-2 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
           <select
             value={caso.pacienteId}
             onChange={(e) => set({ pacienteId: e.target.value })}
-            className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+            className="rounded-xl border border-blue-200 px-2 py-2 text-sm"
           >
             <option value="">Paciente…</option>
             {pacientes.map((p) => (
@@ -287,7 +287,7 @@ function Editor({
               type="number"
               value={caso.orden}
               onChange={(e) => set({ orden: Number(e.target.value) })}
-              className="w-16 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-16 rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
             />
             <span className="ml-auto flex items-center gap-1">
               <input type="checkbox" checked={caso.activo} onChange={(e) => set({ activo: e.target.checked })} />
@@ -299,13 +299,13 @@ function Editor({
             onChange={(e) => set({ contexto: e.target.value })}
             placeholder="Contexto: qué dice o pide el paciente"
             rows={2}
-            className="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="col-span-2 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
           <input
             value={caso.documentoPresentado}
             onChange={(e) => set({ documentoPresentado: e.target.value })}
             placeholder="Documento que presenta la persona (vacío = el correcto)"
-            className="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="col-span-2 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
         </div>
 
@@ -361,7 +361,7 @@ function Editor({
         </button>
 
         <div className="flex items-center gap-3">
-          <button onClick={onGuardar} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+          <button onClick={onGuardar} className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
             Guardar
           </button>
           <button onClick={onCancelar} className="text-sm text-slate-400 hover:text-slate-600">

@@ -99,7 +99,7 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
 
   if (miEspacio == null || !espacio) {
     return (
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+      <div className="tarjeta-sm p-4 mb-5">
         <p className="text-sm font-heading font-semibold text-blue-900 mb-1">
           Turnero: {snapshot.sesion.turnero.nombre}
         </p>
@@ -109,7 +109,7 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
             <button
               key={e.numero}
               onClick={() => elegirEspacio(e.numero)}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-blue-500 hover:text-blue-800"
+              className="rounded-xl border border-blue-200 px-3 py-1.5 text-sm text-slate-700 hover:border-blue-500 hover:text-blue-800"
             >
               {e.nombre ?? `Espacio ${e.numero}`}
             </button>
@@ -120,7 +120,7 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
   }
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+    <div className="tarjeta-sm p-4 mb-5">
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-heading font-semibold text-blue-900">
           Turnero — {espacio.nombre ?? `Espacio ${espacio.numero}`}
@@ -157,7 +157,7 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
             <button
               onClick={() => accion("NO_SE_PRESENTO")}
               disabled={enviando}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               No se presentó
             </button>

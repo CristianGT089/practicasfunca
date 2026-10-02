@@ -60,14 +60,14 @@ export default function EscenariosPage() {
     <div className="mx-auto max-w-4xl">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-blue-900">Práctica virtual</h1>
+          <h1 className="titulo-pagina">Práctica virtual</h1>
           <p className="text-sm text-slate-500">Los casos que cada estudiante resuelve solo en el computador; ve su nota al terminar.</p>
         </div>
         {/* El formulario genérico de escenarios es el de Farmacia; los demás módulos tienen su editor en su menú. */}
         {(sesion?.rol === "ADMIN" || sesion?.slugs.includes("farmacia")) && (
           <Link
             href="/admin/escenarios/nuevo"
-            className="shrink-0 rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
+            className="shrink-0 rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
           >
             Crear caso de Farmacia
           </Link>
@@ -78,7 +78,7 @@ export default function EscenariosPage() {
 
       <div className="flex flex-col gap-4">
         {escenarios.map((esc) => (
-          <div key={esc.id} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+          <div key={esc.id} className="tarjeta p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-medium text-slate-800">{esc.titulo}</h2>

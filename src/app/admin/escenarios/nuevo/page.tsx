@@ -114,17 +114,17 @@ export default function NuevoEscenarioPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Crear escenario</h1>
+      <h1 className="titulo-pagina mb-6">Crear escenario</h1>
 
       <form onSubmit={guardar} className="flex flex-col gap-6">
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+        <div className="tarjeta p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-3">Datos generales</h2>
 
           <label className="block text-xs font-medium text-slate-600 mb-1">Título</label>
           <input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-3"
+            className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm mb-3"
             required
           />
 
@@ -134,7 +134,7 @@ export default function NuevoEscenarioPage() {
           <textarea
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-3"
+            className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm mb-3"
             rows={3}
             required
           />
@@ -145,7 +145,7 @@ export default function NuevoEscenarioPage() {
               <select
                 value={resultadoEsperado}
                 onChange={(e) => setResultadoEsperado(e.target.value as "VENTA_CORRECTA" | "RECHAZO_CORRECTO")}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               >
                 <option value="VENTA_CORRECTA">Debe completar la venta</option>
                 <option value="RECHAZO_CORRECTO">Debe rechazar la venta</option>
@@ -156,7 +156,7 @@ export default function NuevoEscenarioPage() {
               <select
                 value={pacienteId}
                 onChange={(e) => setPacienteId(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
               >
                 <option value="">Sin paciente</option>
                 {pacientes.map((p) => (
@@ -169,7 +169,7 @@ export default function NuevoEscenarioPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+        <div className="tarjeta p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-3">Medicamentos implicados en el caso</h2>
           <div className="flex flex-wrap gap-2">
             {medicamentos.map((m) => (
@@ -193,7 +193,7 @@ export default function NuevoEscenarioPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+        <div className="tarjeta p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-700">
               Checklist de pasos esperados (define cómo se califica)
@@ -227,7 +227,7 @@ export default function NuevoEscenarioPage() {
                       <select
                         value={paso.tipoAccion}
                         onChange={(e) => actualizarPaso(idx, { tipoAccion: e.target.value })}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
                       >
                         {TIPOS_ACCION.map((t) => (
                           <option key={t.valor} value={t.valor}>
@@ -242,7 +242,7 @@ export default function NuevoEscenarioPage() {
                         <select
                           value={paso.medicamentoId}
                           onChange={(e) => actualizarPaso(idx, { medicamentoId: e.target.value })}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
                         >
                           <option value="">Selecciona...</option>
                           {medicamentos.map((m) => (
@@ -261,7 +261,7 @@ export default function NuevoEscenarioPage() {
                   <input
                     value={paso.descripcion}
                     onChange={(e) => actualizarPaso(idx, { descripcion: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-2"
+                    className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm mb-2"
                     placeholder='Ej: "Verificó que el paciente no fuera alérgico"'
                   />
 
@@ -273,7 +273,7 @@ export default function NuevoEscenarioPage() {
                         min={1}
                         value={paso.peso}
                         onChange={(e) => actualizarPaso(idx, { peso: Number(e.target.value) })}
-                        className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        className="w-16 rounded-xl border border-blue-200 px-2 py-1 text-sm"
                       />
                     </label>
                     <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -296,7 +296,7 @@ export default function NuevoEscenarioPage() {
         <button
           type="submit"
           disabled={guardando}
-          className="rounded-lg bg-blue-800 py-2.5 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-60"
+          className="rounded-full font-heading bg-blue-800 py-2.5 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-60"
         >
           {guardando ? "Guardando..." : "Crear escenario"}
         </button>

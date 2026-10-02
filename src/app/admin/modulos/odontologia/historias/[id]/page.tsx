@@ -53,7 +53,7 @@ export default function HistoriaDetallePage({ params }: { params: Promise<{ id: 
       <Link href="/admin/modulos/odontologia/historias" className="text-sm text-slate-500 hover:text-slate-800">
         ← Historias
       </Link>
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+      <div className="tarjeta-sm p-4 flex items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-xl font-bold text-blue-900">{d.intento.usuario.nombre}</h1>
           <p className="text-sm text-slate-500">
@@ -64,11 +64,11 @@ export default function HistoriaDetallePage({ params }: { params: Promise<{ id: 
         {d.intento.puntajeFinal !== null && <p className="text-3xl font-heading font-extrabold text-cyan-700">{Math.round(d.intento.puntajeFinal)}/100</p>}
       </div>
 
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+      <div className="tarjeta-sm p-4">
         <RevisionOdontograma revision={d.revisionOdontologia} />
       </div>
 
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+      <div className="tarjeta-sm p-4">
         <h3 className="text-sm font-heading font-semibold text-cyan-900 mb-2">Revisión automática del resto</h3>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
           {otras.map((p, i) => (

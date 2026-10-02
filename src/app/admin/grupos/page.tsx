@@ -16,7 +16,7 @@ type Grupo = {
 type Estudiante = Ref & { usuario: string };
 
 const claseInput =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
+  "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
 
 const alternar = (lista: string[], id: string) => (lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id]);
 
@@ -129,13 +129,13 @@ export default function GruposPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-2">Grupos</h1>
+      <h1 className="titulo-pagina mb-2">Grupos</h1>
       <p className="text-sm text-slate-500 mb-6">
         Un grupo es un curso o cohorte, por ejemplo &ldquo;Técnico en Farmacia, sábado 2026-2&rdquo;. Sus estudiantes quedan matriculados en
         los módulos del grupo, y las jornadas presenciales se hacen por grupo.
       </p>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6 flex flex-col gap-3">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6 flex flex-col gap-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-sm font-medium text-slate-700">
             Nombre del grupo
@@ -156,7 +156,7 @@ export default function GruposPage() {
             {casillas(docentes, docenteIds, setDocenteIds)}
           </div>
         )}
-        <button type="submit" className="self-start rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+        <button type="submit" className="self-start rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Crear grupo
         </button>
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -216,7 +216,7 @@ export default function GruposPage() {
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                         placeholder="Buscar estudiante"
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded-xl border border-blue-200 px-2 py-1 text-xs"
                       />
                     </div>
                     {estudiantes.length === 0 ? (

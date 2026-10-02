@@ -52,24 +52,24 @@ export default function ModulosPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Módulos</h1>
+      <h1 className="titulo-pagina mb-6">Módulos</h1>
 
-      <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
+      <div className="tarjeta p-5 mb-6">
         <h2 className="text-sm font-heading font-semibold text-blue-900 mb-3">Nuevo módulo</h2>
         <div className="flex gap-2">
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             placeholder="slug (ej: primera_infancia)"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
           <input
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Nombre (ej: Primera Infancia)"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
-          <button onClick={crear} className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900">
+          <button onClick={crear} className="rounded-full font-heading bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900">
             Crear
           </button>
         </div>
@@ -79,7 +79,7 @@ export default function ModulosPage() {
 
       <div className="flex flex-col gap-3">
         {modulos.map((m) => (
-          <div key={m.id} className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div key={m.id} className="tarjeta-sm p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-800">
                 {m.nombre} <span className="text-xs text-slate-400">({m.slug})</span>

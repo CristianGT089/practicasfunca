@@ -216,7 +216,7 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
           </div>
         </header>
         <div className="px-6 py-10">
-          <div className="mx-auto max-w-2xl rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+          <div className="mx-auto max-w-2xl tarjeta p-8 text-center">
             <h1 className="font-heading text-xl font-bold text-amber-800 mb-2">{terminado.titulo}</h1>
             {terminado.puntaje !== null && (
               <p className="text-4xl font-heading font-extrabold mb-4 text-amber-700">{terminado.puntaje}/100</p>
@@ -291,12 +291,12 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
 
       <div className="px-6 py-8">
         <div className="mx-auto max-w-5xl">
-          <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-4 border-l-4 border-l-amber-500">
+          <div className="tarjeta p-5 mb-4 border-l-4 border-l-amber-500">
             <h1 className="font-heading font-semibold text-amber-900">{intento.escenario.titulo}</h1>
             <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{intento.escenario.descripcion}</p>
           </div>
 
-          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-6">
+          <div className="tarjeta-sm p-4 mb-6">
             <div className="flex items-center justify-between mb-2 gap-4">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Progreso de este caso</span>
               <span className="text-xs font-semibold text-slate-500">Precisión: {precision}%</span>
@@ -311,7 +311,7 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
 
           <div className="grid grid-cols-2 gap-6">
             <div className="col-span-1 flex flex-col gap-4">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Ficha del niño/a</h2>
                 {!fichaVista && (
                   <button
@@ -338,12 +338,12 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
               </div>
 
               {prematuro && (
-                <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+                <div className="tarjeta-sm p-4">
                   <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Edad corregida</h2>
                   {!edadCorregidaCalculada && (
                     <button
                       onClick={calcularEdadCorregida}
-                      className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       Calcular edad corregida
                     </button>
@@ -357,7 +357,7 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
                 </div>
               )}
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Peso y talla</h2>
                 {nino && nino.registrosCrecimiento.length > 0 && (
                   <ul className="text-xs text-slate-600 mb-2 flex flex-col gap-0.5">
@@ -374,13 +374,13 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
                       value={pesoHoy}
                       onChange={(e) => setPesoHoy(e.target.value)}
                       placeholder="Peso hoy (kg)"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                     <input
                       value={tallaHoy}
                       onChange={(e) => setTallaHoy(e.target.value)}
                       placeholder="Talla hoy (cm)"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                     <button
                       onClick={registrarPesoTalla}
@@ -395,12 +395,12 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
                 )}
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Esquema de vacunación</h2>
                 {!vacunacionVerificada ? (
                   <button
                     onClick={verificarVacunacion}
-                    className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     Verificar esquema de vacunación
                   </button>
@@ -415,7 +415,7 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
             </div>
 
             <div className="col-span-1 flex flex-col gap-4">
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Hitos de desarrollo a valorar</h2>
                 <div className="flex flex-col gap-2">
                   {hitos.map((h) => {
@@ -453,7 +453,7 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
                 </div>
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+              <div className="tarjeta-sm p-4">
                 <h2 className="text-sm font-heading font-semibold text-amber-900 mb-2">Señales de alarma</h2>
                 <div className="flex flex-col gap-1 mb-2">
                   {MOTIVOS_ALARMA.map((m) => (
@@ -470,13 +470,13 @@ export default function PrimeraInfanciaSoftware({ intentoId }: { intentoId: stri
                 <button
                   onClick={registrarAlarma}
                   disabled={motivosSeleccionados.length === 0 || alarmaRegistrada}
-                  className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  className="w-full rounded-xl border border-blue-200 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   {alarmaRegistrada ? "Señales registradas" : "Registrar señales seleccionadas"}
                 </button>
               </div>
 
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col gap-2">
+              <div className="tarjeta-sm p-4 flex flex-col gap-2">
                 <h2 className="text-sm font-heading font-semibold text-amber-900">Decisión final</h2>
                 <button
                   onClick={registrarSeguimiento}

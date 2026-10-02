@@ -42,8 +42,8 @@ export default function MatriculasPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Matrículas</h1>
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
+      <h1 className="titulo-pagina mb-6">Matrículas</h1>
+      <div className="tarjeta-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200">

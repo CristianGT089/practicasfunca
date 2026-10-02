@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { RUTAS_DIRECTAS } from "@/lib/nucleo/rutasDirectas";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
@@ -115,15 +116,15 @@ export default function EstudiantesPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-6">Estudiantes</h1>
+      <h1 className="titulo-pagina mb-6">Estudiantes</h1>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6 flex flex-wrap gap-3 items-end">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-40">
           <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo</label>
           <input
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+            className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
             required
           />
         </div>
@@ -132,7 +133,7 @@ export default function EstudiantesPage() {
           <input
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+            className="w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
             required
           />
         </div>
@@ -141,7 +142,7 @@ export default function EstudiantesPage() {
           <select
             value={genero}
             onChange={(e) => setGenero(e.target.value as Genero | "")}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+            className="rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
           >
             <option value="">Sin especificar</option>
             <option value="FEMENINO">Femenino</option>
@@ -149,7 +150,7 @@ export default function EstudiantesPage() {
             <option value="OTRO">Otro</option>
           </select>
         </div>
-        <button type="submit" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+        <button type="submit" className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Crear
         </button>
         <div className="basis-full">
@@ -190,7 +191,7 @@ export default function EstudiantesPage() {
 
       <PuestosTemporales onCreados={cargar} />
       <p className="text-xs text-slate-400 -mt-4 mb-6">
-        Para una sala con turnero, mejor créalos desde la <a href="/admin/simulacion" className="underline">jornada presencial</a>:
+        Para una sala con turnero, mejor créalos desde la <Link href="/admin/simulacion" className="underline">jornada presencial</Link>:
         se borran solos cuando la cierras.
       </p>
 
@@ -203,7 +204,7 @@ export default function EstudiantesPage() {
             <select
               value={filtroGrupo}
               onChange={(e) => setFiltroGrupo(e.target.value)}
-              className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+              className="rounded-xl border border-blue-200 px-2 py-1 text-xs"
               aria-label="Filtrar por grupo"
             >
               <option value="">Todos los grupos</option>
@@ -222,7 +223,7 @@ export default function EstudiantesPage() {
         )}
       </div>
 
-      <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-x-auto">
+      <div className="tarjeta-sm overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-slate-50 text-slate-600 text-left">
             <tr>

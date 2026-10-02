@@ -105,7 +105,7 @@ function Kiosco({
 
   return (
     <div className="mx-auto max-w-xl py-6">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 text-center mb-1">Solicitar turno</h1>
+      <h1 className="titulo-pagina text-center mb-1">Solicitar turno</h1>
       <p className="text-sm text-slate-500 text-center mb-6">Seleccione el servicio que necesita</p>
 
       {esSimulacion && (
@@ -114,7 +114,7 @@ function Kiosco({
             value={cedula}
             onChange={(e) => setCedula(e.target.value)}
             placeholder="Cédula del paciente"
-            className="w-full rounded-lg border border-slate-300 px-4 py-3 text-center text-lg"
+            className="w-full rounded-xl border border-blue-200 px-4 py-3 text-center text-lg"
           />
           <p className="text-xs text-slate-400 text-center mt-1">
             Esta simulación pide la cédula para verificar la historia clínica.

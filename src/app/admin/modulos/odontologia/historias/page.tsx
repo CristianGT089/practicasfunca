@@ -38,7 +38,7 @@ export default function HistoriasOdontologiaPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-2">Historias diligenciadas</h1>
+      <h1 className="titulo-pagina mb-2">Historias diligenciadas</h1>
       <p className="text-sm text-slate-500 mb-4">
         La nota automática cubre el odontograma, la alerta, los antecedentes, los exámenes, la placa y la remisión. Aquí puedes leer también lo
         que no se califica solo: diagnóstico, pronóstico, plan de tratamiento y evolución.
@@ -47,7 +47,7 @@ export default function HistoriasOdontologiaPage() {
         value={filtro}
         onChange={(e) => setFiltro(e.target.value)}
         placeholder="Buscar por estudiante o caso"
-        className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="mb-4 w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
       />
       {intentos === null && <p className="text-slate-500 text-sm">Cargando...</p>}
       {intentos && visibles.length === 0 && <p className="text-slate-500 text-sm">No hay historias todavía.</p>}

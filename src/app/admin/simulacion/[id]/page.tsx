@@ -11,6 +11,7 @@ import Ventanillas from "@/components/admin/jornada/Ventanillas";
 import Confirmacion from "@/components/admin/jornada/Confirmacion";
 import Reporte from "@/components/admin/jornada/Reporte";
 import ControlOdontologia from "@/components/admin/jornada/ControlOdontologia";
+import ControlDictado from "@/components/admin/jornada/ControlDictado";
 import CuentasPuestos, { type CuentaPuesto } from "@/components/admin/jornada/CuentasPuestos";
 import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjetasPdf";
 import type { Participante } from "@/components/admin/jornada/tipos";
@@ -51,6 +52,8 @@ type Simulacion = {
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   turnero: { numeroEspacios: number };
   pacientesReales: boolean;
+  dictado: boolean;
+  dictadoSecciones: "ODONTOGRAMA" | "COMPLETA" | null;
   casosOdontologia: CasoOdontologiaJornada[];
   turneroId: string;
   sesionTurneroId: string | null;
@@ -85,7 +88,7 @@ type CasoOdontologiaJornada = {
 const ETIQUETA_TIPO: Record<Simulacion["tipo"], string> = {
   FARMACIA: "Farmacia",
   DISPENSARIO: "Dispensario",
-  ODONTOLOGIA: "Odontología (historia clínica)",
+  ODONTOLOGIA: "Odontología",
 };
 
 const ETIQUETA_ESTADO: Record<Simulacion["estado"], string> = {
@@ -215,11 +218,13 @@ export default function SimulacionDetallePage() {
       </div>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-blue-900">{simulacion.nombre}</h1>
+          <h1 className="titulo-pagina">{simulacion.nombre}</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             {ETIQUETA_TIPO[simulacion.tipo]}
             {simulacion.grupo && ` · ${simulacion.grupo.nombre}`}
-            {simulacion.tipo === "ODONTOLOGIA"
+            {simulacion.dictado
+              ? ` · dictado de ${simulacion.dictadoSecciones === "COMPLETA" ? "la historia completa" : "odontograma"}`
+              : simulacion.tipo === "ODONTOLOGIA"
               ? ` · ${simulacion.pacientesReales ? "pacientes reales" : `${simulacion.casosOdontologia.length} casos`} · ${simulacion.turnero.numeroEspacios} unidades`
               : simulacion.estado !== "CERRADA" && ` · ${simulacion.pacientes.length} pacientes`}{" "}
             · {ETIQUETA_ESTADO[simulacion.estado]}
@@ -231,7 +236,7 @@ export default function SimulacionDetallePage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {(simulacion.pacientes.length > 0 || (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA")) && (
+          {(simulacion.pacientes.length > 0 || (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA" && !simulacion.dictado)) && (
             <button
               onClick={descargarPdf}
               disabled={generandoPdf}
@@ -243,9 +248,9 @@ export default function SimulacionDetallePage() {
           {simulacion.estado === "BORRADOR" && (
             <button
               onClick={abrir}
-              className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
+              className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
             >
-              Iniciar jornada
+              {simulacion.dictado ? "Iniciar dictado" : "Iniciar jornada"}
             </button>
           )}
           {simulacion.estado === "ABIERTA" && (
@@ -253,12 +258,14 @@ export default function SimulacionDetallePage() {
               <button onClick={cerrar} className="text-sm text-slate-500 hover:text-red-600">
                 Cancelar sin calificar
               </button>
-              <button
-                onClick={() => setConfirmandoFin(true)}
-                className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
-              >
-                Finalizar jornada
-              </button>
+              {!simulacion.dictado && (
+                <button
+                  onClick={() => setConfirmandoFin(true)}
+                  className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
+                >
+                  Finalizar jornada
+                </button>
+              )}
             </>
           )}
         </div>
@@ -271,10 +278,10 @@ export default function SimulacionDetallePage() {
             Se cierra el turnero: nadie más podrá sacar ni llamar turnos. Después confirmas quién atendió a cada paciente y calificas.
           </p>
           <div className="flex gap-2 mt-3">
-            <button onClick={finalizar} className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900">
+            <button onClick={finalizar} className="rounded-full font-heading bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900">
               Sí, finalizar
             </button>
-            <button onClick={() => setConfirmandoFin(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600">
+            <button onClick={() => setConfirmandoFin(false)} className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs text-slate-600">
               Seguir con la jornada
             </button>
           </div>
@@ -283,26 +290,32 @@ export default function SimulacionDetallePage() {
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-      {simulacion.estado === "BORRADOR" && (
+      {simulacion.estado === "BORRADOR" && !simulacion.dictado && (
         <p className="text-xs text-slate-400 mb-4">
           Revisa cada paciente antes de iniciar. Puedes regenerar los que no sirvan para la clase. Descarga el PDF: trae la receta y las
           indicaciones para el compañero que interpreta a cada paciente.
         </p>
       )}
 
-      {(simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
+      {simulacion.estado === "BORRADOR" && (
         <div className="mb-6">
           <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
         </div>
       )}
 
-      {simulacion.estado === "ABIERTA" && (
+      {simulacion.dictado && (simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
+        <div className="mb-6">
+          <ControlDictado simulacionId={simulacion.id} enCurso={simulacion.estado === "ABIERTA"} onTerminado={cargar} />
+        </div>
+      )}
+
+      {simulacion.estado === "ABIERTA" && !simulacion.dictado && (
         <div className="mb-6">
           <CuentasPuestos simulacionId={simulacion.id} iniciales={cuentasNuevas} />
         </div>
       )}
 
-      {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && (
+      {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.dictado && (
         <ControlOdontologia
           simulacionId={simulacion.id}
           sesionTurneroId={simulacion.sesionTurneroId}
@@ -321,6 +334,13 @@ export default function SimulacionDetallePage() {
           ventanillas={ventanillas}
           onVentanillas={setVentanillas}
         />
+      )}
+
+      {/* En curso, lo principal es el control de arriba; la lista de participantes va al final. */}
+      {simulacion.estado === "ABIERTA" && (
+        <div className="mt-6">
+          <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
+        </div>
       )}
 
       {simulacion.estado === "EN_REVISION" && (
@@ -345,13 +365,13 @@ export default function SimulacionDetallePage() {
         </div>
       )}
 
-      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.pacientesReales && (
+      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.pacientesReales && !simulacion.dictado && (
         <div className="flex flex-col gap-2">
           <h2 className="text-sm font-heading font-semibold text-blue-900">Casos de la jornada</h2>
           {simulacion.casosOdontologia.map((c) => {
             const p = c.escenarioOdontologia.paciente;
             return (
-              <div key={c.id} className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm text-sm">
+              <div key={c.id} className="tarjeta-sm p-4 text-sm">
                 <p className="font-medium text-slate-800">{c.escenarioOdontologia.escenario.titulo}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {p.nombres} {p.primerApellido} · {p.tipoDocumento} {p.documento} · dentición{" "}
@@ -450,7 +470,7 @@ function ControlTurnero({
       />
 
       {puestos.length > 0 && (
-        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+        <div className="tarjeta-sm p-4 mb-5">
           <p className="text-xs font-semibold text-slate-500 mb-2">Cuentas de esta sesión ({puestos.length})</p>
           <div className="flex flex-wrap gap-2">
             {puestos.map((p) => (
@@ -462,7 +482,7 @@ function ControlTurnero({
         </div>
       )}
 
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <div className="tarjeta-sm p-4 mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <span className="text-slate-500">
           En espera <b className="text-slate-800">{contadores.enEspera}</b>
         </span>
@@ -494,7 +514,7 @@ function ControlTurnero({
 
       <div className="grid gap-3 sm:grid-cols-2 mb-6">
         {espacios.map((e) => (
-          <div key={e.numero} className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+          <div key={e.numero} className="tarjeta-sm p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-heading font-semibold text-blue-900">
                 {e.nombre ?? `Espacio ${e.numero}`}
@@ -522,13 +542,13 @@ function ControlTurnero({
                   </button>
                   <button
                     onClick={() => api(`/api/turnero/tickets/${e.ticket!.id}`, { resultado: "NO_SE_PRESENTO" }, "PATCH")}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     No se presentó
                   </button>
                   <button
                     onClick={() => api(`/api/turnero/tickets/${e.ticket!.id}`, { rellamar: true }, "PATCH")}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   >
                     Rellamar
                   </button>
@@ -579,7 +599,7 @@ function FilaPaciente({
 }) {
   const ahora = Date.now();
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+    <div className="tarjeta-sm p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
           <p className="text-sm font-medium text-slate-800">
@@ -626,7 +646,7 @@ function FilaPaciente({
           <button
             onClick={onRegenerar}
             disabled={regenerando}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="shrink-0 rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             {regenerando ? "Generando..." : "Regenerar"}
           </button>

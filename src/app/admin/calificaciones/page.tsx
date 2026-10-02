@@ -72,7 +72,7 @@ export default function CalificacionesPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-1">Calificaciones</h1>
+      <h1 className="titulo-pagina mb-1">Calificaciones</h1>
       <p className="text-sm text-slate-500 mb-8">
         Progreso sobre los {totalEscenarios} casos de esta primera etapa.
       </p>
@@ -89,7 +89,7 @@ export default function CalificacionesPage() {
               : null;
 
           return (
-            <div key={u.id} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+            <div key={u.id} className="tarjeta p-5">
               <div className="flex items-center justify-between gap-4 mb-3">
                 <h2 className="font-heading font-semibold text-blue-900">
                   {u.nombre} <span className="text-slate-400 text-sm font-body font-normal">({u.usuario})</span>

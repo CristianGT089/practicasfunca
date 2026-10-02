@@ -139,7 +139,7 @@ export default function PuestosTemporales({
   }
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
+    <div className="tarjeta p-5 mb-6">
       {colapsable ? (
         <button onClick={() => setAbierto((v) => !v)} className="text-sm font-heading font-semibold text-blue-900">
           {abierto ? "▾" : "▸"} {titulo}
@@ -186,7 +186,7 @@ export default function PuestosTemporales({
                 onChange={(e) => setNombresTexto(e.target.value)}
                 rows={4}
                 placeholder={"María Gómez\nJuan Pérez\nLaura Torres"}
-                className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-mono"
+                className="w-full rounded-xl border border-blue-200 px-2 py-1.5 text-sm font-mono"
               />
               {nombres.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1.5">
@@ -196,7 +196,7 @@ export default function PuestosTemporales({
                       <select
                         value={generos[n] ?? ""}
                         onChange={(e) => setGeneros((g) => ({ ...g, [n]: e.target.value as Genero | "" }))}
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600"
+                        className="rounded-xl border border-blue-200 px-2 py-1 text-xs text-slate-600"
                       >
                         <option value="">Género (opcional)</option>
                         <option value="FEMENINO">Femenino</option>
@@ -218,7 +218,7 @@ export default function PuestosTemporales({
                   max={40}
                   value={cantidad}
                   onChange={(e) => setCantidad(Number(e.target.value))}
-                  className="mt-1 block w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                  className="mt-1 block w-20 rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
                 />
               </label>
               <label className="flex-1 text-xs text-slate-500">
@@ -226,7 +226,7 @@ export default function PuestosTemporales({
                 <input
                   value={prefijo}
                   onChange={(e) => setPrefijo(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                  className="mt-1 w-full rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
                 />
               </label>
             </div>
@@ -237,7 +237,7 @@ export default function PuestosTemporales({
             <select
               value={rutaDirecta}
               onChange={(e) => setRutaDirecta(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-1 block w-full rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
             >
               <option value="">Ninguna — panel normal (elige el módulo ahí)</option>
               {RUTAS_DIRECTAS.map((r) => (
@@ -267,7 +267,7 @@ export default function PuestosTemporales({
           <button
             onClick={crear}
             disabled={creando || seleccion.size === 0 || cantidadFinal === 0}
-            className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+            className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
           >
             {creando ? "Creando..." : `Crear ${cantidadFinal} puesto(s)`}
           </button>

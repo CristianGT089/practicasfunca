@@ -168,7 +168,7 @@ function aPayload(c: Caso) {
 }
 
 const claseInput =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500";
+  "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500";
 
 /**
  * Casos de Odontología: el docente arma el paciente, lo que cuenta y lo que se ve al
@@ -233,7 +233,7 @@ export default function CasosOdontologiaPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="font-heading text-2xl font-bold text-blue-900">Casos de odontología</h1>
+        <h1 className="titulo-pagina">Casos de odontología</h1>
         <button onClick={() => setEditando(casoVacio())} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Nuevo caso
         </button>
@@ -283,7 +283,7 @@ export default function CasosOdontologiaPage() {
 
 function Seccion({ titulo, children, ayuda }: { titulo: string; children: React.ReactNode; ayuda?: string }) {
   return (
-    <section className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+    <section className="tarjeta-sm p-4">
       <h2 className="font-heading font-semibold text-cyan-900 text-sm">{titulo}</h2>
       {ayuda && <p className="text-xs text-slate-500 mt-0.5">{ayuda}</p>}
       <div className="mt-3">{children}</div>
@@ -333,7 +333,7 @@ function Editor({
   return (
     <div className="mx-auto max-w-6xl flex flex-col gap-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold text-blue-900">{caso.id ? "Editar caso" : "Nuevo caso"}</h1>
+        <h1 className="titulo-pagina">{caso.id ? "Editar caso" : "Nuevo caso"}</h1>
         <button onClick={onCancelar} className="text-sm text-slate-500 hover:text-slate-800">
           ← Volver a la lista
         </button>
@@ -511,10 +511,10 @@ function Editor({
       <div className="fixed bottom-0 inset-x-0 bg-white/95 border-t border-slate-200 px-6 py-3 z-20">
         <div className="mx-auto max-w-6xl flex items-center justify-end gap-3">
           {error && <p className="mr-auto text-sm text-red-600">{error}</p>}
-          <button onClick={onCancelar} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+          <button onClick={onCancelar} className="rounded-xl border border-blue-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
             Cancelar
           </button>
-          <button onClick={onGuardar} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+          <button onClick={onGuardar} className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
             Guardar caso
           </button>
         </div>

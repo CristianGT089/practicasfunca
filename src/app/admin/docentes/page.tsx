@@ -13,7 +13,7 @@ type Docente = {
 };
 
 const claseInput =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
+  "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
 
 /** Coordinación crea a los docentes y define qué módulos enseña cada uno. */
 export default function DocentesPage() {
@@ -90,13 +90,13 @@ export default function DocentesPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold text-blue-900 mb-2">Docentes</h1>
+      <h1 className="titulo-pagina mb-2">Docentes</h1>
       <p className="text-sm text-slate-500 mb-6">
         Cada docente ve solo los módulos que enseña: sus casos, sus jornadas presenciales, sus grupos y sus estudiantes. Él mismo crea a sus
         estudiantes.
       </p>
 
-      <form onSubmit={crear} className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6 flex flex-col gap-3">
+      <form onSubmit={crear} className="tarjeta p-5 mb-6 flex flex-col gap-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-sm font-medium text-slate-700">
             Nombre completo
@@ -111,7 +111,7 @@ export default function DocentesPage() {
           <p className="text-sm font-medium text-slate-700 mb-1">Módulos que enseña</p>
           {selectorModulos(moduloIds, setModuloIds)}
         </div>
-        <button type="submit" className="self-start rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
+        <button type="submit" className="self-start rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900">
           Crear docente
         </button>
       </form>

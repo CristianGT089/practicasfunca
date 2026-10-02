@@ -31,7 +31,7 @@ const EFECTOS = [
 const guionVacio = (): Guion => ({ animoInicial: 2, entrada: "", frases: {}, respuestas: {} });
 
 const claseInput =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
+  "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500";
 
 /**
  * Persona animada y diálogo de un caso de práctica virtual. El estudiante ve a la persona
@@ -197,7 +197,7 @@ export default function EditorGuion({
           type="button"
           onClick={guardar}
           disabled={guardando}
-          className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
+          className="rounded-full font-heading bg-blue-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
         >
           {guardando ? "Guardando..." : "Guardar persona y diálogo"}
         </button>

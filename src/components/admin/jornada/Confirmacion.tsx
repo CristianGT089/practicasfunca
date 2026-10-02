@@ -135,7 +135,7 @@ export default function Confirmacion({
         <button
           onClick={calificar}
           disabled={calificando}
-          className="rounded-lg bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
+          className="rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
         >
           {calificando ? "Calificando..." : "Calificar y generar reporte"}
         </button>

@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import type { SnapshotPractica, ResultadoBusqueda, EstadoRenglon } from "@/lib/modulos/dispensacion/practica";
 import type { ResultadoBusquedaSimulacion, RenglonSimulacion } from "@/lib/simulacion/dispensario";
 import { calcularCuotaModeradora } from "@/lib/simulacion/cuotaModeradora";
 import type { CategoriaAfiliado } from "@prisma/client";
 import PanelMiEspacio, { type EstadoMiEspacio } from "@/components/turnero/PanelMiEspacio";
+import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
@@ -115,24 +115,16 @@ export default function DispensacionPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      <header className="bg-blue-900 px-6 py-4">
-        <div className="mx-auto max-w-3xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
-            <span className="font-heading text-sm font-semibold text-white">Dispensación</span>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            {snapshot && snapshot.progreso.total > 0 && !snapshot.terminado && (
-              <span className="text-blue-100">
-                Caso {Math.min(snapshot.progreso.indice + 1, snapshot.progreso.total)} de {snapshot.progreso.total}
-              </span>
-            )}
-            <button onClick={salir} className="text-blue-100 hover:text-white">
-              {cuentaConRutaDirecta ? "Cerrar sesión" : "Salir"}
-            </button>
-          </div>
-        </div>
-      </header>
+      <BarraTrabajo titulo="Dispensación" subtitulo="Simulador de ventanilla" ancho="max-w-3xl">
+        {snapshot && snapshot.progreso.total > 0 && !snapshot.terminado && (
+          <span className="pildora bg-blue-100 text-blue-800">
+            Caso {Math.min(snapshot.progreso.indice + 1, snapshot.progreso.total)} de {snapshot.progreso.total}
+          </span>
+        )}
+        <button onClick={salir} className={claseAccionBarra}>
+          {cuentaConRutaDirecta ? "Cerrar sesión" : "Salir"}
+        </button>
+      </BarraTrabajo>
 
       <div className="px-6 py-8">
         <div className="mx-auto max-w-3xl">
@@ -145,7 +137,7 @@ export default function DispensacionPage() {
               {!snapshot && <p className="text-slate-500 text-sm">Cargando...</p>}
 
               {snapshot && (snapshot.terminado || !caso) && (
-            <div className="rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+            <div className="tarjeta p-8 text-center">
               <p className="font-heading text-lg font-bold text-blue-900 mb-1">
                 {snapshot.progreso.total === 0 ? "Todavía no hay casos" : "Terminaste la práctica"}
               </p>
@@ -157,7 +149,7 @@ export default function DispensacionPage() {
               {snapshot.progreso.total > 0 && (
                 <button
                   onClick={reiniciar}
-                  className="rounded-lg bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
+                  className="rounded-full font-heading bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-900"
                 >
                   Volver a empezar
                 </button>
@@ -226,7 +218,7 @@ export default function DispensacionPage() {
               </div>
 
               {/* Buscar al paciente */}
-              <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+              <div className="tarjeta-sm p-4 mb-5">
                 <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar al paciente en el sistema</p>
                 <p className="text-xs text-slate-400 mb-3">
                   La persona en la ventanilla presenta el documento{" "}
@@ -238,12 +230,12 @@ export default function DispensacionPage() {
                     onChange={(e) => setDocumento(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && buscar()}
                     placeholder="Número de documento"
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
                   />
                   <button
                     onClick={buscar}
                     disabled={buscando || !documento.trim()}
-                    className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+                    className="rounded-full font-heading bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
                   >
                     Buscar
                   </button>
@@ -265,7 +257,7 @@ export default function DispensacionPage() {
               {/* Ficha + renglones */}
               {busqueda?.esPacienteDeLaFormula && busqueda.paciente && (
                 <>
-                  <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-4">
+                  <div className="tarjeta-sm p-4 mb-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-heading font-semibold text-blue-900">{busqueda.paciente.nombre}</p>
@@ -312,7 +304,7 @@ export default function DispensacionPage() {
               {!busqueda?.esPacienteDeLaFormula && (
                 <button
                   onClick={siguiente}
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50"
+                  className="mt-2 w-full rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-50"
                 >
                   Siguiente paciente
                 </button>
@@ -425,7 +417,7 @@ function DispensarioSimulacion({
 
   if (!paciente) {
     return (
-      <div className="rounded-xl bg-white border border-slate-200 p-8 shadow-sm text-center">
+      <div className="tarjeta p-8 text-center">
         <p className="text-sm text-slate-500">Aún no tienes un turno con paciente asignado.</p>
       </div>
     );
@@ -434,7 +426,7 @@ function DispensarioSimulacion({
   // Buscador: el estudiante pide el documento a la persona en la ventanilla y lo escribe
   // acá — el sistema no revela quién es solo porque el turno ya está asignado.
   const buscador = (
-    <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-5">
+    <div className="tarjeta-sm p-4 mb-5">
       <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar en el sistema</p>
       <p className="text-xs text-slate-400 mb-3">Pídele el documento de identidad a la persona y búscalo.</p>
       <div className="flex gap-2">
@@ -443,12 +435,12 @@ function DispensarioSimulacion({
           onChange={(e) => setDocumento(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && buscar()}
           placeholder="Número de documento"
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
         />
         <button
           onClick={buscar}
           disabled={buscando || !documento.trim()}
-          className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+          className="rounded-full font-heading bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
         >
           Buscar
         </button>
@@ -477,7 +469,7 @@ function DispensarioSimulacion({
   return (
     <>
       {buscador}
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-4">
+      <div className="tarjeta-sm p-4 mb-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-heading font-semibold text-blue-900">{p.nombre}</p>
@@ -538,7 +530,7 @@ function DispensarioSimulacion({
         </div>
       )}
 
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-4">
+      <div className="tarjeta-sm p-4 mb-4">
         <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar medicamento en el sistema</p>
         <p className="text-xs text-slate-400 mb-3">
           Pídele a la persona qué necesita y búscalo — no se muestran de una vez.
@@ -554,12 +546,12 @@ function DispensarioSimulacion({
             onChange={(e) => setMedicamentoTexto(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && buscarMedicamento()}
             placeholder="Nombre del medicamento"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
           />
           <button
             onClick={buscarMedicamento}
             disabled={buscandoMed || !medicamentoTexto.trim()}
-            className="rounded-lg bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+            className="rounded-full font-heading bg-blue-800 px-4 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
           >
             Buscar
           </button>
@@ -641,7 +633,7 @@ function CuotaModeradoraCard({
 
   const cuotaPrevia = calcularCuotaModeradora(categoriaAfiliado, altoCostoMarcado);
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm mb-4">
+    <div className="tarjeta-sm p-4 mb-4">
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
@@ -741,7 +733,7 @@ function RenglonCardSimulacion({
             min={1}
             value={cantidad}
             onChange={(e) => setCantidad(Number(e.target.value))}
-            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-20 rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
           />
           <button
             onClick={() => accion({ cantidad })}
@@ -753,7 +745,7 @@ function RenglonCardSimulacion({
           <button
             onClick={() => accion({ rechazar: true })}
             disabled={enviando}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             Rechazar
           </button>
@@ -833,7 +825,7 @@ function RenglonCard({ renglon, onCambio }: { renglon: EstadoRenglon; onCambio: 
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Motivo del rechazo"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                className="flex-1 rounded-xl border border-blue-200 px-3 py-1.5 text-sm"
               />
               <button
                 onClick={() => accion({ renglonId: renglon.renglonId, rechazar: true, motivo })}
@@ -855,7 +847,7 @@ function RenglonCard({ renglon, onCambio }: { renglon: EstadoRenglon; onCambio: 
                     min={1}
                     value={cantidad}
                     onChange={(e) => setCantidad(Number(e.target.value))}
-                    className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                    className="w-20 rounded-xl border border-blue-200 px-2 py-1.5 text-sm"
                   />
                   <button
                     onClick={() => accion({ renglonId: renglon.renglonId, cantidad })}
@@ -868,7 +860,7 @@ function RenglonCard({ renglon, onCambio }: { renglon: EstadoRenglon; onCambio: 
               )}
               <button
                 onClick={() => setModoRechazo(true)}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
               >
                 Rechazar
               </button>

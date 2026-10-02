@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import EncabezadoFunca from "@/components/nucleo/EncabezadoFunca";
 import { generarInformePDF } from "@/lib/nucleo/informePdf";
 
 type EscenarioResumen = {
@@ -52,6 +52,19 @@ export default function PanelPage() {
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [moduloActivo, setModuloActivo] = useState<Modulo | null>(null);
   const [redirigiendo, setRedirigiendo] = useState(false);
+  const [dictado, setDictado] = useState<{ nombre: string; pausado: boolean } | null>(null);
+
+  // ¿El docente está dictando un caso a este grupo? Se revisa cada 10 s.
+  useEffect(() => {
+    const revisar = () =>
+      fetch("/api/modulos/odontologia/dictado")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setDictado(d?.dictado ?? null))
+        .catch(() => {});
+    revisar();
+    const t = setInterval(revisar, 10000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -187,15 +200,14 @@ export default function PanelPage() {
   const totalEvaluables = evaluables.length;
   const porcentaje = totalEvaluables > 0 ? Math.round((totalCompletados / totalEvaluables) * 100) : 0;
   const turnosDesbloqueados = turnos.filter((t) => t.desbloqueado);
+  const enCurso = evaluables.find((e) => e.intentos[0]?.estado === "EN_PROGRESO");
 
   function renderEscenario(esc: EscenarioResumen, esTutorial: boolean) {
     const ultimo = esc.intentos[0];
     return (
       <div
         key={esc.id}
-        className={`rounded-lg px-4 py-3 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-4 ${
-          esTutorial ? "bg-gold-50 border-2 border-gold-500" : "bg-white border border-slate-200"
-        }`}
+        className={`flex items-center justify-between gap-4 px-5 py-3.5 ${esTutorial ? "rounded-3xl bg-gold-50 border-2 border-gold-500" : "hover:bg-blue-50"}`}
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -204,14 +216,14 @@ export default function PanelPage() {
                 Empieza aquí
               </span>
             )}
-            <h2 className="font-heading font-semibold text-blue-900 flex items-center gap-1.5 truncate">
+            <h3 className="font-heading font-semibold text-blue-900 flex items-center gap-1.5 truncate">
               {esc.titulo}
               {!esTutorial && ultimo?.estado === "COMPLETADO" && (
                 <span className="inline-flex items-center justify-center h-4 w-4 shrink-0 rounded-full bg-emerald-500 text-white text-[10px]">
                   ✓
                 </span>
               )}
-            </h2>
+            </h3>
             {ultimo?.estado === "COMPLETADO" && (
               <span className="text-xs font-semibold text-emerald-600 shrink-0">{ultimo.puntajeFinal}/100</span>
             )}
@@ -225,11 +237,10 @@ export default function PanelPage() {
         </div>
         <button
           onClick={() => alHacerClicIniciar(esc)}
-          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-            esTutorial ? "bg-gold-600 hover:bg-gold-700" : "bg-blue-800 hover:bg-blue-900"
-          }`}
+          aria-label={`${ultimo?.estado === "EN_PROGRESO" ? "Continuar" : ultimo?.estado === "PERDIDO" ? "Reintentar" : ultimo?.estado === "COMPLETADO" ? "Repetir" : "Iniciar"} ${esc.titulo}`}
+          className={`shrink-0 px-4 py-2 ${esTutorial ? "btn-cta" : ultimo?.estado === "COMPLETADO" ? "btn-suave" : "btn-primario"}`}
         >
-          {ultimo?.estado === "EN_PROGRESO" ? "Continuar" : ultimo?.estado === "PERDIDO" ? "Reintentar" : "Iniciar"}
+          {ultimo?.estado === "EN_PROGRESO" ? "Continuar" : ultimo?.estado === "PERDIDO" ? "Reintentar" : ultimo?.estado === "COMPLETADO" ? "Repetir" : "Iniciar"}
         </button>
       </div>
     );
@@ -239,99 +250,117 @@ export default function PanelPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      <header className="bg-blue-900 px-6 py-4">
-        <div className="mx-auto max-w-3xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
-            <span className="font-heading text-sm font-semibold text-white">Prácticas</span>
-          </div>
-          <button onClick={cerrarSesion} className="text-sm text-blue-100 hover:text-white transition-colors">
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
+      <EncabezadoFunca etiqueta="Estudiante" inicioHref="/panel" nombre={perfil?.nombre} rol="Estudiante" onSalir={cerrarSesion} />
 
-      <div className="px-6 py-10">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex items-start justify-between gap-4 mb-1">
-            <h1 className="font-heading text-2xl font-bold text-blue-900">
-              {esSimulador ? moduloActivo?.nombre : "Práctica virtual"}
-            </h1>
-            {moduloActivo?.slug === "farmacia" && (
-              <button
-                onClick={() => router.push("/panel/catalogo")}
-                className="shrink-0 rounded-lg border border-blue-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-blue-800 hover:bg-blue-50 transition-colors"
-              >
-                Ver expediente de medicamentos
-              </button>
-            )}
-          </div>
-          <p className="text-sm text-slate-500 mb-4">
-            {esSimulador
-              ? "Practica el proceso las veces que necesites. No se califica."
-              : "Resuelve cada caso como lo harías en el trabajo real. Tu desempeño se califica automáticamente."}
-          </p>
-
-          {modulos.length > 1 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              {modulos.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setModuloActivo(m)}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                    moduloActivo?.id === m.id
-                      ? "text-white"
-                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                  style={moduloActivo?.id === m.id ? { backgroundColor: m.colorTema ?? "#1b3a6b" } : undefined}
-                >
-                  {m.nombre}
-                </button>
-              ))}
-            </div>
+      <main className="px-4 sm:px-6 py-8 sm:py-10">
+        <div className="mx-auto max-w-4xl flex flex-col gap-6">
+          {/* 1. Lo urgente: el docente está dictando ahora mismo. */}
+          {dictado && (
+            <button
+              onClick={() => router.push("/panel/dictado")}
+              className="group relative overflow-hidden rounded-3xl bg-blue-900 p-5 sm:p-6 text-left text-white shadow-[0_16px_40px_-20px_rgba(30,46,85,0.8)]"
+            >
+              <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gold-500/20 blur-2xl" />
+              <span className="relative flex flex-wrap items-center justify-between gap-4">
+                <span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-gold-500/15 px-3 py-1 text-xs font-semibold text-gold-400">
+                    <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" aria-hidden />
+                    {dictado.pausado ? "Dictado en pausa" : "Dictado en curso"}
+                  </span>
+                  <span className="mt-2 block font-heading text-xl font-bold">{dictado.nombre}</span>
+                  <span className="block text-sm text-blue-200">Tu docente está dictando un caso. Entra para registrarlo.</span>
+                </span>
+                <span className="btn-cta">Entrar al dictado →</span>
+              </span>
+            </button>
           )}
+
+          {/* 2. Saludo y progreso */}
+          <section className="tarjeta p-5 sm:p-7">
+            {modulos.length > 1 && (
+              <div className="mb-5 -mx-1 flex flex-wrap gap-2 border-b border-blue-100 pb-4" role="tablist" aria-label="Módulos">
+                {modulos.map((m) => (
+                  <button
+                    key={m.id}
+                    role="tab"
+                    aria-selected={moduloActivo?.id === m.id}
+                    onClick={() => setModuloActivo(m)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold font-heading transition-colors ${
+                      moduloActivo?.id === m.id ? "bg-blue-800 text-white" : "bg-blue-50 text-slate-600 hover:bg-blue-100"
+                    }`}
+                  >
+                    {m.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="eyebrow">{esSimulador ? "Simulador" : "Práctica virtual"}</p>
+                <h1 className="titulo-pagina mt-1">{perfil ? `Hola, ${perfil.nombre.split(" ")[0]}` : "Hola"}</h1>
+                <p className="text-sm text-slate-500 mt-1">
+                  {esSimulador
+                    ? "Practica el proceso las veces que necesites. No se califica."
+                    : "Resuelve cada caso como lo harías en el trabajo real. Se califica automáticamente."}
+                </p>
+              </div>
+              {moduloActivo?.slug === "farmacia" && (
+                <button onClick={() => router.push("/panel/catalogo")} className="btn-secundario px-4 py-2">
+                  Expediente de medicamentos
+                </button>
+              )}
+            </div>
+
+            {!esSimulador && !cargando && totalEvaluables > 0 && (
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-48">
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="font-semibold text-blue-900">Tu progreso</span>
+                    <span className="text-slate-600">
+                      {totalCompletados} de {totalEvaluables} casos · <b className="text-blue-900">{porcentaje}%</b>
+                    </span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-blue-100 overflow-hidden" role="progressbar" aria-valuenow={porcentaje} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-gold-500 transition-all" style={{ width: `${porcentaje}%` }} />
+                  </div>
+                </div>
+                <button onClick={descargarInforme} disabled={generandoPdf || !perfil} className="btn-suave px-4 py-2" title="Súbelo a Q10 como evidencia de tu progreso">
+                  {generandoPdf ? "Generando..." : "Descargar informe PDF"}
+                </button>
+              </div>
+            )}
+          </section>
+
           {modulos.length === 0 && !cargando && (
-            <p className="text-sm text-gold-700 bg-gold-50 rounded-lg p-3 mb-6">
+            <p className="tarjeta p-5 text-sm text-gold-700 bg-gold-50 border-gold-100">
               No estás matriculado en ningún módulo todavía. Pídele a tu profesor que te matricule.
             </p>
           )}
 
           {esSimulador && moduloActivo && (
-            <div className="rounded-xl bg-white border border-slate-200 p-6 shadow-sm">
-              <p className="text-sm text-slate-500 mb-4">
+            <div className="tarjeta p-6">
+              <p className="text-sm text-slate-600 mb-4">
                 Atiende a los pacientes que llegan a la ventanilla: busca al paciente en el sistema, coteja la fórmula
                 contra lo autorizado y dispensa. Puedes reiniciar la práctica cuando quieras.
               </p>
-              <button
-                onClick={() => router.push(moduloActivo.rutaSimulador ?? "/panel")}
-                className="w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors"
-                style={{ backgroundColor: moduloActivo.colorTema ?? "#1b3a6b" }}
-              >
+              <button onClick={() => router.push(moduloActivo.rutaSimulador ?? "/panel")} className="btn-cta w-full">
                 Abrir simulador de {moduloActivo.nombre.toLowerCase()}
               </button>
             </div>
           )}
 
-          {!esSimulador && !cargando && (
-            <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm mb-6">
-              <div className="flex items-center justify-between mb-2 gap-4">
-                <span className="text-sm font-heading font-semibold text-blue-900">Tu progreso</span>
-                <span className="text-sm font-semibold text-blue-900">
-                  {totalCompletados}/{totalEvaluables} casos · {porcentaje}%
-                </span>
+          {/* 3. Continúa donde quedaste: a un clic */}
+          {!cargando && enCurso && (
+            <section className="tarjeta p-5 flex flex-wrap items-center justify-between gap-4 border-gold-500 border-2">
+              <div>
+                <p className="eyebrow">Continúa donde quedaste</p>
+                <p className="mt-1 font-heading font-semibold text-blue-900">{enCurso.titulo}</p>
               </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden mb-4">
-                <div className="h-full rounded-full bg-gold-500 transition-all" style={{ width: `${porcentaje}%` }} />
-              </div>
-              <button
-                onClick={descargarInforme}
-                disabled={generandoPdf || !perfil}
-                className="w-full rounded-lg border border-blue-800 text-blue-800 py-2 text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
-              >
-                {generandoPdf ? "Generando..." : "Descargar mi informe en PDF"}
+              <button onClick={() => iniciar(enCurso.id)} className="btn-cta">
+                Continuar →
               </button>
-              <p className="text-xs text-slate-400 mt-2 text-center">Súbelo a Q10 como evidencia de tu progreso.</p>
-            </div>
+            </section>
           )}
 
           {cargando && <p className="text-slate-500 text-sm">Cargando...</p>}
@@ -340,7 +369,7 @@ export default function PanelPage() {
           {turnosDesbloqueados.map((t) => (
             <div
               key={t.id}
-              className="rounded-xl p-5 shadow-lg mb-6 flex items-center justify-between gap-4 text-white"
+              className="rounded-3xl p-5 sm:p-6 shadow-lg flex flex-wrap items-center justify-between gap-4 text-white"
               style={{ background: "linear-gradient(135deg, #6d28d9, #a21caf)" }}
             >
               <div>
@@ -375,29 +404,27 @@ export default function PanelPage() {
             </div>
           ))}
 
-          {!cargando && tutorial && (
-            <div className="flex flex-col gap-4 mb-2">{renderEscenario(tutorial, true)}</div>
-          )}
+          {!cargando && tutorial && renderEscenario(tutorial, true)}
 
           {!cargando && pendientes.length > 0 && (
-            <div className="mt-6">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Por resolver</h2>
-              <div className="flex flex-col gap-2.5">{pendientes.map((esc) => renderEscenario(esc, false))}</div>
-            </div>
+            <section>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Por resolver ({pendientes.length})</h2>
+              <div className="tarjeta divide-y divide-blue-100 overflow-hidden">{pendientes.map((esc) => renderEscenario(esc, false))}</div>
+            </section>
           )}
 
           {!cargando && completados.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Completados</h2>
-              <div className="flex flex-col gap-2.5">{completados.map((esc) => renderEscenario(esc, false))}</div>
-            </div>
+            <section>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Completados ({completados.length})</h2>
+              <div className="tarjeta divide-y divide-blue-100 overflow-hidden">{completados.map((esc) => renderEscenario(esc, false))}</div>
+            </section>
           )}
         </div>
-      </div>
+      </main>
 
       {escogiendoModo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 bg-blue-950/60 backdrop-blur-sm flex items-center justify-center px-4 z-50">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
             <h2 className="font-heading text-lg font-bold text-blue-900 mb-1">Elige tu modo</h2>
             <p className="text-sm text-slate-500 mb-5">{escogiendoModo.titulo}</p>
 
@@ -439,8 +466,8 @@ export default function PanelPage() {
       )}
 
       {escogiendoModoTurno && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 bg-blue-950/60 backdrop-blur-sm flex items-center justify-center px-4 z-50">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
             <h2 className="font-heading text-lg font-bold text-blue-900 mb-1">Elige tu modo</h2>
             <p className="text-sm text-slate-500 mb-1">{escogiendoModoTurno.titulo}</p>
             <p className="text-xs text-slate-400 mb-5">Este modo aplica a los 5 casos del turno, no se puede cambiar a mitad de camino.</p>

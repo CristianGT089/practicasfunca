@@ -16,6 +16,8 @@ import { historiaVacia, normalizarEsperado, normalizarHistoria, REMISIONES } fro
 import { denticionDe } from "@/lib/modulos/odontologia/consultorio";
 import { CRITERIOS_RUBRICA, NIVELES, normalizarRubrica, puntajeRubrica } from "@/lib/modulos/odontologia/rubrica";
 import { Prisma } from "@prisma/client";
+import { normalizarMarcas } from "@/lib/modulos/odontologia/odontograma";
+import { mapaCalor } from "@/lib/modulos/odontologia/dictado";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -271,10 +273,14 @@ function claveDeLinea(descripcion: string, cumplido: boolean): ClaveCriterio {
 async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
   const atencion = await prisma.atencionJornada.findUnique({
     where: { id: atencionId },
-    include: { casoOdontologia: { include: { escenarioOdontologia: { include: { escenario: true } } } } },
+    include: {
+      simulacion: { select: { dictado: true, dictadoSecciones: true } },
+      casoOdontologia: { include: { escenarioOdontologia: { include: { escenario: true } } } },
+    },
   });
   const caso = atencion?.casoOdontologia?.escenarioOdontologia;
   if (!atencion || !caso) return;
+  if (atencion.simulacion.dictado) return calificarAtencionDictado(atencion.id, atencion.simulacion.dictadoSecciones, ahora);
 
   const esperado = normalizarEsperado(caso.esperado);
   const historia = atencion.historia ? normalizarHistoria(atencion.historia) : historiaVacia();
@@ -319,6 +325,55 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
 }
 
 /**
+ * Dictado: solo cuenta lo que se dictó. Con "solo odontograma", la nota es el odontograma;
+ * con la historia completa, también alerta, antecedentes y exámenes (no hay placa ni conducta).
+ */
+async function calificarAtencionDictado(atencionId: string, secciones: string | null, ahora: Date) {
+  const atencion = await prisma.atencionJornada.findUnique({
+    where: { id: atencionId },
+    include: { casoOdontologia: { include: { escenarioOdontologia: true } } },
+  });
+  const caso = atencion?.casoOdontologia?.escenarioOdontologia;
+  if (!atencion || !caso) return;
+  const completa = secciones === "COMPLETA";
+  const esperado = normalizarEsperado(caso.esperado);
+  const historia = atencion.historia ? normalizarHistoria(atencion.historia) : historiaVacia();
+  const denticion = denticionDe(caso.denticion);
+  const revision = revisarHistoria({ ...esperado, placa: [] }, historia, denticion, "", null);
+  const lineas = revision.lineas.filter((l) => completa || l.descripcion.startsWith("Odontograma:"));
+  const puntajes = completa
+    ? {
+        odontograma: revision.puntajes.odontograma,
+        alertaMedica: revision.puntajes.alertaMedica,
+        antecedentes: revision.puntajes.antecedentes,
+        examenes: revision.puntajes.examenes,
+      }
+    : { odontograma: revision.puntajes.odontograma };
+  await prisma.atencionJornada.update({
+    where: { id: atencion.id },
+    data: {
+      criterios: lineas.map((l) => ({ clave: claveDeLinea(l.descripcion, l.cumplido), descripcion: l.descripcion, cumplido: l.cumplido })),
+      puntaje: ponderar(puntajes),
+      calificadaEn: ahora,
+      cerradaEn: atencion.cerradaEn ?? ahora,
+      detalle: {
+        revisionOdontologia: {
+          puntajes,
+          pesos: Object.fromEntries(Object.entries(PESOS).filter(([k]) => k in puntajes)),
+          denticion,
+          odontogramaEsperado: esperado.odontograma,
+          odontogramaObtenido: historia.odontograma,
+          comparacion: revision.odontograma,
+          placaEsperada: [],
+          remisionEsperada: null,
+          remisionObtenida: null,
+        },
+      },
+    },
+  });
+}
+
+/**
  * Paciente real: la nota sale de la rúbrica que llenó el docente (sin rúbrica completa queda
  * sin nota). Al calificar se borran la historia y los datos del compañero: solo queda la
  * nota, la retroalimentación y el nombre abreviado.
@@ -351,6 +406,18 @@ async function calificarAtencionReal(atencionId: string, ahora: Date) {
   });
 }
 
+/**
+ * "Terminar dictado": se cierran las historias como estén, se califica a cada estudiante y
+ * queda el reporte. No hay confirmación: cada historia ya es de quien la escribió.
+ */
+export async function terminarDictado(simulacionId: string) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion?.dictado) throw new Error("Esta jornada no es un dictado");
+  if (simulacion.estado === "ABIERTA") await finalizarJornada(simulacionId);
+  await prisma.simulacion.update({ where: { id: simulacionId }, data: { dictadoPausado: false } });
+  await calificarJornada(simulacionId);
+}
+
 // ---------------------------------------------------------------------------
 // Reporte
 // ---------------------------------------------------------------------------
@@ -365,6 +432,30 @@ export async function reporteJornada(simulacionId: string) {
     },
   });
   if (!simulacion) return null;
+
+  // Dictado: un solo caso para todos; el mapa de calor dice qué dientes repasar.
+  let dictado = null;
+  if (simulacion.dictado) {
+    const caso = await prisma.casoJornadaOdontologia.findFirst({
+      where: { simulacionId },
+      include: { escenarioOdontologia: true },
+    });
+    const esperado = caso ? normalizarEsperado(caso.escenarioOdontologia.esperado) : null;
+    const odontogramas = simulacion.atenciones
+      .filter((a) => a.puntaje !== null)
+      .map((a) => {
+        const rev = (a.detalle as { revisionOdontologia?: { odontogramaObtenido?: unknown } } | null)?.revisionOdontologia;
+        return normalizarMarcas(rev?.odontogramaObtenido ?? (a.historia ? normalizarHistoria(a.historia).odontograma : []));
+      });
+    dictado = esperado
+      ? {
+          secciones: simulacion.dictadoSecciones,
+          denticion: denticionDe(caso!.escenarioOdontologia.denticion),
+          odontogramaEsperado: esperado.odontograma,
+          mapa: mapaCalor(esperado.odontograma, odontogramas),
+        }
+      : null;
+  }
 
   const atenciones = simulacion.atenciones.map((a) => ({
     id: a.id,
@@ -407,11 +498,13 @@ export async function reporteJornada(simulacionId: string) {
       grupo: simulacion.grupo?.nombre ?? null,
       situaciones: simulacion.situaciones,
       pacientesReales: simulacion.pacientesReales,
+      dictado: simulacion.dictado,
       abiertaEn: simulacion.abiertaEn,
       cerradaEn: simulacion.cerradaEn,
     },
     atenciones,
     porEstudiante,
+    dictado,
     erroresComunes: [...errores.entries()].sort((a, b) => b[1] - a[1]).map(([clave, veces]) => ({ clave, veces })),
   };
 }

@@ -1,3 +1,4 @@
+import type { Denticion, Marca } from "@/lib/modulos/odontologia/odontograma";
 export type Participante = { id: string; nombre: string; invitado: boolean; usuarioId: string | null };
 
 export type CriterioReporte = { clave: string; descripcion: string; cumplido: boolean; detalle?: string };
@@ -27,11 +28,19 @@ export type Reporte = {
     estado: string;
     grupo: string | null;
     situaciones: string[];
+    dictado?: boolean;
     abiertaEn: string | null;
     cerradaEn: string | null;
   };
   atenciones: AtencionReporte[];
   porEstudiante: { id: string; nombre: string; invitado: boolean; atenciones: number; promedio: number | null }[];
+  /** Dictado: el caso es uno solo; el mapa dice qué tan bien quedó cada diente en el grupo. */
+  dictado?: {
+    secciones: string | null;
+    denticion: Denticion;
+    odontogramaEsperado: Marca[];
+    mapa: { diente: number; bien: number; total: number; porcentaje: number }[];
+  } | null;
   erroresComunes: { clave: string; veces: number }[];
 };
 

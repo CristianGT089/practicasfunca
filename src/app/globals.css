@@ -2,22 +2,29 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
-  --foreground: #1f2937;
+  /* Paleta de nueva.funca.edu.co: navy institucional, amarillo de acción, fondo azul muy claro. */
+  --background: #eef2fb;
+  --foreground: #262b34;
 }
 
 @theme {
-  --color-blue-900: #1b3a6b;
-  --color-blue-800: #1e4280;
-  --color-blue-700: #2e5ba8;
-  --color-blue-600: #3a6abf;
-  --color-blue-100: #dce8f8;
-  --color-blue-50: #f0f5fc;
-  --color-gold-700: #b8860b;
-  --color-gold-600: #c49a16;
-  --color-gold-500: #d4a017;
-  --color-gold-100: #fdf3d7;
-  --color-gold-50: #fefaf0;
+  --color-blue-950: #131c37;
+  --color-blue-900: #1e2e55;
+  --color-blue-800: #263e80;
+  --color-blue-700: #2e4c9c;
+  --color-blue-600: #4560b4;
+  --color-blue-500: #667bc9;
+  --color-blue-400: #93a4dd;
+  --color-blue-300: #bcc7ec;
+  --color-blue-200: #dbe1f5;
+  --color-blue-100: #e6ebf9;
+  --color-blue-50: #f3f6fd;
+  --color-gold-700: #a87b00;
+  --color-gold-600: #e0a500;
+  --color-gold-500: #fbba00;
+  --color-gold-400: #febf1f;
+  --color-gold-100: #fff1c7;
+  --color-gold-50: #fffaeb;
   --font-heading: "Poppins", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-firma: "Caveat", cursive;
@@ -36,6 +43,48 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+}
+
+/* ---------- Componentes del sistema visual FUNCA (utilidades propias de Tailwind v4) ---------- */
+/* Etiqueta sobre los títulos: línea amarilla + mayúsculas espaciadas (como en el sitio). */
+@utility eyebrow {
+  @apply inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-800;
+  &::before {
+    content: "";
+    @apply block h-0.5 w-6 rounded-full bg-gold-500;
+  }
+}
+@utility titulo-pagina {
+  @apply font-heading text-2xl sm:text-3xl font-extrabold text-blue-900 tracking-tight;
+}
+@utility tarjeta {
+  @apply rounded-3xl bg-white border border-blue-200 shadow-[0_1px_2px_rgba(30,46,85,0.04)];
+}
+/* Tarjeta interna (filas, bloques dentro de una página): menos redondeada. */
+@utility tarjeta-sm {
+  @apply rounded-2xl bg-white border border-blue-200;
+}
+@utility tarjeta-accion {
+  @apply rounded-3xl bg-white border border-blue-200 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-[0_12px_30px_-12px_rgba(30,46,85,0.25)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold font-heading transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700;
+}
+/* Acción principal de la pantalla (una sola): amarillo FUNCA. */
+@utility btn-cta {
+  @apply btn bg-gold-500 text-blue-900 hover:bg-gold-400 shadow-[0_8px_20px_-8px_rgba(251,186,0,0.7)];
+}
+@utility btn-primario {
+  @apply btn bg-blue-800 text-white hover:bg-blue-900;
+}
+@utility btn-secundario {
+  @apply btn border-2 border-blue-800 text-blue-800 bg-white hover:bg-blue-50;
+}
+@utility btn-suave {
+  @apply btn bg-blue-100 text-blue-800 hover:bg-blue-200;
+}
+@utility pildora {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
 }
 
 /* Entrada del overlay que anuncia el turno llamado en el tablero del turnero.
