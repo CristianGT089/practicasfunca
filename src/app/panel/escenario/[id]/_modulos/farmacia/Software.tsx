@@ -390,7 +390,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
       <div className="min-h-screen bg-[var(--background)]">
         <header className="px-6 py-4" style={{ background: "linear-gradient(135deg, #6d28d9, #a21caf)" }}>
           <div className="mx-auto max-w-2xl flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">🏆 Prueba final</span>
           </div>
         </header>
@@ -420,7 +420,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
           style={enTurno ? { background: "linear-gradient(135deg, #6d28d9, #a21caf)" } : undefined}
         >
           <div className="mx-auto max-w-2xl flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">{enTurno ? "🏆 Prueba final" : "Prácticas"}</span>
           </div>
         </header>
@@ -455,7 +455,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
           style={enTurno ? { background: "linear-gradient(135deg, #6d28d9, #a21caf)" } : { backgroundColor: "#1b3a6b" }}
         >
           <div className="mx-auto max-w-2xl flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">
               {enTurno ? `🏆 Prueba final · Caso ${enTurno.indice + 1}/${enTurno.total}` : "Prácticas"}
             </span>
@@ -517,7 +517,7 @@ export default function FarmaciaSoftware({ intentoId }: { intentoId: string }) {
       >
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">
               {enTurno ? `🏆 Prueba final · Caso ${enTurno.indice + 1}/${enTurno.total}` : "Prácticas"}
             </span>

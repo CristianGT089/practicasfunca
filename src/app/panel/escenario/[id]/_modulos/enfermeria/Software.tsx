@@ -163,7 +163,7 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
       <div className="min-h-screen bg-[var(--background)]">
         <header className="px-6 py-4 bg-emerald-800">
           <div className="mx-auto max-w-2xl flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">Enfermería</span>
           </div>
         </header>
@@ -210,7 +210,7 @@ export default function EnfermeriaSoftware({ intentoId }: { intentoId: string })
       <header className="px-6 py-4 bg-emerald-800">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
             <span className="font-heading text-sm font-semibold text-white">Enfermería · Registro de administración</span>
           </div>
           <div className="flex items-center gap-4">

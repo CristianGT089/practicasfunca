@@ -41,9 +41,7 @@ export default function EncabezadoFunca({
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex items-center justify-between gap-4 py-3">
           <Link href={inicioHref} className="flex items-center gap-3 shrink-0" aria-label="Ir al inicio">
-            <span className="rounded-lg bg-white px-2 py-1.5">
-              <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} priority className="h-5 sm:h-6 w-auto" />
-            </span>
+            <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} priority className="h-7 sm:h-8 w-auto" />
             <span className="hidden sm:block h-6 w-px bg-white/20" aria-hidden />
             <span className="hidden sm:block leading-tight">
               <span className="block font-heading text-sm font-bold text-white">Prácticas</span>
@@ -210,9 +208,7 @@ export function BarraTrabajo({
     <header className="bg-blue-900 border-b border-blue-950 px-4 sm:px-6">
       <div className={`mx-auto ${ancho} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2.5`}>
         <div className="flex items-center gap-3 min-w-0">
-          <span className="rounded-lg bg-white px-2 py-1 shrink-0">
-            <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} className="h-4 sm:h-5 w-auto" />
-          </span>
+          <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-6 sm:h-7 w-auto shrink-0" />
           <span className="h-6 w-px bg-white/20 shrink-0" aria-hidden />
           <span className="leading-tight min-w-0">
             <span className="block font-heading text-sm font-bold text-white truncate">{titulo}</span>

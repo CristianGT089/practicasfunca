@@ -194,7 +194,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
     <header className="px-6 py-4 bg-cyan-700">
       <div className={`mx-auto ${ancho} flex items-center justify-between`}>
         <div className="flex items-center gap-3">
-          <Image src="/funca-logo.png" alt="FUNCA" width={100} height={50} className="h-8 w-auto bg-white rounded px-1.5 py-1" />
+          <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} className="h-7 w-auto" />
           <span className="font-heading text-sm font-semibold text-white">{subtitulo}</span>
         </div>
         {intento.estado === "EN_PROGRESO" && !resultadoFinal && !perdido && (
