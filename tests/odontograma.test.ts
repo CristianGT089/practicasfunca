@@ -55,3 +55,31 @@ test("relato: modo fácil con número FDI, difícil solo el nombre", () => {
   assert.match(relatoOdontograma(m, "CLINICO", true)[0], /^Diente 36 \(primer molar inferior izquierdo\)/);
   assert.match(relatoOdontograma(m, "CLINICO", false)[0], /^Primer molar inferior izquierdo/);
 });
+
+test("mixta: pares temporal/permanente y contradicciones", async () => {
+  const { parMixto, contradiccionesMixta } = await import("../src/lib/modulos/odontologia/odontograma");
+  assert.equal(parMixto(55), 15);
+  assert.equal(parMixto(15), 55);
+  assert.equal(parMixto(83), 43);
+  assert.equal(parMixto(16), null);
+  const m: Marca[] = [
+    { diente: 55, hallazgo: "CARIES", superficie: "O" },
+    { diente: 15, hallazgo: "CARIES", superficie: "O" },
+    { diente: 64, hallazgo: "CARIES", superficie: "O" },
+    { diente: 24, hallazgo: "SIN_ERUPCIONAR" },
+  ];
+  assert.deepEqual(contradiccionesMixta(m), [{ temporal: 55, permanente: 15 }]);
+});
+
+test("marcar el resto como sano no pisa nada ni adivina en la mixta", async () => {
+  const { marcarRestoSano } = await import("../src/lib/modulos/odontologia/odontograma");
+  const base: Marca[] = [{ diente: 16, hallazgo: "CARIES", superficie: "O" }];
+  const perm = marcarRestoSano(base, "PERMANENTE");
+  assert.equal(perm.length, 32);
+  assert.ok(perm.some((x) => x.diente === 16 && x.hallazgo === "CARIES"));
+  assert.ok(!perm.some((x) => x.diente === 16 && x.hallazgo === "SANO"));
+  const mixta = marcarRestoSano([{ diente: 15, hallazgo: "SIN_ERUPCIONAR" }], "MIXTA");
+  assert.ok(mixta.some((x) => x.diente === 55 && x.hallazgo === "SANO")); // su permanente no ha salido
+  assert.ok(!mixta.some((x) => x.diente === 54)); // 54 y 14 sin datos: no se adivina
+  assert.ok(mixta.some((x) => x.diente === 16 && x.hallazgo === "SANO")); // molar sin par
+});

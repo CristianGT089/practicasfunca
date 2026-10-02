@@ -378,3 +378,61 @@ export function relatoOdontograma(
 export function tieneHallazgosRadiograficos(marcas: Marca[]): boolean {
   return marcas.some((m) => DESCRIPCION[m.hallazgo]?.radiografico);
 }
+
+// ---------------------------------------------------------------------------
+// Dentición mixta y acciones rápidas
+// ---------------------------------------------------------------------------
+
+/**
+ * El diente "par" en la dentición mixta: el permanente que reemplaza a un temporal
+ * (55 → 15) o el temporal que ocupa el sitio de un permanente (15 → 55). Los molares
+ * permanentes (6, 7, 8) no reemplazan a ningún temporal: no tienen par.
+ */
+export function parMixto(diente: number): number | null {
+  const q = cuadrante(diente);
+  const p = posicion(diente);
+  if (q >= 5 && q <= 8) return (q - 4) * 10 + p;
+  if (q >= 1 && q <= 4 && p <= 5) return (q + 4) * 10 + p;
+  return null;
+}
+
+const NO_ESTA_EN_BOCA = new Set<CodigoHallazgo>(["AUSENTE", "SIN_ERUPCIONAR"]);
+
+/**
+ * ¿El diente está en boca según lo marcado? true = tiene algo que implica que está (caries,
+ * corona, sano…); false = ausente o sin erupcionar; null = no se ha marcado nada.
+ */
+export function presenteEnBoca(marcas: Marca[], diente: number): boolean | null {
+  const delDiente = marcas.filter((m) => m.diente === diente);
+  if (delDiente.length === 0) return null;
+  return !delDiente.some((m) => NO_ESTA_EN_BOCA.has(m.hallazgo));
+}
+
+/**
+ * Dentición mixta: un temporal y su permanente no pueden estar los dos en boca. Devuelve
+ * los pares donde ambos tienen marcas que dicen que están (ej. caries en el 55 y en el 15).
+ */
+export function contradiccionesMixta(marcas: Marca[]): { temporal: number; permanente: number }[] {
+  return DIENTES_TEMPORALES.flatMap((temporal) => {
+    const permanente = parMixto(temporal)!;
+    return presenteEnBoca(marcas, temporal) === true && presenteEnBoca(marcas, permanente) === true
+      ? [{ temporal, permanente }]
+      : [];
+  });
+}
+
+/**
+ * "Marcar el resto como sano": pone Sano en los dientes sin ninguna marca. En la mixta, un
+ * diente con par solo se marca si su par ya consta como ausente o sin erupcionar (si no, no
+ * se sabe cuál de los dos está en boca y se deja sin marcar). Sano no se califica.
+ */
+export function marcarRestoSano(marcas: Marca[], denticion: Denticion): Marca[] {
+  const conMarca = new Set(marcas.map((m) => m.diente));
+  const nuevos = dientesDeDenticion(denticion).filter((d) => {
+    if (conMarca.has(d)) return false;
+    if (denticion !== "MIXTA") return true;
+    const par = parMixto(d);
+    return par === null || presenteEnBoca(marcas, par) === false;
+  });
+  return [...marcas, ...nuevos.map((diente) => ({ diente, hallazgo: "SANO" as const }))];
+}

@@ -32,6 +32,21 @@ Digitaliza el formato en papel *Historia Salud Oral* de FUNCA; el foco es el **o
 - **Exodoncia quirúrgica**: el formato usa la misma X roja que la simple; para distinguirlas
   se agrega una **Q** roja en la franja. Ajustar si el programa usa otra convención.
 
+### Uso del odontograma
+
+- **Pantalla táctil o angosta** (celular, tablet): tocar un diente abre su **ficha** en grande,
+  donde se elige la cara (tocándola o con los botones V/L/M/D/O) y el hallazgo. Las flechas ← →
+  pasan al diente vecino sin cerrar, para dictar rápido. En computador se mantienen la paleta y
+  el clic derecho.
+- **Teclado**: con el odontograma enfocado, las flechas recorren los dientes, Enter abre la
+  ficha, Supr borra el diente y Ctrl+Z deshace.
+- **Acciones**: Deshacer (hasta 50 pasos), *Marcar el resto como sano* (no se califica; en la
+  mixta solo marca un diente si su par ya consta como ausente o sin erupcionar) y *Borrar todo*,
+  con confirmación.
+- **Dentición mixta**: si un temporal y su permanente (55 y 15) tienen marcas de presentes,
+  aparece un aviso con arreglo de un clic (permanente sin erupcionar o temporal ausente). No se
+  corrige solo porque eso alteraría lo que se califica.
+
 ## Calificación (`calificacion.ts`)
 
 | Componente | Peso |
