@@ -18,7 +18,8 @@
 - Utilidades propias: `btn-cta` (una sola acción principal por pantalla, amarilla),
   `btn-primario`, `btn-secundario`, `btn-suave`, `tarjeta`, `tarjeta-sm`, `tarjeta-accion`,
   `eyebrow` (etiqueta con línea amarilla), `titulo-pagina`, `pildora`.
-- Cabeceras: `EncabezadoFunca` (paneles de los tres roles) y `BarraTrabajo` (pantallas de
+- Cabeceras en azul navy (`blue-900`) para diferenciar la plataforma del sitio público, que la
+  tiene blanca: `EncabezadoFunca` (paneles de los tres roles) y `BarraTrabajo` (pantallas de
   trabajo: consultorio, dictado, dispensación, catálogo), en `src/components/nucleo/`.
 - Regla de los tres clics: lo frecuente se alcanza desde el Inicio (`/admin`) o el panel del
   estudiante en ≤ 3 clics. Navegación del docente por tareas: Inicio · Jornadas ·

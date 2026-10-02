@@ -258,7 +258,7 @@ export default function PanelPage() {
           {dictado && (
             <button
               onClick={() => router.push("/panel/dictado")}
-              className="group relative overflow-hidden rounded-3xl bg-blue-900 p-5 sm:p-6 text-left text-white shadow-[0_16px_40px_-20px_rgba(30,46,85,0.8)]"
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-800 to-blue-700 p-5 sm:p-6 text-left text-white shadow-[0_16px_40px_-20px_rgba(30,46,85,0.8)]"
             >
               <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gold-500/20 blur-2xl" />
               <span className="relative flex flex-wrap items-center justify-between gap-4">

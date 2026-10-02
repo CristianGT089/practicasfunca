@@ -13,8 +13,8 @@ export type ItemNav = {
 };
 
 /**
- * Cabecera común de los tres roles, con el estilo de nueva.funca.edu.co: blanca, fija
- * arriba, navegación en píldoras y la cuenta a la derecha. En celular la navegación pasa a
+ * Cabecera común de los tres roles, con el estilo de nueva.funca.edu.co: azul navy (para
+ * diferenciarla del sitio público, que la tiene blanca), fija arriba, navegación en píldoras y la cuenta a la derecha. En celular la navegación pasa a
  * una fila que se desliza de lado.
  */
 export default function EncabezadoFunca({
@@ -37,15 +37,17 @@ export default function EncabezadoFunca({
   extra?: ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-blue-200/70 shadow-[0_6px_24px_-18px_rgba(30,46,85,0.45)]">
+    <header className="sticky top-0 z-40 bg-blue-900 border-b border-blue-950 shadow-[0_8px_24px_-14px_rgba(19,28,55,0.6)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex items-center justify-between gap-4 py-3">
           <Link href={inicioHref} className="flex items-center gap-3 shrink-0" aria-label="Ir al inicio">
-            <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} priority className="h-6 sm:h-7 w-auto" />
-            <span className="hidden sm:block h-6 w-px bg-blue-200" aria-hidden />
+            <span className="rounded-lg bg-white px-2 py-1.5">
+              <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} priority className="h-5 sm:h-6 w-auto" />
+            </span>
+            <span className="hidden sm:block h-6 w-px bg-white/20" aria-hidden />
             <span className="hidden sm:block leading-tight">
-              <span className="block font-heading text-sm font-bold text-blue-900">Prácticas</span>
-              <span className="block text-[11px] text-slate-500">{etiqueta}</span>
+              <span className="block font-heading text-sm font-bold text-white">Prácticas</span>
+              <span className="block text-[11px] text-gold-400">{etiqueta}</span>
             </span>
           </Link>
 
@@ -74,7 +76,7 @@ export default function EncabezadoFunca({
 
 const clasePildora = (activo?: boolean) =>
   `inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium font-heading transition-colors ${
-    activo ? "bg-blue-100 text-blue-800" : "text-slate-600 hover:bg-blue-50 hover:text-blue-800"
+    activo ? "bg-white text-blue-900" : "text-blue-100 hover:bg-white/10 hover:text-white"
   }`;
 
 function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: boolean }) {
@@ -173,16 +175,16 @@ function Cuenta({ nombre, rol, onSalir, extra }: { nombre?: string; rol?: string
       {extra}
       {nombre && (
         <span className="flex items-center gap-2" title={nombre}>
-          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-blue-800 font-heading text-sm font-bold text-white">
+          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-gold-500 font-heading text-sm font-bold text-blue-900">
             {inicial}
           </span>
           <span className="hidden 2xl:block leading-tight">
-            <span className="block text-sm font-semibold text-blue-900 max-w-40 truncate">{nombre}</span>
-            {rol && <span className="block text-[11px] text-slate-500">{rol}</span>}
+            <span className="block text-sm font-semibold text-white max-w-40 truncate">{nombre}</span>
+            {rol && <span className="block text-[11px] text-blue-200">{rol}</span>}
           </span>
         </span>
       )}
-      <button onClick={onSalir} className="rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-800">
+      <button onClick={onSalir} className="rounded-full px-3 py-1.5 text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white">
         Salir
       </button>
     </div>
@@ -190,8 +192,8 @@ function Cuenta({ nombre, rol, onSalir, extra }: { nombre?: string; rol?: string
 }
 
 /**
- * Barra de las pantallas de trabajo (consultorio, dictado, dispensación, catálogo): el mismo
- * estilo blanco, pero compacta, con qué pantalla es y las acciones a la derecha.
+ * Barra de las pantallas de trabajo (consultorio, dictado, dispensación, catálogo): la misma
+ * cabecera azul, pero compacta, con qué pantalla es y las acciones a la derecha.
  */
 export function BarraTrabajo({
   titulo,
@@ -205,21 +207,23 @@ export function BarraTrabajo({
   children?: ReactNode;
 }) {
   return (
-    <header className="bg-white border-b border-blue-200/70 px-4 sm:px-6">
+    <header className="bg-blue-900 border-b border-blue-950 px-4 sm:px-6">
       <div className={`mx-auto ${ancho} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2.5`}>
         <div className="flex items-center gap-3 min-w-0">
-          <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} className="h-5 sm:h-6 w-auto shrink-0" />
-          <span className="h-6 w-px bg-blue-200 shrink-0" aria-hidden />
+          <span className="rounded-lg bg-white px-2 py-1 shrink-0">
+            <Image src="/funca-logo-recortado.png" alt="FUNCA" width={144} height={26} className="h-4 sm:h-5 w-auto" />
+          </span>
+          <span className="h-6 w-px bg-white/20 shrink-0" aria-hidden />
           <span className="leading-tight min-w-0">
-            <span className="block font-heading text-sm font-bold text-blue-900 truncate">{titulo}</span>
-            {subtitulo && <span className="block text-[11px] text-slate-500 truncate">{subtitulo}</span>}
+            <span className="block font-heading text-sm font-bold text-white truncate">{titulo}</span>
+            {subtitulo && <span className="block text-[11px] text-blue-200 truncate">{subtitulo}</span>}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">{children}</div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-blue-100">{children}</div>
       </div>
     </header>
   );
 }
 
 /** Enlace/botón discreto para la barra de trabajo. */
-export const claseAccionBarra = "rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-800";
+export const claseAccionBarra = "rounded-full px-3 py-1.5 text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white";

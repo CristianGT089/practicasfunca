@@ -275,7 +275,7 @@ export default function ConsultorioOdontologiaPage() {
           Unidad {unidad}
         </button>
       )}
-      {usuario && <span className="hidden sm:inline px-2 text-slate-600">{usuario.nombre}</span>}
+      {usuario && <span className="hidden sm:inline px-2 text-blue-100">{usuario.nombre}</span>}
       <button onClick={salir} className={claseAccionBarra}>
         Salir
       </button>

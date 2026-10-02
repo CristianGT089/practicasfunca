@@ -133,7 +133,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         rol={sesion.rol === "ADMIN" ? "Coordinación" : "Docente"}
         onSalir={cerrarSesion}
         extra={
-          <Link href="/panel" className="hidden xl:inline-flex rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-800">
+          <Link href="/panel" className="hidden xl:inline-flex rounded-full px-3 py-1.5 text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white">
             Vista estudiante
           </Link>
         }

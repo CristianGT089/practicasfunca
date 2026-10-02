@@ -90,8 +90,8 @@ export default function InicioAdminPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <section className="relative overflow-hidden rounded-3xl bg-blue-900 px-6 py-8 sm:px-10 sm:py-10 text-white">
-        <div aria-hidden className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-700/50 blur-2xl" />
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-800 to-blue-700 px-6 py-8 sm:px-10 sm:py-10 text-white">
+        <div aria-hidden className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-500/40 blur-2xl" />
         <div aria-hidden className="absolute right-24 -bottom-20 h-48 w-48 rounded-full bg-gold-500/20 blur-2xl" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
