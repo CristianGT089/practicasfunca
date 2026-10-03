@@ -24,10 +24,16 @@ Digitaliza el formato en papel *Historia Salud Oral* de FUNCA; el foco es el **o
 
 - Numeración FDI, 5 caras por diente (V, L/P, M, D, O/I). La mesial siempre mira a la línea
   media; en superiores la vestibular va arriba, en inferiores abajo (igual que el papel).
-- Las 20 convenciones y colores de la tabla del formato (`HALLAZGOS` en
-  `src/lib/modulos/odontologia/odontograma.ts`). Las de cara (caries, obturaciones) se
-  pintan en la superficie; las de diente completo se dibujan encima o en la franja de la raíz.
-- Exclusiones: una cara = un hallazgo; sano/ausente/sin erupcionar excluyen lo demás;
+- 22 convenciones (`HALLAZGOS` en `src/lib/modulos/odontologia/odontograma.ts`). Las de cara
+  se marcan en la superficie: caries (relleno rojo), **resina** (relleno azul) y **amalgama**
+  (guion horizontal negro). Las de diente completo se dibujan encima o en la franja de la raíz;
+  entre ellas **prótesis removible** (guion azul en la franja: en dientes seguidos forma una
+  barra) e **implante** (I azul).
+- Cambio de octubre de 2026: se quitaron "obturado buen estado" y "obturado mal estado". Lo
+  guardado antes con esos códigos se lee como resina y amalgama, respectivamente (también en
+  los casos de ejemplo).
+- Exclusiones: una cara = un hallazgo; sano/ausente/sin erupcionar excluyen lo demás, salvo
+  que ausente convive con prótesis removible e implante (lo que reemplaza al diente perdido);
   buen vs. mal estado del mismo elemento se reemplazan; resto radicular borra las caras.
 - **Exodoncia quirúrgica**: el formato usa la misma X roja que la simple; para distinguirlas
   se agrega una **Q** roja en la franja. Ajustar si el programa usa otra convención.
@@ -178,3 +184,20 @@ su propia cuenta**; cada estudiante recibe su nota.
 Código: `dictado.ts` (puro: caso al azar, guion, avance, mapa), `dictadoJornada.ts` (base de
 datos), `/api/modulos/odontologia/dictado` (estudiante), `/api/simulaciones/[id]/dictado`
 (docente: estado, pausar, terminar). Por ahora solo Odontología (ver CLAUDE.md).
+
+## Tarifario oficial y plan de tratamiento
+
+- `src/lib/modulos/odontologia/tarifario.ts`: el capítulo completo de **Servicios
+  Ambulatorios de Salud Oral** del Manual Tarifario SOAT (Decreto 780 de 2016, Anexo
+  Técnico 1; antes Decreto 2423 de 1996): 83 procedimientos, códigos 36100–36908, con las
+  tarifas en UVB de la **Circular Externa 047 de 2025** de MinSalud (vigencia 2026).
+  Verificado código por código contra el texto de la circular.
+- Valor en pesos = UVB × valor de la UVB del año, redondeado a la centena. UVB 2026 = $12.110
+  (Resolución 3488 de 2025, MinHacienda). **Cada enero**: actualizar `UVB_VIGENTE` y, si
+  MinSalud publica una circular nueva, las tarifas.
+- En la historia (sección XV, Plan de tratamiento): *Sugerir desde el odontograma* arma el
+  plan con los códigos oficiales (caries → resina de fotocurado por superficies; endodoncia
+  según raíces + 2 periapicales; exodoncias simple/vía abierta/temporal; sellantes; coronas y
+  núcleos en mal estado; siempre el examen de primera vez). *+ Del tarifario* busca por código
+  o palabra. Es una sugerencia editable: no se califica.
+- Consulta para docentes: Contenido → Odontología → Tarifario oficial.

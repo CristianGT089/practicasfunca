@@ -7,9 +7,9 @@ import { calcularIndicePlaca } from "../src/lib/modulos/odontologia/historia";
 test("una cara tiene un solo hallazgo y clic repetido lo quita", () => {
   let m: Marca[] = [];
   m = aplicarHallazgo(m, 16, "CARIES", "O");
-  m = aplicarHallazgo(m, 16, "OBTURADO_BUEN_ESTADO", "O");
-  assert.deepEqual(m, [{ diente: 16, hallazgo: "OBTURADO_BUEN_ESTADO", superficie: "O" }]);
-  m = aplicarHallazgo(m, 16, "OBTURADO_BUEN_ESTADO", "O");
+  m = aplicarHallazgo(m, 16, "RESINA", "O");
+  assert.deepEqual(m, [{ diente: 16, hallazgo: "RESINA", superficie: "O" }]);
+  m = aplicarHallazgo(m, 16, "RESINA", "O");
   assert.deepEqual(m, []);
 });
 
@@ -82,4 +82,38 @@ test("marcar el resto como sano no pisa nada ni adivina en la mixta", async () =
   assert.ok(mixta.some((x) => x.diente === 55 && x.hallazgo === "SANO")); // su permanente no ha salido
   assert.ok(!mixta.some((x) => x.diente === 54)); // 54 y 14 sin datos: no se adivina
   assert.ok(mixta.some((x) => x.diente === 16 && x.hallazgo === "SANO")); // molar sin par
+});
+
+test("convenciones nuevas: resina, amalgama, prótesis removible e implante", async () => {
+  const { normalizarMarcas, definicionHallazgo } = await import("../src/lib/modulos/odontologia/odontograma");
+  // Lo guardado con los códigos anteriores se lee con las convenciones nuevas.
+  assert.deepEqual(
+    normalizarMarcas([
+      { diente: 16, hallazgo: "OBTURADO_BUEN_ESTADO", superficie: "O" },
+      { diente: 26, hallazgo: "OBTURADO_MAL_ESTADO", superficie: "D" },
+    ]),
+    [
+      { diente: 16, hallazgo: "RESINA", superficie: "O" },
+      { diente: 26, hallazgo: "AMALGAMA", superficie: "D" },
+    ]
+  );
+  assert.equal(definicionHallazgo("AMALGAMA")?.color, "NEGRO");
+  assert.equal(definicionHallazgo("RESINA")?.color, "AZUL");
+  assert.equal(definicionHallazgo("IMPLANTE")?.simbolo.tipo, "LETRA");
+
+  // Ausente convive con lo que reemplaza al diente; Sano lo borra todo.
+  let m: Marca[] = [];
+  m = aplicarHallazgo(m, 36, "AUSENTE");
+  m = aplicarHallazgo(m, 36, "PROTESIS_REMOVIBLE");
+  assert.deepEqual(m.map((x) => x.hallazgo).sort(), ["AUSENTE", "PROTESIS_REMOVIBLE"]);
+  m = aplicarHallazgo(m, 36, "AUSENTE"); // quitar ausente deja la prótesis
+  assert.deepEqual(m.map((x) => x.hallazgo), ["PROTESIS_REMOVIBLE"]);
+  m = aplicarHallazgo(m, 36, "AUSENTE");
+  m = aplicarHallazgo(m, 36, "IMPLANTE");
+  assert.equal(m.length, 3);
+  m = aplicarHallazgo(m, 36, "SANO");
+  assert.deepEqual(m, [{ diente: 36, hallazgo: "SANO" }]);
+  // Una caries sí quita el "ausente" (el diente está).
+  m = aplicarHallazgo([{ diente: 46, hallazgo: "AUSENTE" }], 46, "CARIES", "O");
+  assert.deepEqual(m, [{ diente: 46, hallazgo: "CARIES", superficie: "O" }]);
 });

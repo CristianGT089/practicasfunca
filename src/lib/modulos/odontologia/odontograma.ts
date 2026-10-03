@@ -110,8 +110,8 @@ export function letraSuperficie(diente: number, superficie: Superficie): string 
 export type CodigoHallazgo =
   | "SANO"
   | "CARIES"
-  | "OBTURADO_BUEN_ESTADO"
-  | "OBTURADO_MAL_ESTADO"
+  | "RESINA"
+  | "AMALGAMA"
   | "AUSENTE"
   | "EXODONCIA_SIMPLE_INDICADA"
   | "EXODONCIA_QUIRURGICA_INDICADA"
@@ -127,7 +127,9 @@ export type CodigoHallazgo =
   | "PROVISIONAL_BUEN_ESTADO"
   | "NUCLEO_MAL_ESTADO"
   | "NUCLEO_BUEN_ESTADO"
-  | "RESTO_RADICULAR";
+  | "RESTO_RADICULAR"
+  | "PROTESIS_REMOVIBLE"
+  | "IMPLANTE";
 
 export type Color = "ROJO" | "AZUL" | "NEGRO";
 
@@ -140,7 +142,11 @@ export type Simbolo =
   | { tipo: "X"; quirurgica?: boolean }
   | { tipo: "TRIANGULO" }
   | { tipo: "CIRCULO" }
-  | { tipo: "ROTACION" };
+  | { tipo: "ROTACION" }
+  /** Guion horizontal dentro de la cara (amalgama). */
+  | { tipo: "GUION_CARA" }
+  /** Guion horizontal en la franja del diente (prótesis removible); seguidos forman una barra. */
+  | { tipo: "GUION_FRANJA" };
 
 export type DefinicionHallazgo = {
   codigo: CodigoHallazgo;
@@ -156,14 +162,16 @@ export type DefinicionHallazgo = {
    * estado). "TOTAL" excluye cualquier otro hallazgo del diente (sano, ausente, sin erupcionar).
    */
   grupo?: string;
+  /** Puede ir junto con "Ausente" en el mismo diente (lo que reemplaza al diente perdido). */
+  conAusente?: boolean;
 };
 
 /** En el mismo orden que la tabla de convenciones del formato en papel. */
 export const HALLAZGOS: DefinicionHallazgo[] = [
   { codigo: "SANO", etiqueta: "Sano", color: "NEGRO", simbolo: { tipo: "LETRA", texto: "S" }, nivel: "DIENTE", grupo: "TOTAL" },
   { codigo: "CARIES", etiqueta: "Cariado", color: "ROJO", simbolo: { tipo: "RELLENO" }, nivel: "SUPERFICIE" },
-  { codigo: "OBTURADO_BUEN_ESTADO", etiqueta: "Obturado buen estado", color: "AZUL", simbolo: { tipo: "RELLENO" }, nivel: "SUPERFICIE" },
-  { codigo: "OBTURADO_MAL_ESTADO", etiqueta: "Obturado mal estado", color: "AZUL", simbolo: { tipo: "RELLENO", halo: "ROJO" }, nivel: "SUPERFICIE" },
+  { codigo: "RESINA", etiqueta: "Resina", color: "AZUL", simbolo: { tipo: "RELLENO" }, nivel: "SUPERFICIE" },
+  { codigo: "AMALGAMA", etiqueta: "Amalgama", color: "NEGRO", simbolo: { tipo: "GUION_CARA" }, nivel: "SUPERFICIE" },
   { codigo: "AUSENTE", etiqueta: "Ausente", color: "NEGRO", simbolo: { tipo: "LINEA_VERTICAL" }, nivel: "DIENTE", grupo: "TOTAL" },
   { codigo: "EXODONCIA_SIMPLE_INDICADA", etiqueta: "Exodoncia simple indicada", color: "ROJO", simbolo: { tipo: "X" }, nivel: "DIENTE", grupo: "EXODONCIA" },
   { codigo: "EXODONCIA_QUIRURGICA_INDICADA", etiqueta: "Exodoncia quirúrgica indicada", color: "ROJO", simbolo: { tipo: "X", quirurgica: true }, nivel: "DIENTE", grupo: "EXODONCIA" },
@@ -180,12 +188,24 @@ export const HALLAZGOS: DefinicionHallazgo[] = [
   { codigo: "NUCLEO_MAL_ESTADO", etiqueta: "Núcleo mal estado", color: "ROJO", simbolo: { tipo: "LETRA", texto: "N" }, nivel: "DIENTE", grupo: "NUCLEO", radiografico: true },
   { codigo: "NUCLEO_BUEN_ESTADO", etiqueta: "Núcleo buen estado", color: "AZUL", simbolo: { tipo: "LETRA", texto: "N" }, nivel: "DIENTE", grupo: "NUCLEO", radiografico: true },
   { codigo: "RESTO_RADICULAR", etiqueta: "Resto radicular", color: "ROJO", simbolo: { tipo: "LETRA", texto: "RR" }, nivel: "DIENTE" },
+  { codigo: "PROTESIS_REMOVIBLE", etiqueta: "Prótesis removible", color: "AZUL", simbolo: { tipo: "GUION_FRANJA" }, nivel: "DIENTE", conAusente: true },
+  { codigo: "IMPLANTE", etiqueta: "Implante", color: "AZUL", simbolo: { tipo: "LETRA", texto: "I" }, nivel: "DIENTE", conAusente: true },
 ];
 
 const POR_CODIGO = new Map(HALLAZGOS.map((h) => [h.codigo, h]));
 
+/**
+ * Convenciones que ya no existen y cómo se leen hoy. "Obturado buen/mal estado" se cambió
+ * por Resina y Amalgama (octubre 2026): lo guardado antes se lee como Resina (buen estado) o
+ * Amalgama (mal estado), igual que quedaron los casos de ejemplo.
+ */
+const CODIGOS_ANTERIORES: Record<string, CodigoHallazgo> = {
+  OBTURADO_BUEN_ESTADO: "RESINA",
+  OBTURADO_MAL_ESTADO: "AMALGAMA",
+};
+
 export function definicionHallazgo(codigo: string): DefinicionHallazgo | undefined {
-  return POR_CODIGO.get(codigo as CodigoHallazgo);
+  return POR_CODIGO.get((CODIGOS_ANTERIORES[codigo] ?? codigo) as CodigoHallazgo);
 }
 
 export const COLORES_HEX: Record<Color, string> = { ROJO: "#dc2626", AZUL: "#2563eb", NEGRO: "#111827" };
@@ -267,13 +287,15 @@ export function aplicarHallazgo(
   const yaEstaba = marcas.some((m) => delDiente(m) && m.hallazgo === hallazgo);
   if (yaEstaba) return marcas.filter((m) => !(delDiente(m) && m.hallazgo === hallazgo));
 
+  const vaConAusente = (m: Marca) => definicionHallazgo(m.hallazgo)?.conAusente === true;
   let resto: Marca[];
   if (def.grupo === "TOTAL") {
-    resto = marcas.filter((m) => !delDiente(m));
+    // Ausente deja lo que reemplaza al diente (prótesis removible, implante); lo demás se borra.
+    resto = marcas.filter((m) => !delDiente(m) || (hallazgo === "AUSENTE" && vaConAusente(m)));
   } else {
     resto = marcas.filter(
       (m) =>
-        !(delDiente(m) && grupoDe(m) === "TOTAL") &&
+        !(delDiente(m) && grupoDe(m) === "TOTAL" && !(def.conAusente && m.hallazgo === "AUSENTE")) &&
         !(delDiente(m) && def.grupo !== undefined && grupoDe(m) === def.grupo) &&
         !(delDiente(m) && hallazgo === "RESTO_RADICULAR" && m.superficie !== undefined)
     );
@@ -288,7 +310,7 @@ export function limpiarDiente(marcas: Marca[], diente: number): Marca[] {
 /** Dientes que cuentan como presentes en boca (para el índice de O'Leary). */
 export function dientesPresentes(denticion: Denticion, marcas: Marca[]): number[] {
   const fuera = new Set(
-    marcas.filter((m) => m.hallazgo === "AUSENTE" || m.hallazgo === "SIN_ERUPCIONAR").map((m) => m.diente)
+    marcas.filter((m) => m.hallazgo === "AUSENTE" || m.hallazgo === "SIN_ERUPCIONAR" || m.hallazgo === "PROTESIS_REMOVIBLE").map((m) => m.diente)
   );
   return dientesDeDenticion(denticion).filter((d) => !fuera.has(d));
 }
@@ -306,8 +328,8 @@ export function dientesPresentes(denticion: Denticion, marcas: Marca[]): number[
 const DESCRIPCION: Record<CodigoHallazgo, { clinico?: string; radiografico?: string }> = {
   SANO: {},
   CARIES: { clinico: "lesión cavitada con tejido reblandecido y oscuro" },
-  OBTURADO_BUEN_ESTADO: { clinico: "restauración bien adaptada, sin filtración ni caries alrededor" },
-  OBTURADO_MAL_ESTADO: { clinico: "restauración desadaptada, con filtración marginal y bordes oscuros" },
+  RESINA: { clinico: "restauración del color del diente (resina)" },
+  AMALGAMA: { clinico: "restauración metálica plateada (amalgama)" },
   AUSENTE: { clinico: "no se observa en boca; el paciente refiere que se lo extrajeron" },
   EXODONCIA_SIMPLE_INDICADA: {
     clinico: "destrucción coronal extensa, no restaurable, con raíces accesibles; se indica extraerlo",
@@ -333,6 +355,11 @@ const DESCRIPCION: Record<CodigoHallazgo, { clinico?: string; radiografico?: str
   NUCLEO_MAL_ESTADO: { radiografico: "poste intrarradicular desadaptado, con espacio entre el poste y el conducto" },
   NUCLEO_BUEN_ESTADO: { radiografico: "poste intrarradicular bien adaptado" },
   RESTO_RADICULAR: { clinico: "solo quedan restos de la raíz, sin corona clínica" },
+  PROTESIS_REMOVIBLE: { clinico: "lo reemplaza un diente de una prótesis removible, que el paciente se quita para la higiene" },
+  IMPLANTE: {
+    clinico: "corona fija sobre un implante; el paciente refiere que se lo pusieron",
+    radiografico: "tornillo de titanio dentro del hueso (implante)",
+  },
 };
 
 const ORDEN_RELATO: Superficie[] = ["O", "M", "D", "V", "L"];
@@ -396,7 +423,8 @@ export function parMixto(diente: number): number | null {
   return null;
 }
 
-const NO_ESTA_EN_BOCA = new Set<CodigoHallazgo>(["AUSENTE", "SIN_ERUPCIONAR"]);
+// La prótesis y el implante reemplazan al diente natural: tampoco cuenta como presente.
+const NO_ESTA_EN_BOCA = new Set<CodigoHallazgo>(["AUSENTE", "SIN_ERUPCIONAR", "PROTESIS_REMOVIBLE", "IMPLANTE"]);
 
 /**
  * ¿El diente está en boca según lo marcado? true = tiene algo que implica que está (caries,

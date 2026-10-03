@@ -103,8 +103,16 @@ export function generarCasoAleatorio(denticion: "PERMANENTE" | "TEMPORAL", compl
     const anteriores = [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43];
     for (let i = 0; i < entero(1, 3); i++) deDiente("AUSENTE", libre(azar() < 0.6 ? cordales : molares));
     for (let i = 0; i < entero(2, 4); i++) porCara("CARIES", libre(azar() < 0.75 ? [...molares, ...premolares] : anteriores));
-    for (let i = 0; i < entero(1, 2); i++) porCara("OBTURADO_BUEN_ESTADO", libre([...molares, ...premolares]));
-    if (azar() < 0.6) porCara("OBTURADO_MAL_ESTADO", libre([...molares, ...premolares]));
+    for (let i = 0; i < entero(1, 2); i++) porCara("RESINA", libre(azar() < 0.7 ? [...molares, ...premolares] : anteriores));
+    if (azar() < 0.6) porCara("AMALGAMA", libre([...molares, ...premolares]));
+    if (azar() < 0.2) deDiente("IMPLANTE", libre(molares));
+    if (azar() < 0.15) {
+      // Prótesis removible: reemplaza dientes perdidos (ausente + prótesis en el mismo diente).
+      for (const d of [libre(molares), libre(premolares)]) {
+        if (d === null) continue;
+        marcas.push({ diente: d, hallazgo: "AUSENTE" }, { diente: d, hallazgo: "PROTESIS_REMOVIBLE" });
+      }
+    }
     if (azar() < 0.4) deDiente(azar() < 0.5 ? "CORONA_BUEN_ESTADO" : "CORONA_MAL_ESTADO", libre([...molares, 11, 21]));
     if (azar() < 0.3) deDiente("ENDODONCIA_INDICADA", libre([...molares, ...premolares]));
     if (azar() < 0.3) deDiente("SELLANTE_POR_HACER", libre(molares));
@@ -114,7 +122,7 @@ export function generarCasoAleatorio(denticion: "PERMANENTE" | "TEMPORAL", compl
     const molaresT = [54, 55, 64, 65, 74, 75, 84, 85];
     const anterioresT = [51, 52, 53, 61, 62, 63, 71, 72, 73, 81, 82, 83];
     for (let i = 0; i < entero(2, 4); i++) porCara("CARIES", libre(azar() < 0.8 ? molaresT : anterioresT));
-    if (azar() < 0.5) porCara("OBTURADO_BUEN_ESTADO", libre(molaresT));
+    if (azar() < 0.5) porCara("RESINA", libre(molaresT));
     for (let i = 0; i < entero(0, 2); i++) deDiente("SELLANTE_POR_HACER", libre([55, 65, 75, 85]));
     if (azar() < 0.4) deDiente("EXODONCIA_SIMPLE_INDICADA", libre(molaresT));
   }
@@ -136,7 +144,8 @@ export function generarCasoAleatorio(denticion: "PERMANENTE" | "TEMPORAL", compl
     }
     const odont = new Set<string>();
     if (tiene("AUSENTE") || tiene("RESTO_RADICULAR")) odont.add("exodoncias");
-    if (tiene("OBTURADO_BUEN_ESTADO") || tiene("OBTURADO_MAL_ESTADO")) odont.add("operatoria");
+    if (tiene("RESINA") || tiene("AMALGAMA")) odont.add("operatoria");
+    if (tiene("PROTESIS_REMOVIBLE") || tiene("IMPLANTE")) odont.add("protesis");
     if (tiene("CORONA_BUEN_ESTADO") || tiene("CORONA_MAL_ESTADO")) odont.add("coronas");
     if (azar() < 0.5) odont.add("profilaxis");
     esperado.antecedentesOdontologicos = [...odont];

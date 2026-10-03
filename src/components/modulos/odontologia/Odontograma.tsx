@@ -110,9 +110,10 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, onMenu, estado, sin
 
   function relleno(s: Superficie): { fill: string; stroke?: string } {
     const h = enSuperficie.get(s);
-    if (h) {
-      const def = definicionHallazgo(h)!;
-      const halo = def.simbolo.tipo === "RELLENO" ? def.simbolo.halo : undefined;
+    const def = h ? definicionHallazgo(h) : undefined;
+    // Solo los rellenos pintan la cara (caries, resina); la amalgama es un guion encima.
+    if (def && def.simbolo.tipo === "RELLENO") {
+      const halo = def.simbolo.halo;
       return { fill: COLORES_HEX[def.color], stroke: halo ? COLORES_HEX[halo] : undefined };
     }
     if (editable && (hover === s || (herramientaDeDiente && hover))) return { fill: "#e0f2fe" };
@@ -248,6 +249,27 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, onMenu, estado, sin
 
       {/* Trazos sobre el diente (no capturan el clic, para poder seguir marcando debajo) */}
       <g pointerEvents="none">
+        {[...enSuperficie.entries()]
+          .filter(([, h]) => definicionHallazgo(h)?.simbolo.tipo === "GUION_CARA")
+          .map(([cara, h]) => {
+            const pos = posicionDe(diente, cara);
+            const m = (R + r) / 2; // a media distancia entre el borde y la cara oclusal
+            const [px, py] =
+              pos === "centro" ? [cx, cy] : pos === "arriba" ? [cx, cy - m] : pos === "abajo" ? [cx, cy + m] : pos === "izquierda" ? [cx - m, cy] : [cx + m, cy];
+            const largo = pos === "centro" ? 8 : 6;
+            return (
+              <line
+                key={`g${cara}`}
+                x1={px - largo / 2}
+                y1={py}
+                x2={px + largo / 2}
+                y2={py}
+                stroke={COLORES_HEX[definicionHallazgo(h)!.color]}
+                strokeWidth={2.6}
+                strokeLinecap="round"
+              />
+            );
+          })}
         {aNivelDiente.map((def) => {
           const color = COLORES_HEX[def.color];
           switch (def.simbolo.tipo) {
@@ -266,6 +288,11 @@ function Diente({ diente, x, y, marcas, herramienta, onClic, onMenu, estado, sin
             }
             case "CIRCULO":
               return <circle key={def.codigo} cx={cx} cy={cy} r={R + 3} fill="none" stroke={color} strokeWidth={2.6} />;
+            case "GUION_FRANJA": {
+              // Del lado del diente dentro de la franja, de borde a borde: varios seguidos forman la barra.
+              const gy = superior ? franjaY + FRANJA - 2 : franjaY + 2;
+              return <line key={def.codigo} x1={x} y1={gy} x2={x + ANCHO} y2={gy} stroke={color} strokeWidth={3.2} />;
+            }
             default:
               return null;
           }
@@ -382,7 +409,8 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
 
   function clic(diente: number, superficie: Superficie) {
     if (!onChange) return;
-    setFoco(diente);
+    // El recuadro de foco es para el teclado; con el mouse solo se recuerda el diente.
+    ultimoFoco.current = diente;
     if (tactil) {
       // En el celular la cara es muy pequeña para acertarle: se elige dentro de la ficha.
       setFicha({ diente, superficie: null });

@@ -54,6 +54,7 @@ export const MODULOS: Record<string, DefinicionModulo> = {
     seccionesAdmin: [
       { href: "/admin/modulos/odontologia/casos", label: "Casos (odontograma)" },
       { href: "/admin/modulos/odontologia/historias", label: "Historias diligenciadas" },
+      { href: "/admin/modulos/odontologia/tarifario", label: "Tarifario oficial" },
     ],
   },
   // Módulo-herramienta (tipo SIMULADOR): no usa el motor de escenarios, por eso no aporta

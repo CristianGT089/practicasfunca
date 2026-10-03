@@ -13,7 +13,7 @@ function semilla(n: number) {
   };
 }
 
-test("el caso al azar es válido: marcas normalizadas, dientes de su dentición y un hallazgo por diente", () => {
+test("el caso al azar es válido: marcas normalizadas y dientes de su dentición", () => {
   for (let i = 1; i <= 40; i++) {
     for (const d of ["PERMANENTE", "TEMPORAL"] as const) {
       const { esperado, paciente } = generarCasoAleatorio(d, i % 2 === 0, semilla(i));
@@ -25,7 +25,12 @@ test("el caso al azar es válido: marcas normalizadas, dientes de su dentición 
       assert.deepEqual(normalizarEsperado(esperado), esperado);
       const hallazgosPorDiente = new Map<number, Set<string>>();
       for (const m of esperado.odontograma) hallazgosPorDiente.set(m.diente, new Set([...(hallazgosPorDiente.get(m.diente) ?? []), m.hallazgo]));
-      assert.ok([...hallazgosPorDiente.values()].every((h) => h.size === 1));
+      // Un hallazgo por diente, salvo el diente perdido reemplazado por prótesis removible.
+      assert.ok(
+        [...hallazgosPorDiente.values()].every(
+          (h) => h.size === 1 || (h.size === 2 && h.has("AUSENTE") && h.has("PROTESIS_REMOVIBLE"))
+        )
+      );
       assert.equal(paciente.tipoDocumento, d === "TEMPORAL" ? "RC" : "CC");
     }
   }

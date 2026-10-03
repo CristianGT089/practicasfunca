@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ALERTAS_MEDICAS,
   ANTECEDENTES_ODONTOLOGICOS,
@@ -13,6 +13,14 @@ import {
   type SiNo,
 } from "@/lib/modulos/odontologia/historia";
 import type { Denticion } from "@/lib/modulos/odontologia/odontograma";
+import {
+  FUENTE_TARIFARIO,
+  TARIFARIO_ODONTOLOGIA,
+  UVB_VIGENTE,
+  presupuestoDesdeOdontograma,
+  textoItem,
+  valorEnPesos,
+} from "@/lib/modulos/odontologia/tarifario";
 import Odontograma from "./Odontograma";
 import IndicePlaca from "./IndicePlaca";
 
@@ -350,6 +358,29 @@ export function SeccionDiagnosticoPlan({ h, set }: PropsSeccion) {
   const plan = h.planTratamiento;
   const setPlan = (i: number, c: Partial<(typeof plan)[number]>) => set?.({ planTratamiento: plan.map((r, j) => (j === i ? { ...r, ...c } : r)) });
   const total = plan.reduce((a, r) => a + r.valorUnitario * r.cantidad, 0);
+  const [buscando, setBuscando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  // Agrega las líneas sugeridas por el odontograma que todavía no estén en el plan (por código).
+  function sugerir() {
+    const sugeridas = presupuestoDesdeOdontograma(h.odontograma);
+    const nuevas = sugeridas.filter((l) => !plan.some((r) => r.tratamiento.startsWith(l.codigo)));
+    set?.({
+      planTratamiento: [
+        ...plan,
+        ...nuevas.map((l) => ({
+          tratamiento: `${l.codigo} · ${l.descripcion}${l.dientes.length ? ` (${l.dientes.join(", ")})` : ""}`,
+          valorUnitario: l.valorUnitario,
+          cantidad: l.cantidad,
+        })),
+      ],
+    });
+    setAviso(
+      nuevas.length
+        ? `Se agregaron ${nuevas.length} tratamiento(s) según el odontograma. Revísalos: es una sugerencia, no reemplaza tu criterio.`
+        : "No hay tratamientos nuevos que sugerir con lo marcado en el odontograma."
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -372,16 +403,43 @@ export function SeccionDiagnosticoPlan({ h, set }: PropsSeccion) {
         titulo="XV. Plan de tratamiento"
         extra={
           set && (
-            <button
-              type="button"
-              onClick={() => set({ planTratamiento: [...plan, { tratamiento: "", valorUnitario: 0, cantidad: 1 }] })}
-              className="rounded-md border border-cyan-600 px-2 py-0.5 text-xs font-semibold text-cyan-700 hover:bg-cyan-50"
-            >
-              + Agregar
-            </button>
+            <span className="flex flex-wrap justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={sugerir}
+                className="rounded-full bg-blue-800 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-blue-900"
+                title="Arma el plan con las tarifas oficiales según lo marcado en el odontograma"
+              >
+                Sugerir desde el odontograma
+              </button>
+              <button
+                type="button"
+                onClick={() => setBuscando((v) => !v)}
+                aria-expanded={buscando}
+                className="rounded-full border border-blue-700 px-2.5 py-0.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"
+              >
+                + Del tarifario
+              </button>
+              <button
+                type="button"
+                onClick={() => set({ planTratamiento: [...plan, { tratamiento: "", valorUnitario: 0, cantidad: 1 }] })}
+                className="rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                + Otro
+              </button>
+            </span>
           )
         }
       >
+        {aviso && <p className="mb-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">{aviso}</p>}
+        {buscando && set && (
+          <BuscadorTarifario
+            onElegir={(item) => {
+              set({ planTratamiento: [...plan, { tratamiento: textoItem(item), valorUnitario: valorEnPesos(item.uvb), cantidad: 1 }] });
+              setBuscando(false);
+            }}
+          />
+        )}
         {plan.length === 0 ? (
           <p className="text-xs text-slate-400">Sin tratamientos registrados.</p>
         ) : (
@@ -441,7 +499,51 @@ export function SeccionDiagnosticoPlan({ h, set }: PropsSeccion) {
             </tbody>
           </table>
         )}
+        <p className="mt-2 text-[11px] text-slate-500">
+          Tarifas oficiales {UVB_VIGENTE.anio}: {FUENTE_TARIFARIO}. 1 UVB = {pesos(UVB_VIGENTE.valor)} ({UVB_VIGENTE.norma}).
+        </p>
       </Recuadro>
+    </div>
+  );
+}
+
+/** Buscador del tarifario oficial por código o por palabra (resina, conductos, exodoncia…). */
+function BuscadorTarifario({ onElegir }: { onElegir: (item: (typeof TARIFARIO_ODONTOLOGIA)[number]) => void }) {
+  const [texto, setTexto] = useState("");
+  const resultados = useMemo(() => {
+    const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const palabras = sinTildes(texto).split(/\s+/).filter(Boolean);
+    return TARIFARIO_ODONTOLOGIA.filter((i) => {
+      const en = sinTildes(`${i.codigo} ${i.descripcion} ${i.grupo}`);
+      return palabras.every((p) => en.includes(p));
+    }).slice(0, 10);
+  }, [texto]);
+  return (
+    <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50/50 p-2">
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        placeholder="Busca por código o palabra: resina, conductos, exodoncia temporal…"
+        aria-label="Buscar en el tarifario"
+        className={claseInput}
+      />
+      <ul className="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto">
+        {resultados.map((i) => (
+          <li key={i.codigo}>
+            <button
+              type="button"
+              onClick={() => onElegir(i)}
+              className="flex w-full items-start gap-2 rounded-lg bg-white px-2.5 py-1.5 text-left text-xs hover:bg-blue-100"
+            >
+              <span className="font-mono font-semibold text-blue-800">{i.codigo}</span>
+              <span className="flex-1 text-slate-700">{i.descripcion}</span>
+              <span className="shrink-0 font-semibold text-slate-800">{pesos(valorEnPesos(i.uvb))}</span>
+            </button>
+          </li>
+        ))}
+        {resultados.length === 0 && <li className="px-2 py-1 text-xs text-slate-500">Sin resultados.</li>}
+      </ul>
     </div>
   );
 }
