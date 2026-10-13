@@ -24,7 +24,7 @@ export default function EncabezadoFunca({
   nombre,
   rol,
   onSalir,
-  extra,
+  enlacesCuenta = [],
 }: {
   /** Qué parte de la plataforma es ("Docente", "Coordinación", "Estudiante"). */
   etiqueta: string;
@@ -33,8 +33,8 @@ export default function EncabezadoFunca({
   nombre?: string;
   rol?: string;
   onSalir: () => void;
-  /** Enlaces adicionales junto a la cuenta (ej. "Ver como estudiante"). */
-  extra?: ReactNode;
+  /** Enlaces del menú de la cuenta (ej. "Vista estudiante"). */
+  enlacesCuenta?: { href: string; label: string }[];
 }) {
   return (
     <header className="sticky top-0 z-40 bg-blue-900 border-b border-blue-950 shadow-[0_8px_24px_-14px_rgba(19,28,55,0.6)]">
@@ -50,18 +50,18 @@ export default function EncabezadoFunca({
           </Link>
 
           {nav.length > 0 && (
-            <nav aria-label="Principal" className="hidden lg:flex items-center gap-0.5 min-w-0">
+            <nav aria-label="Principal" className="hidden xl:flex items-center gap-0.5 shrink-0">
               {nav.map((item) => (
                 <ItemNavegacion key={item.href} item={item} />
               ))}
             </nav>
           )}
 
-          <Cuenta nombre={nombre} rol={rol} onSalir={onSalir} extra={extra} />
+          <Cuenta nombre={nombre} rol={rol} onSalir={onSalir} enlaces={enlacesCuenta} />
         </div>
 
         {nav.length > 0 && (
-          <nav aria-label="Principal" className="lg:hidden -mx-4 px-4 pb-2 flex gap-1 overflow-x-auto">
+          <nav aria-label="Principal" className="xl:hidden -mx-4 px-4 pb-2 flex gap-1 overflow-x-auto">
             {nav.map((item) => (
               <ItemNavegacion key={item.href} item={item} compacto />
             ))}
@@ -166,25 +166,74 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
   );
 }
 
-function Cuenta({ nombre, rol, onSalir, extra }: { nombre?: string; rol?: string; onSalir: () => void; extra?: ReactNode }) {
+/**
+ * La cuenta: solo el avatar en la barra (no compite por espacio con el menú). Al tocarlo se
+ * abre el nombre, el rol, los enlaces de la cuenta y Salir.
+ */
+function Cuenta({
+  nombre,
+  rol,
+  onSalir,
+  enlaces,
+}: {
+  nombre?: string;
+  rol?: string;
+  onSalir: () => void;
+  enlaces: { href: string; label: string }[];
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const inicial = (nombre ?? "?").trim().charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setAbierto(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setAbierto(false);
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [abierto]);
+
   return (
-    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-      {extra}
-      {nombre && (
-        <span className="flex items-center gap-2" title={nombre}>
-          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-gold-500 font-heading text-sm font-bold text-blue-900">
-            {inicial}
-          </span>
-          <span className="hidden 2xl:block leading-tight">
-            <span className="block text-sm font-semibold text-white max-w-40 truncate">{nombre}</span>
-            {rol && <span className="block text-[11px] text-blue-200">{rol}</span>}
-          </span>
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        aria-haspopup="true"
+        aria-label={`Cuenta de ${nombre ?? "usuario"}`}
+        className="flex items-center gap-1.5 rounded-full p-0.5 pr-2 text-blue-100 hover:bg-white/10 hover:text-white"
+      >
+        <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-gold-500 font-heading text-sm font-bold text-blue-900">
+          {inicial}
         </span>
-      )}
-      <button onClick={onSalir} className="rounded-full px-3 py-1.5 text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white">
-        Salir
+        <svg aria-hidden viewBox="0 0 12 12" className={`h-3 w-3 transition-transform ${abierto ? "rotate-180" : ""}`}>
+          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
       </button>
+      {abierto && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-2xl border border-blue-200 bg-white p-2 shadow-[0_20px_40px_-16px_rgba(30,46,85,0.35)]">
+          {nombre && (
+            <div className="px-3 pt-2 pb-2 border-b border-blue-100 mb-1">
+              <p className="text-sm font-semibold text-blue-900 truncate">{nombre}</p>
+              {rol && <p className="text-xs text-slate-500">{rol}</p>}
+            </div>
+          )}
+          {enlaces.map((e) => (
+            <Link key={e.href} href={e.href} onClick={() => setAbierto(false)} className="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800">
+              {e.label}
+            </Link>
+          ))}
+          <button type="button" onClick={onSalir} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
+            Salir
+          </button>
+        </div>
+      )}
     </div>
   );
 }

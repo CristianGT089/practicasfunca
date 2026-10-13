@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { definicionSituacion } from "@/lib/simulacion/situaciones";
+import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { hora, type AtencionReporte, type Participante } from "./tipos";
 import RevisionRubrica from "./RevisionRubrica";
 import { normalizarRubrica, puntajeRubrica } from "@/lib/modulos/odontologia/rubrica";
@@ -89,7 +90,7 @@ export default function Confirmacion({
                 <p className="text-xs text-slate-500">
                   {a.espacioNumero ? `Puesto ${a.espacioNumero}` : "Sin turno"} · {hora(a.llamadoEn)}
                   {a.cerrada === false && " · historia sin cerrar"}
-                  {a.situaciones.length > 0 && ` · ${a.situaciones.map((c) => definicionSituacion(c)?.nombre ?? c).join(", ")}`}
+                  {a.situaciones.length > 0 && ` · ${a.situaciones.map((c) => casoRonda(c)?.titulo ?? definicionSituacion(c)?.nombre ?? c).join(", ")}`}
                 </p>
               </div>
               <select

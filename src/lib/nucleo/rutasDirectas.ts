@@ -7,6 +7,7 @@ export const RUTAS_DIRECTAS = [
   { valor: "/panel/dispensacion", etiqueta: "Dispensación (fórmulas)" },
   { valor: "/panel/catalogo", etiqueta: "Farmacia — catálogo real / venta" },
   { valor: "/panel/odontologia", etiqueta: "Odontología — consultorio (historia y odontograma)" },
+  { valor: "/panel/enfermeria", etiqueta: "Enfermería — estación (ronda de medicamentos)" },
 ] as const;
 
 export type RutaDirecta = (typeof RUTAS_DIRECTAS)[number]["valor"];

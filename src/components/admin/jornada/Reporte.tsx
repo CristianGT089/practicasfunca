@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { definicionSituacion } from "@/lib/simulacion/situaciones";
+import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { ETIQUETA_ERROR, type ClaveCriterio } from "@/lib/simulacion/evaluacion";
 import { hora, type Reporte as ReporteDatos } from "./tipos";
 import RevisionOdontograma, { type RevisionOdontologia } from "@/components/modulos/odontologia/RevisionOdontograma";
@@ -50,6 +51,9 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
     : null;
   const sinVerificacion = datos.simulacion.tipo === "FARMACIA";
   const esOdonto = datos.simulacion.tipo === "ODONTOLOGIA";
+  const esEnfermeria = datos.simulacion.tipo === "ENFERMERIA";
+  // Odontología y Enfermería: historias/hojas que se cierran; sin situaciones del catálogo de farmacia.
+  const conHistoria = esOdonto || esEnfermeria;
   const dictado = datos.dictado ?? null;
 
   function exportar() {
@@ -60,7 +64,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
         a.ticketCodigo,
         a.espacioNumero,
         a.pacienteNombre,
-        a.situaciones.map((c) => definicionSituacion(c)?.nombre ?? c).join(", "),
+        a.situaciones.map((c) => casoRonda(c)?.titulo ?? definicionSituacion(c)?.nombre ?? c).join(", "),
         a.participante?.nombre ?? "",
         a.puntaje,
         a.criterios
@@ -84,8 +88,8 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
           ["Participantes", String(datos.porEstudiante.length)],
           dictado
             ? ["Dientes del caso", String(dictado.mapa.length)]
-            : esOdonto
-            ? ["Historias cerradas", String(datos.atenciones.filter((a) => a.cerrada).length)]
+            : conHistoria
+            ? [esEnfermeria ? "Hojas cerradas" : "Historias cerradas", String(datos.atenciones.filter((a) => a.cerrada).length)]
             : ["Situaciones", datos.simulacion.situaciones.length ? String(datos.simulacion.situaciones.length) : "Al azar"],
         ].map(([k, v]) => (
           <div key={k} className="tarjeta-sm p-3">
@@ -152,9 +156,9 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
                     </h3>
                     {!dictado && (
                     <p className="text-xs text-slate-500">
-                      {a.pacienteNombre} · {a.espacioNumero ? `${esOdonto ? "unidad" : "ventanilla"} ${a.espacioNumero}` : "sin turno"} ·{" "}
+                      {a.pacienteNombre} · {a.espacioNumero ? `${esOdonto ? "unidad" : esEnfermeria ? "estación" : "ventanilla"} ${a.espacioNumero}` : "sin turno"} ·{" "}
                       {hora(a.llamadoEn)}
-                      {esOdonto && !a.cerrada && " · no cerró la historia"}
+                      {conHistoria && !a.cerrada && ` · no cerró la ${esEnfermeria ? "hoja" : "historia"}`}
                       {conNombres && <> · atendió <b className="text-slate-700">{a.participante?.nombre ?? "sin confirmar"}</b></>}
                     </p>
                     )}
@@ -162,7 +166,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
                   {a.puntaje !== null && <p className={`font-heading text-2xl font-bold ${colorPuntaje(a.puntaje)}`}>{a.puntaje}%</p>}
                 </div>
 
-                {esOdonto ? null : a.situaciones.length === 0 ? (
+                {conHistoria ? null : a.situaciones.length === 0 ? (
                   <p className="mt-2 text-xs text-slate-500">Caso normal: sin ninguna situación especial.</p>
                 ) : (
                   <ul className="mt-2 flex flex-col gap-1">

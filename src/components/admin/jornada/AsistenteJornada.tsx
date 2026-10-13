@@ -14,17 +14,25 @@ import {
   type EsperadoOdontologia,
 } from "@/lib/modulos/odontologia/historia";
 import { generarCasoAleatorio, guionDictado, type SeccionesDictado } from "@/lib/modulos/odontologia/dictado";
+import { CASOS_RONDA } from "@/lib/modulos/enfermeria/ronda";
 import Odontograma from "@/components/modulos/odontologia/Odontograma";
 import { GrillaSi } from "@/components/modulos/odontologia/SeccionesHistoria";
 
-export type Tipo = "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA";
+export type Tipo = "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
 type Genero = "MASCULINO" | "FEMENINO" | "OTRO";
 type CasoOdonto = { id: string; titulo: string; activo: boolean; odontologia: { paciente: { nombres: string; primerApellido: string } } | null };
 type GrupoOpcion = { id: string; nombre: string; estudiantes: unknown[] };
 
-export type Modalidad = "TURNOS_DISPENSARIO" | "TURNOS_FARMACIA" | "CASOS" | "REALES" | "DICTADO";
+export type Modalidad = "RONDA" | "TURNOS_DISPENSARIO" | "TURNOS_FARMACIA" | "CASOS" | "REALES" | "DICTADO";
 
 const MODALIDADES: { id: Modalidad; tipo: Tipo; titulo: string; texto: string; ideal: string }[] = [
+  {
+    id: "RONDA",
+    tipo: "ENFERMERIA",
+    titulo: "Ronda de medicamentos",
+    texto: "Compañeros hospitalizados con manilla y tarjeta. En la estación se revisa el kárdex y se llena la hoja de enfermería. Se califica solo.",
+    ideal: "Practicar los 5 correctos, signos vitales y cálculos de dosis.",
+  },
   {
     id: "TURNOS_DISPENSARIO",
     tipo: "DISPENSARIO",
@@ -88,11 +96,15 @@ export default function AsistenteJornada({
   const def = MODALIDADES.find((m) => m.id === modalidad) ?? null;
   const tipo: Tipo = def?.tipo ?? "DISPENSARIO";
   const esOdonto = tipo === "ODONTOLOGIA";
+  const esEnfermeria = tipo === "ENFERMERIA";
+  // Odontología y Enfermería no generan pacientes con turnos: trabajan con casos.
+  const conCasos = esOdonto || esEnfermeria;
 
   const [nombre, setNombre] = useState(() => (modalidadInicial ? nombreSugerido(modalidadInicial) : ""));
   const [grupos, setGrupos] = useState<GrupoOpcion[]>([]);
   const [grupoId, setGrupoId] = useState("");
-  const [numeroEspacios, setNumeroEspacios] = useState(3);
+  // La ronda de enfermería suele tener un solo computador (la estación); las demás, tres.
+  const [numeroEspacios, setNumeroEspacios] = useState(modalidadInicial === "RONDA" ? 1 : 3);
 
   // Turnos
   const [situaciones, setSituaciones] = useState<string[]>([]);
@@ -105,6 +117,9 @@ export default function AsistenteJornada({
   // Odontología
   const [casosOdonto, setCasosOdonto] = useState<CasoOdonto[]>([]);
   const [casosElegidos, setCasosElegidos] = useState<string[]>([]);
+
+  // Enfermería: casos de la ronda (todos marcados por defecto)
+  const [casosRonda, setCasosRonda] = useState<string[]>(() => CASOS_RONDA.map((c) => c.codigo));
 
   // Dictado
   const [secciones, setSecciones] = useState<SeccionesDictado>("ODONTOGRAMA");
@@ -152,6 +167,7 @@ export default function AsistenteJornada({
     if (!nombre.trim() || (modalidad && nombre === nombreSugerido(modalidad))) setNombre(nombreSugerido(m));
     setModalidad(m);
     setError(null);
+    if (m === "RONDA" && numeroEspacios === 3) setNumeroEspacios(1);
     if (m === "DICTADO" && fuente === "ALEATORIO" && esperado.odontograma.length === 0) sortear(secciones, denticion);
     setPaso(1);
   }
@@ -166,6 +182,7 @@ export default function AsistenteJornada({
     if (grupos.length > 0 && !grupoId) return "Elige el grupo";
     if (modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA") return cantidadTurnos > 0 ? null : "Indica cuántos pacientes";
     if (modalidad === "CASOS") return casosElegidos.length > 0 ? null : "Elige al menos un caso";
+    if (modalidad === "RONDA") return casosRonda.length > 0 ? null : "Elige al menos un caso";
     if (modalidad === "DICTADO") {
       if (fuente === "EXISTENTE") return casoExistente ? null : "Elige el caso que vas a dictar";
       return esperado.odontograma.length > 0 ? null : "Marca al menos un hallazgo en el odontograma";
@@ -189,7 +206,8 @@ export default function AsistenteJornada({
         tipo,
         numeroEspacios,
         grupoId: grupoId || null,
-        situaciones: esOdonto ? [] : situaciones.filter((c) => catalogo.some((s) => s.codigo === c)),
+        situaciones: conCasos ? [] : situaciones.filter((c) => catalogo.some((s) => s.codigo === c)),
+        casosEnfermeria: modalidad === "RONDA" ? casosRonda : [],
         proporcionNormales: porcentajeNormales / 100,
         casosOdontologiaIds: modalidad === "CASOS" ? casosElegidos : [],
         pacientesReales: modalidad === "REALES",
@@ -203,7 +221,7 @@ export default function AsistenteJornada({
                 escenarioId: fuente === "EXISTENTE" ? casoExistente : undefined,
               }
             : null,
-        ...(esOdonto ? {} : turnos),
+        ...(conCasos ? {} : turnos),
       }),
     });
     const data = await res.json();
@@ -250,7 +268,7 @@ export default function AsistenteJornada({
                 onClick={() => elegirModalidad(m.id)}
                 className={`tarjeta-accion ${modalidad === m.id ? "border-blue-700 bg-blue-50" : ""}`}
               >
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">{m.tipo === "ODONTOLOGIA" ? "Odontología" : m.tipo === "FARMACIA" ? "Farmacia" : "Dispensario"}</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">{m.tipo === "ODONTOLOGIA" ? "Odontología" : m.tipo === "ENFERMERIA" ? "Enfermería" : m.tipo === "FARMACIA" ? "Farmacia" : "Dispensario"}</p>
                 <p className="font-heading font-semibold text-blue-900">{m.titulo}</p>
                 <p className="mt-1 text-xs text-slate-600">{m.texto}</p>
                 <p className="mt-2 text-[11px] text-slate-500">
@@ -420,6 +438,47 @@ export default function AsistenteJornada({
             </>
           )}
 
+          {modalidad === "RONDA" && (
+            <div>
+              <div className="flex flex-wrap items-end justify-between gap-2 mb-1">
+                <p className="text-xs font-medium text-slate-500">¿Qué pacientes hay hoy en el servicio?</p>
+                <span className="flex gap-2 text-xs">
+                  <button type="button" onClick={() => setCasosRonda(CASOS_RONDA.map((c) => c.codigo))} className="font-semibold text-blue-700 hover:underline">
+                    Todos
+                  </button>
+                  <button type="button" onClick={() => setCasosRonda([])} className="font-semibold text-blue-700 hover:underline">
+                    Ninguno
+                  </button>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mb-2">
+                Cada paciente lo interpreta un compañero con su manilla y su tarjeta (se imprimen en un PDF). Un mismo paciente lo pueden atender varios estudiantes, rotando.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CASOS_RONDA.map((c) => {
+                  const marcado = casosRonda.includes(c.codigo);
+                  return (
+                    <label key={c.codigo} className={tarjeta(marcado)}>
+                      <input
+                        type="checkbox"
+                        checked={marcado}
+                        onChange={() => setCasosRonda((l) => (l.includes(c.codigo) ? l.filter((x) => x !== c.codigo) : [...l, c.codigo]))}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="font-medium text-slate-800">{c.titulo}</span>
+                        <span className="block text-xs text-slate-500">{c.situacion}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {casosRonda.includes("HOMONIMO_A") !== casosRonda.includes("HOMONIMO_B") && (
+                <p className="mt-2 text-xs text-amber-700">Los homónimos funcionan en pareja: elige los dos casos (1 de 2 y 2 de 2).</p>
+              )}
+            </div>
+          )}
+
           {modalidad === "CASOS" && (
             <div>
               <p className="text-xs font-medium text-slate-500 mb-1">¿Qué casos se atienden hoy?</p>
@@ -491,7 +550,7 @@ export default function AsistenteJornada({
           {modalidad !== "DICTADO" && (
             <div>
               <label htmlFor="espacios" className="block text-xs font-medium text-slate-500 mb-1">
-                {esOdonto ? "Unidades (sillas) que se usan" : "Ventanillas que se usan"}
+                {esOdonto ? "Unidades (sillas) que se usan" : esEnfermeria ? "Estaciones de enfermería (computadores)" : "Ventanillas que se usan"}
               </label>
               <p className="text-xs text-slate-400 mb-1">Al iniciar la jornada se crea una cuenta por cada una, con su contraseña, lista para cada computador.</p>
               <input
@@ -539,6 +598,14 @@ export default function AsistenteJornada({
                 </dd>
               </>
             )}
+            {modalidad === "RONDA" && (
+              <>
+                <dt className="text-slate-500">Pacientes</dt>
+                <dd className="text-slate-800">
+                  {casosRonda.length} · {CASOS_RONDA.filter((c) => casosRonda.includes(c.codigo)).map((c) => c.titulo).join("; ")}
+                </dd>
+              </>
+            )}
             {modalidad === "CASOS" && (
               <>
                 <dt className="text-slate-500">Casos</dt>
@@ -547,7 +614,7 @@ export default function AsistenteJornada({
             )}
             {modalidad !== "DICTADO" && (
               <>
-                <dt className="text-slate-500">{esOdonto ? "Unidades" : "Ventanillas"}</dt>
+                <dt className="text-slate-500">{esOdonto ? "Unidades" : esEnfermeria ? "Estaciones" : "Ventanillas"}</dt>
                 <dd className="text-slate-800">{numeroEspacios} (una cuenta por cada una al iniciar)</dd>
               </>
             )}

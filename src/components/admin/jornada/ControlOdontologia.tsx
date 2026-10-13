@@ -17,7 +17,16 @@ export default function ControlOdontologia({
   participantes,
   ventanillas,
   onVentanillas,
+  etiqueta = "Unidad",
+  ruta = "/panel/odontologia",
+  pantalla = "el consultorio",
+  registro = "historia",
 }: {
+  /** Cómo se llama cada puesto y su pantalla (también sirve para la ronda de Enfermería). */
+  etiqueta?: string;
+  ruta?: string;
+  pantalla?: string;
+  registro?: string;
   simulacionId: string;
   sesionTurneroId: string | null;
   unidades: number;
@@ -45,11 +54,11 @@ export default function ControlOdontologia({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <a href="/panel/odontologia" target="_blank" className="text-blue-700 hover:underline">
-          Abrir el consultorio (vista del estudiante) ↗
+        <a href={ruta} target="_blank" className="text-blue-700 hover:underline">
+          Abrir {pantalla} (vista del estudiante) ↗
         </a>
         <span className="text-xs text-slate-500">
-          {abiertas.length} historia(s) en curso · {cerradas.length} cerrada(s)
+          {abiertas.length} {registro}(s) en curso · {cerradas.length} cerrada(s)
         </span>
       </div>
 
@@ -57,26 +66,26 @@ export default function ControlOdontologia({
         simulacionId={simulacionId}
         espacios={Array.from({ length: unidades }, (_, i) => ({
           numero: i + 1,
-          nombre: `Unidad ${i + 1}`,
+          nombre: `${etiqueta} ${i + 1}`,
           ticketCodigo: abiertas.find((a) => a.espacioNumero === i + 1)?.pacienteNombre ?? null,
         }))}
         participantes={participantes}
         actuales={ventanillas}
         onCambio={onVentanillas}
-        etiqueta="Unidad"
+        etiqueta={etiqueta}
       />
 
       <section className="tarjeta-sm p-4">
-        <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">Historias de la jornada</h2>
+        <h2 className="text-sm font-heading font-semibold text-blue-900 mb-2">{registro === "historia" ? "Historias" : "Hojas"} de la jornada</h2>
         {atenciones.length === 0 ? (
-          <p className="text-xs text-slate-500">Todavía nadie ha abierto una historia. Se ven aquí apenas un estudiante busca a su paciente.</p>
+          <p className="text-xs text-slate-500">Todavía nadie ha abierto una {registro}. Se ven aquí apenas un estudiante busca a su paciente.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-slate-100">
             {atenciones.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <span>
                   <b className="text-slate-800">{a.pacienteNombre}</b>
-                  <span className="text-slate-500"> · Unidad {a.espacioNumero} · {nombre(a.participante?.id ?? null)}</span>
+                  <span className="text-slate-500"> · {etiqueta} {a.espacioNumero} · {nombre(a.participante?.id ?? null)}</span>
                 </span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${a.cerrada ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
                   {a.cerrada ? "Cerrada" : `Escribiendo desde ${hora(a.llamadoEn)}`}
@@ -91,11 +100,11 @@ export default function ControlOdontologia({
         <PuestosTemporales
           sesionTurneroId={sesionTurneroId}
           titulo="Agregar más computadores"
-          descripcion="Las cuentas de las unidades ya se crearon al iniciar. Usa esto solo si necesitas otro computador; se borran al cerrar la jornada."
+          descripcion="Las cuentas de los computadores ya se crearon al iniciar. Usa esto solo si necesitas otro; se borran al cerrar la jornada."
           colapsable
           modoInicial="generico"
-          prefijoInicial="Unidad"
-          rutaInicial="/panel/odontologia"
+          prefijoInicial={etiqueta}
+          rutaInicial={ruta}
           onCreados={() => {}}
         />
       )}

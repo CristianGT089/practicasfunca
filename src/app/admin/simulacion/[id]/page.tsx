@@ -12,6 +12,8 @@ import Confirmacion from "@/components/admin/jornada/Confirmacion";
 import Reporte from "@/components/admin/jornada/Reporte";
 import ControlOdontologia from "@/components/admin/jornada/ControlOdontologia";
 import ControlDictado from "@/components/admin/jornada/ControlDictado";
+import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
+import { generarTarjetasEnfermeriaPDF } from "@/lib/modulos/enfermeria/tarjetasPdf";
 import CuentasPuestos, { type CuentaPuesto } from "@/components/admin/jornada/CuentasPuestos";
 import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjetasPdf";
 import type { Participante } from "@/components/admin/jornada/tipos";
@@ -48,7 +50,7 @@ type Paciente = {
 type Simulacion = {
   id: string;
   nombre: string;
-  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA";
+  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   turnero: { numeroEspacios: number };
   pacientesReales: boolean;
@@ -89,6 +91,7 @@ const ETIQUETA_TIPO: Record<Simulacion["tipo"], string> = {
   FARMACIA: "Farmacia",
   DISPENSARIO: "Dispensario",
   ODONTOLOGIA: "Odontología",
+  ENFERMERIA: "Enfermería · ronda de medicamentos",
 };
 
 const ETIQUETA_ESTADO: Record<Simulacion["estado"], string> = {
@@ -148,6 +151,13 @@ export default function SimulacionDetallePage() {
     if (!simulacion || generandoPdf) return;
     setGenerandoPdf(true);
     try {
+      if (simulacion.tipo === "ENFERMERIA") {
+        generarTarjetasEnfermeriaPDF(
+          simulacion.nombre,
+          simulacion.situaciones.map((c) => casoRonda(c)).filter((c): c is NonNullable<typeof c> => Boolean(c))
+        );
+        return;
+      }
       if (simulacion.tipo === "ODONTOLOGIA") {
         generarTarjetasOdontologiaPDF(
           simulacion.nombre,
@@ -224,25 +234,29 @@ export default function SimulacionDetallePage() {
             {simulacion.grupo && ` · ${simulacion.grupo.nombre}`}
             {simulacion.dictado
               ? ` · dictado de ${simulacion.dictadoSecciones === "COMPLETA" ? "la historia completa" : "odontograma"}`
+              : simulacion.tipo === "ENFERMERIA"
+              ? ` · ${simulacion.situaciones.length} pacientes · ${simulacion.turnero.numeroEspacios} estación(es)`
               : simulacion.tipo === "ODONTOLOGIA"
               ? ` · ${simulacion.pacientesReales ? "pacientes reales" : `${simulacion.casosOdontologia.length} casos`} · ${simulacion.turnero.numeroEspacios} unidades`
               : simulacion.estado !== "CERRADA" && ` · ${simulacion.pacientes.length} pacientes`}{" "}
             · {ETIQUETA_ESTADO[simulacion.estado]}
           </p>
-          {simulacion.situaciones.length > 0 && (
+          {simulacion.situaciones.length > 0 && simulacion.tipo !== "ENFERMERIA" && (
             <p className="text-xs text-slate-500 mt-1">
               Practicando: {simulacion.situaciones.map((c) => definicionSituacion(c)?.nombre ?? c).join(", ")}
             </p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {(simulacion.pacientes.length > 0 || (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA" && !simulacion.dictado)) && (
+          {(simulacion.pacientes.length > 0 ||
+            (simulacion.tipo === "ENFERMERIA" && simulacion.estado !== "CERRADA") ||
+            (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA" && !simulacion.dictado)) && (
             <button
               onClick={descargarPdf}
               disabled={generandoPdf}
               className="text-sm text-blue-700 hover:underline disabled:opacity-40"
             >
-              {generandoPdf ? "Generando..." : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
+              {generandoPdf ? "Generando..." : simulacion.tipo === "ENFERMERIA" ? "Descargar manillas y tarjetas (PDF)" : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
             </button>
           )}
           {simulacion.estado === "BORRADOR" && (
@@ -290,7 +304,7 @@ export default function SimulacionDetallePage() {
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-      {simulacion.estado === "BORRADOR" && !simulacion.dictado && (
+      {simulacion.estado === "BORRADOR" && !simulacion.dictado && simulacion.tipo !== "ENFERMERIA" && (
         <p className="text-xs text-slate-400 mb-4">
           Revisa cada paciente antes de iniciar. Puedes regenerar los que no sirvan para la clase. Descarga el PDF: trae la receta y las
           indicaciones para el compañero que interpreta a cada paciente.
@@ -315,6 +329,21 @@ export default function SimulacionDetallePage() {
         </div>
       )}
 
+      {simulacion.estado === "ABIERTA" && simulacion.tipo === "ENFERMERIA" && (
+        <ControlOdontologia
+          simulacionId={simulacion.id}
+          sesionTurneroId={simulacion.sesionTurneroId}
+          unidades={simulacion.turnero.numeroEspacios}
+          participantes={simulacion.participantes}
+          ventanillas={ventanillas}
+          onVentanillas={setVentanillas}
+          etiqueta="Estación"
+          ruta="/panel/enfermeria"
+          pantalla="la estación de enfermería"
+          registro="hoja"
+        />
+      )}
+
       {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.dictado && (
         <ControlOdontologia
           simulacionId={simulacion.id}
@@ -326,7 +355,7 @@ export default function SimulacionDetallePage() {
         />
       )}
 
-      {simulacion.estado === "ABIERTA" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.sesionTurneroId && (
+      {simulacion.estado === "ABIERTA" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.tipo !== "ENFERMERIA" && simulacion.sesionTurneroId && (
         <ControlTurnero
           sesionId={simulacion.sesionTurneroId}
           simulacionId={simulacion.id}
@@ -384,7 +413,33 @@ export default function SimulacionDetallePage() {
         </div>
       )}
 
-      {simulacion.estado === "BORRADOR" && simulacion.tipo !== "ODONTOLOGIA" && (
+      {simulacion.estado === "BORRADOR" && simulacion.tipo === "ENFERMERIA" && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-heading font-semibold text-blue-900">Pacientes de la ronda</h2>
+          <p className="text-xs text-slate-500">
+            Descarga el PDF: trae la manilla (para recortar) y la tarjeta de cada paciente. Entrega cada una a un compañero y que se ponga la
+            manilla en la muñeca.
+          </p>
+          {simulacion.situaciones.map((codigo) => {
+            const c = casoRonda(codigo);
+            if (!c) return null;
+            return (
+              <div key={codigo} className="tarjeta-sm p-4 text-sm">
+                <p className="font-medium text-slate-800">
+                  {c.paciente.nombre}
+                  {c.paciente.alergias.length > 0 && <span className="pildora ml-2 bg-red-100 text-red-700">Alergia</span>}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {c.titulo} · {c.paciente.tipoDocumento} {c.paciente.documento} · cama {c.paciente.cama}
+                </p>
+                <p className="text-xs text-slate-600 mt-1">Practica: {c.situacion}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {simulacion.estado === "BORRADOR" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.tipo !== "ENFERMERIA" && (
         <div className="flex flex-col gap-3">
           {simulacion.pacientes.map((p) => (
             <FilaPaciente

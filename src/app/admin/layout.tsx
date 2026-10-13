@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { gruposAdminModulos } from "@/lib/modulos/registro";
@@ -132,11 +131,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         nombre={sesion.nombre}
         rol={sesion.rol === "ADMIN" ? "Coordinación" : "Docente"}
         onSalir={cerrarSesion}
-        extra={
-          <Link href="/panel" className="hidden xl:inline-flex rounded-full px-3 py-1.5 text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white">
-            Vista estudiante
-          </Link>
-        }
+        enlacesCuenta={[{ href: "/panel", label: "Vista estudiante" }]}
       />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</main>
     </div>

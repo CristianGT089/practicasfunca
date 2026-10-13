@@ -18,6 +18,8 @@ import { CRITERIOS_RUBRICA, NIVELES, normalizarRubrica, puntajeRubrica } from "@
 import { Prisma } from "@prisma/client";
 import { normalizarMarcas } from "@/lib/modulos/odontologia/odontograma";
 import { mapaCalor } from "@/lib/modulos/odontologia/dictado";
+import { hojaVacia, normalizarHoja, notaHoja, revisarHoja } from "@/lib/modulos/enfermeria/hoja";
+import { casoRonda, esperadoDeCaso } from "@/lib/modulos/enfermeria/ronda";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -95,8 +97,8 @@ export async function finalizarJornada(simulacionId: string) {
     emitirCambio(simulacion.sesionTurneroId);
   }
 
-  // En Odontología las atenciones ya existen: se crean cuando el estudiante abre la historia.
-  if (simulacion.tipo === "ODONTOLOGIA") {
+  // En Odontología y Enfermería las atenciones ya existen: se crean cuando el estudiante abre la historia.
+  if (simulacion.tipo === "ODONTOLOGIA" || simulacion.tipo === "ENFERMERIA") {
     await prisma.simulacion.update({ where: { id: simulacionId }, data: { estado: "EN_REVISION" } });
     return;
   }
@@ -196,6 +198,12 @@ export async function calificarJornada(simulacionId: string) {
 
   const atenciones = await prisma.atencionJornada.findMany({ where: { simulacionId } });
   const ahora = new Date();
+
+  if (simulacion.tipo === "ENFERMERIA") {
+    for (const atencion of atenciones) await calificarAtencionEnfermeria(atencion.id, ahora);
+    await cerrarSimulacion(simulacionId);
+    return;
+  }
 
   if (simulacion.tipo === "ODONTOLOGIA") {
     for (const atencion of atenciones) {
@@ -320,6 +328,39 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
           remisionObtenida: atencion.remision,
         },
       },
+    },
+  });
+}
+
+/**
+ * Ronda de medicamentos (Enfermería): la hoja del estudiante contra lo esperado del caso
+ * (signos de la tarjeta, decisión de cada medicamento con su motivo, escalas, cálculos).
+ */
+async function calificarAtencionEnfermeria(atencionId: string, ahora: Date) {
+  const atencion = await prisma.atencionJornada.findUnique({ where: { id: atencionId } });
+  const caso = atencion ? casoRonda(atencion.situaciones[0] ?? "") : undefined;
+  if (!atencion || !caso) return;
+  const hoja = atencion.historia ? normalizarHoja(atencion.historia) : hojaVacia();
+  const { lineas, puntajes } = revisarHoja(esperadoDeCaso(caso), hoja);
+  const claves: Record<string, ClaveCriterio> = {
+    signos: "SIGNOS_VITALES",
+    valoracion: "VALORACION",
+    escalas: "ESCALAS",
+    balance: "BALANCE",
+    medicamentos: "MEDICAMENTO_DECISION",
+    calculos: "CALCULO_DOSIS",
+  };
+  await prisma.atencionJornada.update({
+    where: { id: atencion.id },
+    data: {
+      criterios: [
+        ...lineas.map((l) => ({ clave: l.cumplido ? ("HISTORIA_CORRECTA" as const) : claves[l.componente], descripcion: l.descripcion, cumplido: l.cumplido })),
+        { clave: "HISTORIA_CORRECTA" as const, descripcion: `Qué debía hacer: ${caso.explicacion}`, cumplido: true },
+      ],
+      puntaje: notaHoja(puntajes) ?? 0,
+      calificadaEn: ahora,
+      cerradaEn: atencion.cerradaEn ?? ahora,
+      detalle: { enfermeria: { caso: caso.codigo, titulo: caso.titulo, puntajes } },
     },
   });
 }

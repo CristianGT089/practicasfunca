@@ -32,11 +32,24 @@ export type ClaveCriterio =
   | "INDICE_PLACA"
   | "REMISION"
   | "HISTORIA_CORRECTA"
-  | "RUBRICA";
+  | "RUBRICA"
+  // Enfermería (ronda de medicamentos con hoja de enfermería)
+  | "SIGNOS_VITALES"
+  | "VALORACION"
+  | "ESCALAS"
+  | "BALANCE"
+  | "MEDICAMENTO_DECISION"
+  | "CALCULO_DOSIS";
 
 export type Criterio = { clave: ClaveCriterio; descripcion: string; cumplido: boolean; detalle?: string };
 
 export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
+  SIGNOS_VITALES: "Signos vitales no tomados o mal registrados",
+  VALORACION: "Valoración incompleta o con hallazgos de más",
+  ESCALAS: "Puntaje de escala (Braden, Glasgow, Downton) equivocado",
+  BALANCE: "Balance de líquidos mal calculado",
+  MEDICAMENTO_DECISION: "Decisión equivocada al administrar (o sin motivo registrado)",
+  CALCULO_DOSIS: "Cálculo de dosis o de goteo equivocado",
   CANTIDAD_INCORRECTA: "Entregó una cantidad distinta a la autorizada",
   RECHAZO_INDEBIDO: "Rechazó un medicamento que sí se debía entregar",
   ENTREGO_VENCIDA: "Entregó una fórmula vencida",

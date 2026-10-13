@@ -32,7 +32,7 @@ const COLOR_ESTADO: Record<Simulacion["estado"], string> = {
   CERRADA: "bg-slate-100 text-slate-500",
 };
 
-const ETIQUETA_TIPO: Record<Tipo, string> = { FARMACIA: "Farmacia", DISPENSARIO: "Dispensario", ODONTOLOGIA: "Odontología" };
+const ETIQUETA_TIPO: Record<Tipo, string> = { FARMACIA: "Farmacia", DISPENSARIO: "Dispensario", ODONTOLOGIA: "Odontología", ENFERMERIA: "Enfermería" };
 
 export default function SimulacionPage() {
   const [simulaciones, setSimulaciones] = useState<Simulacion[]>([]);
@@ -72,7 +72,7 @@ export default function SimulacionPage() {
           {ETIQUETA_TIPO[s.tipo]}
           {s.dictado ? " · dictado" : s.pacientesReales ? " · pacientes reales" : ""}
           {s.grupo && ` · ${s.grupo.nombre}`} ·{" "}
-          {s.estado === "CERRADA" || s.tipo === "ODONTOLOGIA" ? `${s._count.atenciones} atenciones` : `${s._count.pacientes} pacientes`}
+          {s.estado === "CERRADA" || s.tipo === "ODONTOLOGIA" || s.tipo === "ENFERMERIA" ? `${s._count.atenciones} atenciones` : `${s._count.pacientes} pacientes`}
           {` · ${new Date(s.creadaEn).toLocaleDateString("es-CO")}`}
         </p>
       </div>

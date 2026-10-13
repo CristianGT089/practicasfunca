@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 type Jornada = {
   id: string;
   nombre: string;
-  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA";
+  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   creadaEn: string;
   pacientesReales: boolean;
@@ -16,7 +16,7 @@ type Jornada = {
 };
 
 const MODALIDAD = (j: Jornada) =>
-  j.dictado ? "Dictado" : j.pacientesReales ? "Pacientes reales" : j.tipo === "ODONTOLOGIA" ? "Consultorio" : j.tipo === "FARMACIA" ? "Farmacia" : "Dispensario";
+  j.dictado ? "Dictado" : j.pacientesReales ? "Pacientes reales" : j.tipo === "ODONTOLOGIA" ? "Consultorio" : j.tipo === "ENFERMERIA" ? "Ronda de medicamentos" : j.tipo === "FARMACIA" ? "Farmacia" : "Dispensario";
 
 const ESTADO: Record<Jornada["estado"], { texto: string; clase: string; accion: string }> = {
   BORRADOR: { texto: "Lista para iniciar", clase: "bg-gold-100 text-gold-700", accion: "Iniciar" },
@@ -54,6 +54,7 @@ export default function InicioAdminPage() {
   const recientes = (jornadas ?? []).filter((j) => j.estado === "CERRADA").slice(0, 4);
   const hayJornadas = tipos.length > 0;
   const odontologia = tipos.includes("ODONTOLOGIA");
+  const enfermeria = tipos.includes("ENFERMERIA");
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
 
@@ -65,6 +66,16 @@ export default function InicioAdminPage() {
             titulo: "Nueva jornada presencial",
             texto: "Turnos, consultorio con casos o pacientes reales.",
             icono: "M12 5v14M5 12h14",
+          },
+        ]
+      : []),
+    ...(enfermeria
+      ? [
+          {
+            href: "/admin/simulacion?nueva=RONDA",
+            titulo: "Ronda de medicamentos",
+            texto: "Enfermería: pacientes con manilla, kárdex y hoja.",
+            icono: "M9 2h6M10 2v4l-5 9a4 4 0 0 0 3.5 6h7a4 4 0 0 0 3.5-6l-5-9V2M7 15h10",
           },
         ]
       : []),

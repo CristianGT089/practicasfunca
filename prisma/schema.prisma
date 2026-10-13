@@ -864,6 +864,7 @@ enum TipoSimulacion {
   FARMACIA // venta/mostrador, sobre /panel/catalogo
   DISPENSARIO // por fórmula, sobre /panel/dispensacion, con cuota moderadora
   ODONTOLOGIA // historia clínica + odontograma, sobre /panel/odontologia; pacientes interpretados con tarjeta
+  ENFERMERIA // ronda de medicamentos con hoja de enfermería, sobre /panel/enfermeria; casos en lib/modulos/enfermeria/ronda.ts
 }
 
 enum EstadoSimulacion {

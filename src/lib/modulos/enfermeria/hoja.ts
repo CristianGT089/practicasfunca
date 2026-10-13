@@ -435,6 +435,8 @@ export type HojaEnfermeria = {
   balance: BalanceLiquidos;
   medicamentos: RegistroMedicamento[];
   nota: NotaSoapie;
+  /** Respuestas a los cálculos que pide un caso (dosis en ml, gotas por minuto…), por clave. */
+  calculos: Record<string, number>;
 };
 
 export function hojaVacia(): HojaEnfermeria {
@@ -451,6 +453,7 @@ export function hojaVacia(): HojaEnfermeria {
     balance: { ingresos: {}, egresos: {}, horas: 6 },
     medicamentos: [],
     nota: { s: "", o: "", a: "", p: "", i: "", e: "" },
+    calculos: {},
   };
 }
 
@@ -538,6 +541,11 @@ export function normalizarHoja(raw: unknown): HojaEnfermeria {
         })
       : [],
     nota: Object.fromEntries(SOAPIE.map(({ campo }) => [campo, texto(nota[campo])])) as NotaSoapie,
+    calculos: Object.fromEntries(
+      Object.entries(obj(h.calculos))
+        .filter(([k, v]) => /^[a-z_]{1,40}$/.test(k) && typeof v === "number" && Number.isFinite(v))
+        .slice(0, 10)
+    ) as Record<string, number>,
   };
 }
 
@@ -559,6 +567,8 @@ export type EsperadoEnfermeria = {
   balance: { ingresos: number; egresos: number } | null;
   /** Por medicamento (nombre en minúsculas): si se debía administrar o no. */
   medicamentos: { medicamento: string; administrar: boolean }[] | null;
+  /** Cálculos con respuesta numérica (ej. 10 ml, 42 gotas/min) y su tolerancia. */
+  calculos?: { clave: string; pregunta: string; unidad: string; valor: number; tolerancia: number }[] | null;
 };
 
 export type LineaRevisionHoja = { componente: string; descripcion: string; cumplido: boolean };
@@ -583,7 +593,8 @@ const normalizarNombre = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "
  */
 export function revisarHoja(esperado: EsperadoEnfermeria, hoja: HojaEnfermeria) {
   const lineas: LineaRevisionHoja[] = [];
-  const puntajes: Record<"signos" | "valoracion" | "escalas" | "balance" | "medicamentos", number | null> = {
+  const puntajes: Record<"signos" | "valoracion" | "escalas" | "balance" | "medicamentos" | "calculos", number | null> = {
+    calculos: null,
     signos: null,
     valoracion: null,
     escalas: null,
@@ -687,26 +698,45 @@ export function revisarHoja(esperado: EsperadoEnfermeria, hoja: HojaEnfermeria) 
       const conMotivo = m.administrar || (registro?.observacion.trim().length ?? 0) > 0;
       const ok = decision === m.administrar && conMotivo;
       if (ok) bien++;
+      // Con el nombre tal como quedó en la hoja (el de la orden), no el de la clave de búsqueda.
+      const nombre = registro?.medicamento.trim() || m.medicamento;
       lineas.push({
         componente: "medicamentos",
         descripcion: !registro
-          ? `${m.medicamento}: no quedó registrado`
-          : decision !== m.administrar
-            ? `${m.medicamento}: ${m.administrar ? "debía administrarse" : "NO debía administrarse"}`
-            : !conMotivo
-              ? `${m.medicamento}: falta escribir por qué no se administró`
-              : `${m.medicamento}: ${m.administrar ? "administrado" : "no administrado, con motivo"}`,
+          ? `${nombre}: no quedó registrado`
+          : decision === null
+            ? `${nombre}: no se marcó si se administró`
+            : decision !== m.administrar
+              ? `${nombre}: ${m.administrar ? "debía administrarse" : "NO debía administrarse"}`
+              : !conMotivo
+                ? `${nombre}: falta escribir por qué no se administró`
+                : `${nombre}: ${m.administrar ? "administrado" : "no administrado, con motivo"}`,
         cumplido: ok,
       });
     }
     puntajes.medicamentos = porcentaje(bien, esperado.medicamentos.length);
   }
 
+  if (esperado.calculos?.length) {
+    let bien = 0;
+    for (const c of esperado.calculos) {
+      const r = hoja.calculos[c.clave];
+      const ok = typeof r === "number" && Math.abs(r - c.valor) <= c.tolerancia;
+      if (ok) bien++;
+      lineas.push({
+        componente: "calculos",
+        descripcion: ok ? `${c.pregunta} ${c.valor} ${c.unidad}` : `${c.pregunta} respondiste ${r ?? "—"}, era ${c.valor} ${c.unidad}`,
+        cumplido: ok,
+      });
+    }
+    puntajes.calculos = porcentaje(bien, esperado.calculos.length);
+  }
+
   return { lineas, puntajes };
 }
 
 /** Pesos de cada componente en la nota (se reparten entre los que el caso evalúa). */
-export const PESOS_HOJA = { signos: 20, valoracion: 15, escalas: 20, balance: 15, medicamentos: 30 } as const;
+export const PESOS_HOJA = { signos: 20, valoracion: 15, escalas: 20, balance: 15, medicamentos: 30, calculos: 20 } as const;
 
 export function notaHoja(puntajes: ReturnType<typeof revisarHoja>["puntajes"]): number | null {
   let peso = 0;

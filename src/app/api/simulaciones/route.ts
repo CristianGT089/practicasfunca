@@ -42,7 +42,7 @@ const pacienteSchema = z.object({
 const crearSchema = z
   .object({
     nombre: z.string().trim().min(1).max(80),
-    tipo: z.enum(["FARMACIA", "DISPENSARIO", "ODONTOLOGIA"]),
+    tipo: z.enum(["FARMACIA", "DISPENSARIO", "ODONTOLOGIA", "ENFERMERIA"]),
     // Uno de los dos: nombres puntuales de los pacientes, o solo una cantidad al azar.
     pacientes: z.array(pacienteSchema).max(60).optional(),
     cantidadPacientes: z.number().int().min(1).max(60).optional(),
@@ -53,6 +53,8 @@ const crearSchema = z
     // Odontología: casos de la práctica virtual que se atienden ese día.
     casosOdontologiaIds: z.array(z.string().min(1)).max(40).default([]),
     pacientesReales: z.boolean().default(false),
+    // Enfermería: casos de la ronda de medicamentos (códigos de lib/modulos/enfermeria/ronda.ts).
+    casosEnfermeria: z.array(z.string().min(1).max(60)).max(40).default([]),
     // Dictado: un caso que lee el docente y todos registran a la vez (solo Odontología por ahora).
     dictado: z
       .object({
@@ -65,7 +67,7 @@ const crearSchema = z
       .nullable()
       .default(null),
   })
-  .refine((d) => d.tipo === "ODONTOLOGIA" || (d.pacientes && d.pacientes.length > 0) || (d.cantidadPacientes ?? 0) > 0, {
+  .refine((d) => d.tipo === "ODONTOLOGIA" || d.tipo === "ENFERMERIA" || (d.pacientes && d.pacientes.length > 0) || (d.cantidadPacientes ?? 0) > 0, {
     message: "Agrega nombres o una cantidad de pacientes",
   });
 

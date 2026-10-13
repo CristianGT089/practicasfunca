@@ -36,10 +36,48 @@ puntaje exacto de cada escala, totales del balance y la decisión de administrar
 medicamento (con motivo si no). Pesos: medicamentos 30, signos 20, escalas 20, valoración 15,
 balance 15. La nota SOAPIE la revisa el docente.
 
+## Jornada presencial: Ronda de medicamentos
+
+Tipo de jornada `ENFERMERIA` (Jornadas → Nueva jornada → *Ronda de medicamentos*, o desde el
+Inicio). Los casos viven en el código: `src/lib/modulos/enfermeria/ronda.ts` (15 pacientes); la
+jornada guarda sus códigos en `Simulacion.situaciones`.
+
+| Caso | Qué se practica | Respuesta correcta |
+|---|---|---|
+| Alergia a penicilina | Verificar alergias (manilla roja) | No dar ampicilina; acetaminofén sí |
+| Homónimos 1 y 2 | Identificar con nombre completo y documento | Cada una su medicamento |
+| Digoxina con FC 52 | Pulso antes del medicamento | No dar digoxina; furosemida sí |
+| Insulina con glucometría 52 | Glucometría antes de la insulina | No aplicar |
+| Losartán con TA 88/54 | TA antes del antihipertensivo | No dar |
+| Tramadol PRN antes de tiempo | Intervalo de un PRN | No repetir (última dosis 05:00) |
+| Acetaminofén pediátrico | Cálculo mg/kg → ml | 10 ml |
+| Goteo | Gotas/min con macrogotero | 42 gotas/min |
+| Orden vencida | Vigencia de la orden | No dar |
+| Orden sin firma | Validez de la orden | No dar |
+| Rechazo | Derecho del paciente a rechazar | No forzar; registrar el motivo |
+| Gestante con TA 150/100 y cefalea | Signo de alarma | No tratar solo el dolor; avisar |
+| Encamado (Braden) | Escala de Braden | 9 (riesgo alto); enoxaparina sí |
+| Sin novedades | Caso normal | Administrar y registrar |
+
+**Flujo**
+1. Crear la ronda (pacientes y número de estaciones = computadores) y **descargar el PDF**: por
+   paciente, la **manilla** para recortar (roja si tiene alergia) y la **tarjeta** del compañero
+   (cómo actuar y los signos vitales que muestra solo si se los toman).
+2. Iniciar: se crea una cuenta por estación (`/panel/enfermeria`). El docente pone en cada
+   estación al estudiante que atiende.
+3. En la estación: buscar por el documento de la manilla → kárdex (órdenes con dosis, vía, hora,
+   médico, vigencia y firma; indicaciones como "No administrar si FC < 60") → hoja de enfermería
+   precargada con identificación y una fila por orden. Se registran los signos tomados, si se
+   administró cada medicamento (y por qué no) y, si el caso lo pide, el cálculo. Cerrar y firmar.
+4. Finalizar → confirmar quién atendió → calificar → reporte (con "Qué debía hacer" en cada caso).
+
+El kárdex no muestra las alergias a propósito: se verifican con la manilla y preguntando.
+
+**Nota** (`revisarHoja`): medicamentos 30, signos 20, cálculos 20, escalas 20, valoración 15,
+balance 15 (solo cuentan los componentes que el caso define).
+
 ## Siguientes pasos propuestos
 
-- **Jornada presencial "Ronda de medicamentos"**: camas = unidades, compañeros con tarjeta y
-  manilla, situaciones elegibles (alergia, homónimos, digoxina con bradicardia, insulina con
-  hipoglucemia, PRN antes de tiempo, cálculo pediátrico, goteo, orden vencida, rechazo…).
-- Casos de enfermería con hoja esperada, dictado de enfermería (balance y escalas) y
-  pacientes reales (signos vitales tomados de verdad, con rúbrica).
+- Dictado de enfermería (balance y escalas) y pacientes reales (signos vitales tomados de
+  verdad, con rúbrica).
+- Casos de práctica virtual con la hoja de enfermería.

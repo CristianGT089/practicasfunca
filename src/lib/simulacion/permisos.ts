@@ -10,7 +10,12 @@ import { requireGestor, slugsGestionados, type Gestor } from "@/lib/nucleo/permi
  * Qué módulo respalda cada tipo de jornada presencial: un docente solo ve las jornadas de
  * los módulos que enseña.
  */
-export const MODULO_DE_TIPO_JORNADA = { FARMACIA: "farmacia", DISPENSARIO: "dispensacion", ODONTOLOGIA: "odontologia" } as const;
+export const MODULO_DE_TIPO_JORNADA = {
+  FARMACIA: "farmacia",
+  DISPENSARIO: "dispensacion",
+  ODONTOLOGIA: "odontologia",
+  ENFERMERIA: "enfermeria",
+} as const;
 
 /** Filtro de Prisma para las jornadas presenciales visibles. */
 export async function filtroJornadas(usuario: Gestor): Promise<Prisma.SimulacionWhereInput> {

@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
 import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
+import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
 
 const incluirPacientes = {
@@ -44,8 +45,11 @@ export async function crearSimulacionBorrador(opts: {
   pacientesReales?: boolean;
   /** Dictado de Odontología: el docente lee un caso y todos lo registran a la vez. */
   dictado?: OpcionesDictado | null;
+  /** Ronda de medicamentos de Enfermería: códigos de los casos (lib/modulos/enfermeria/ronda.ts). */
+  casosEnfermeria?: string[];
 }) {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
+  if (opts.tipo === "ENFERMERIA") return crearJornadaEnfermeria(opts);
 
   const solicitud = opts.pacientes && opts.pacientes.length > 0 ? opts.pacientes : opts.cantidadPacientes ?? 0;
   const total = Array.isArray(solicitud) ? solicitud.length : solicitud;
@@ -150,6 +154,7 @@ const PUESTOS_POR_TIPO = {
   FARMACIA: { ruta: "/panel/catalogo", prefijo: "Ventanilla" },
   DISPENSARIO: { ruta: "/panel/dispensacion", prefijo: "Ventanilla" },
   ODONTOLOGIA: { ruta: "/panel/odontologia", prefijo: "Unidad" },
+  ENFERMERIA: { ruta: "/panel/enfermeria", prefijo: "Estación" },
 } as const;
 
 /**
@@ -370,6 +375,47 @@ async function crearDictado(opts: { nombre: string; grupoId?: string | null; cre
         create: {
           nombre: `Dictado — ${opts.nombre}`,
           numeroEspacios: 1,
+          servicios: SERVICIOS_DEFAULT,
+          categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
+        },
+      },
+    },
+    include: incluirPacientes,
+  });
+}
+
+/**
+ * Ronda de medicamentos de Enfermería: los casos son del catálogo en código; la jornada
+ * guarda sus códigos en `situaciones`. Cada estación es un computador con su cuenta.
+ */
+async function crearJornadaEnfermeria(opts: {
+  nombre: string;
+  numeroEspacios?: number;
+  grupoId?: string | null;
+  creadaPorId?: string | null;
+  casosEnfermeria?: string[];
+}) {
+  const codigos = [...new Set(opts.casosEnfermeria ?? [])].filter((c) => casoRonda(c));
+  if (codigos.length === 0) throw new Error("Elige al menos un caso de la ronda");
+  const estudiantesGrupo = opts.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
+        orderBy: { nombre: "asc" },
+        select: { id: true, nombre: true },
+      })
+    : [];
+  return prisma.simulacion.create({
+    data: {
+      nombre: opts.nombre,
+      tipo: "ENFERMERIA",
+      situaciones: codigos,
+      ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
+      ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
+      participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
+      turnero: {
+        create: {
+          nombre: `Estaciones — ${opts.nombre}`,
+          numeroEspacios: opts.numeroEspacios ?? 1,
           servicios: SERVICIOS_DEFAULT,
           categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
         },
