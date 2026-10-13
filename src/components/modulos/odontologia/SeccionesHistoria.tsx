@@ -49,7 +49,7 @@ export type PropsSeccion = {
   set?: (cambio: Partial<HistoriaOdontologica>) => void;
 };
 
-const claseInput =
+export const claseInput =
   "w-full rounded-xl border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:bg-slate-50 disabled:text-slate-700";
 
 export function Recuadro({ titulo, children, extra }: { titulo: string; children: ReactNode; extra?: ReactNode }) {
@@ -64,7 +64,7 @@ export function Recuadro({ titulo, children, extra }: { titulo: string; children
   );
 }
 
-function Texto({
+export function Texto({
   etiqueta,
   valor,
   onChange,

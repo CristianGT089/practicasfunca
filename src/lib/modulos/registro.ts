@@ -37,7 +37,7 @@ export const MODULOS: Record<string, DefinicionModulo> = {
     nombre: "Enfermería",
     tiposAccion: TIPOS_ACCION_ENFERMERIA,
     resultados: RESULTADOS_ENFERMERIA,
-    seccionesAdmin: [],
+    seccionesAdmin: [{ href: "/admin/modulos/enfermeria/hoja", label: "Hoja de enfermería" }],
   },
   primera_infancia: {
     slug: "primera_infancia",
