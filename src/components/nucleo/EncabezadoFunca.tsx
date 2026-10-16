@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import CambiarPassword from "@/components/nucleo/CambiarPassword";
 
 export type ItemNav = {
   href: string;
@@ -168,7 +169,7 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
 
 /**
  * La cuenta: solo el avatar en la barra (no compite por espacio con el menú). Al tocarlo se
- * abre el nombre, el rol, los enlaces de la cuenta y Salir.
+ * abre el nombre, el rol, los enlaces de la cuenta, Cambiar contraseña y Salir.
  */
 function Cuenta({
   nombre,
@@ -182,6 +183,7 @@ function Cuenta({
   enlaces: { href: string; label: string }[];
 }) {
   const [abierto, setAbierto] = useState(false);
+  const [cambiandoPassword, setCambiandoPassword] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inicial = (nombre ?? "?").trim().charAt(0).toUpperCase();
 
@@ -229,11 +231,22 @@ function Cuenta({
               {e.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setAbierto(false);
+              setCambiandoPassword(true);
+            }}
+            className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800"
+          >
+            Cambiar contraseña
+          </button>
           <button type="button" onClick={onSalir} className="block w-full rounded-xl px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
             Salir
           </button>
         </div>
       )}
+      {cambiandoPassword && <CambiarPassword onCerrar={() => setCambiandoPassword(false)} />}
     </div>
   );
 }
