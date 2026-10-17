@@ -296,10 +296,32 @@ jornada", no configurar cosas en medio de la clase.
   animaciones usan `motion-safe:` (se apagan si el sistema pide reducir movimiento). El
   registro de turnos muestra "la jornada todavía no empieza" y también se activa solo.
 
-## Solo medicamentos en las fórmulas (2026-10-17)
+## Solo medicamentos y pendientes (2026-10-17)
 
+### Fórmulas solo con medicamentos
 El catálogo importado mezcla medicamentos con dispositivos e insumos (equipos, sondas,
 caretas, antisépticos en frasco). `lib/simulacion/catalogo.ts` reconoce el medicamento por su
 forma farmacéutica (tabletas, cápsulas, jarabe, inyectable, inhalador...); el generador de
 fórmulas solo usa esos.
+
+### Pendientes en el dispensario (Res. 1604 de 2013)
+La entrega debe ser completa; si no, lo que falta se entrega en máximo 48 horas, a domicilio
+si el afiliado lo autoriza, y queda constancia.
+- **Inventario de la jornada** (`ExistenciaSimulacion`): alcanza para todas las fórmulas
+  salvo en los casos de la situación `PENDIENTE`, cuyo medicamento es exclusivo del caso y
+  tiene `RecetaElectronica.deficitJornada` unidades de menos. No se puede entregar más de lo
+  que hay.
+- **Constancia** (`PendienteSimulacion`, "P-0003"): el estudiante entrega lo que hay,
+  registra el pendiente y pregunta si el paciente vuelve o autoriza domicilio (con dirección
+  y teléfono). Al registrarlo se programa el pedido al proveedor, que llega solo a los
+  `MINUTOS_PEDIDO` (3). El paciente vuelve con el mismo documento y se le entrega solo lo que
+  faltaba; la constancia queda entregada.
+- **Varias visitas**: un renglón puede entregarse en partes. Lo registrado después de la
+  constancia es la visita actual (lo único corregible).
+- **`RECLAMA_PENDIENTE`**: el caso llega con una constancia de ayer (impresa con sus
+  documentos); lo demás de la fórmula ya se entregó. Se entrega solo lo pendiente y no se
+  cobra cuota moderadora otra vez. A veces el actor insiste en que le deben todo.
+- **Calificación**: entregar lo que había, registrar el pendiente por lo que faltaba, la
+  modalidad que eligió el paciente y, si volvió, entregar lo pendiente. La atención se le
+  atribuye a quien atendió la primera visita.
 

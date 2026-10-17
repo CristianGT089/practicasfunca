@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { SnapshotPractica, ResultadoBusqueda, EstadoRenglon } from "@/lib/modulos/dispensacion/practica";
 import type { ResultadoBusquedaSimulacion, RenglonSimulacion } from "@/lib/simulacion/dispensario";
 import { calcularCuotaModeradora } from "@/lib/simulacion/cuotaModeradora";
+import { numeroConstancia, PLAZO_PENDIENTE_HORAS } from "@/lib/simulacion/constancias";
 import type { CategoriaAfiliado, DecisionRecogida } from "@prisma/client";
 import PanelMiEspacio, { type EstadoMiEspacio } from "@/components/turnero/PanelMiEspacio";
 import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
@@ -504,6 +505,24 @@ function DispensarioSimulacion({
           </p>
         )}
         {p.antecedentes && <p className="mt-1 text-xs text-slate-500">{p.antecedentes}</p>}
+        {resultado.pendientes.length > 0 && (
+          <div className="mt-3 border-t border-slate-100 pt-2">
+            <p className="text-xs font-semibold text-slate-600">Constancias de pendiente</p>
+            <ul className="mt-1 flex flex-col gap-1">
+              {resultado.pendientes.map((x) => (
+                <li key={x.numero} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-700">
+                    <b>{numeroConstancia(x.numero)}</b> · {x.medicamento} · {x.cantidad} unidades ·{" "}
+                    {x.modalidad === "DOMICILIO" ? "a domicilio" : "vuelve a reclamarlo"}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 font-semibold ${x.entregadoEn ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
+                    {x.entregadoEn ? "Entregado" : "Por entregar"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <QuienReclama
@@ -728,6 +747,15 @@ function CuotaModeradoraCard({
   onCambiarMarca: (v: boolean) => void;
   esAltoCostoReal: boolean | null;
 }) {
+  // Viene por un pendiente: la cuota se cobró en la entrega anterior y no se vuelve a cobrar.
+  if (cuota.cobrada && cuota.altoCostoMarcado === null) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4 text-sm text-slate-700">
+        <p className="font-semibold">Cuota moderadora: ya se cobró en la entrega anterior</p>
+        <p className="mt-1 text-xs text-slate-500">Al entregar un pendiente no se vuelve a cobrar.</p>
+      </div>
+    );
+  }
   if (cuota.cobrada) {
     // Durante la jornada no se dice si acertó (es evaluada): solo lo que se cobró.
     const conResultado = cuota.correcto !== null;
@@ -799,12 +827,15 @@ function RenglonCardSimulacion({
   altoCostoMarcado: boolean;
   onCambio: () => void;
 }) {
-  const [cantidad, setCantidad] = useState(renglon.cantidadAutorizada || 1);
+  const hay = renglon.existencias?.disponible ?? null;
+  const [cantidad, setCantidad] = useState(Math.max(1, Math.min(renglon.saldoDisponible || renglon.cantidadAutorizada || 1, hay ?? Infinity)));
   const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function accion(body: Record<string, unknown>) {
     setEnviando(true);
-    await fetch("/api/modulos/dispensacion/simulacion/dispensar", {
+    setError(null);
+    const res = await fetch("/api/modulos/dispensacion/simulacion/dispensar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -817,10 +848,21 @@ function RenglonCardSimulacion({
       }),
     });
     setEnviando(false);
+    if (!res.ok) {
+      setError((await res.json().catch(() => ({}))).error ?? "No se pudo registrar");
+      return;
+    }
     onCambio();
   }
 
   const gestionado = renglon.yaGestionado;
+  const ya = renglon.cantidadRedimida;
+  // Falta entregar algo de lo formulado y no hay constancia: se registra el pendiente.
+  const puedePendiente =
+    renglon.recetaId !== null &&
+    !renglon.pendiente &&
+    renglon.saldoDisponible > 0 &&
+    (gestionado?.resultado === "ENTREGADO" || hay === 0);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -840,21 +882,32 @@ function RenglonCardSimulacion({
         ) : null}
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-500">
-        <span>
-          Autorizado: <b className="text-slate-700">{renglon.cantidadAutorizada}</b>
-        </span>
-        <span>
-          Redimido: <b className="text-slate-700">{renglon.cantidadRedimida}</b>
-        </span>
-        <span>
-          Disponible: <b className="text-slate-700">{renglon.saldoDisponible}</b>
-        </span>
-      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <Dato etiqueta="Autorizado" valor={renglon.cantidadAutorizada} />
+        <Dato etiqueta="Ya entregado" valor={ya} />
+        <Dato etiqueta="Falta" valor={renglon.saldoDisponible} />
+        <Dato
+          etiqueta="En el dispensario"
+          valor={hay === null ? "—" : hay}
+          alerta={hay !== null && hay < renglon.saldoDisponible}
+        />
+      </dl>
+      {renglon.existencias?.pedidoLlegaEn && (
+        <p className="mt-2 text-xs text-amber-800">
+          Pedido al proveedor en camino: llega hacia las{" "}
+          {new Date(renglon.existencias.pedidoLlegaEn).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" })}.
+        </p>
+      )}
+
+      {renglon.pendiente && <ConstanciaPendiente pendiente={renglon.pendiente} />}
 
       {!gestionado && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor={`cant-${renglon.medicamentoId}`}>
+            Cantidad a entregar
+          </label>
           <input
+            id={`cant-${renglon.medicamentoId}`}
             type="number"
             min={1}
             value={cantidad}
@@ -863,7 +916,8 @@ function RenglonCardSimulacion({
           />
           <button
             onClick={() => accion({ cantidad })}
-            disabled={enviando || cantidad < 1}
+            disabled={enviando || cantidad < 1 || hay === 0}
+            title={hay === 0 ? "No hay existencias en el dispensario" : undefined}
             className="rounded-lg bg-blue-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-900 disabled:opacity-40"
           >
             Entregar
@@ -875,9 +929,168 @@ function RenglonCardSimulacion({
           >
             Rechazar
           </button>
+          {hay === 0 && (
+            <span className="text-xs text-amber-800">
+              {renglon.pendiente ? "Sin existencias: el pedido viene en camino." : "Sin existencias: registra el pendiente."}
+            </span>
+          )}
         </div>
       )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      {puedePendiente && (
+        <RegistrarPendiente
+          simulacionId={simulacionId}
+          cedula={cedula}
+          recetaId={renglon.recetaId!}
+          falta={renglon.saldoDisponible}
+          onRegistrado={onCambio}
+        />
+      )}
     </div>
+  );
+}
+
+function Dato({ etiqueta, valor, alerta = false }: { etiqueta: string; valor: number | string; alerta?: boolean }) {
+  return (
+    <div className={`rounded-lg px-2 py-1.5 ${alerta ? "bg-amber-50" : "bg-slate-50"}`}>
+      <dt className="text-[11px] text-slate-500">{etiqueta}</dt>
+      <dd className={`font-heading text-base font-bold ${alerta ? "text-amber-800" : "text-slate-800"}`}>{valor}</dd>
+    </div>
+  );
+}
+
+const horaCorta = (iso: string) =>
+  new Date(iso).toLocaleString("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+/** La constancia de un pendiente, tal como queda en el sistema. */
+function ConstanciaPendiente({ pendiente }: { pendiente: NonNullable<RenglonSimulacion["pendiente"]> }) {
+  const limite = new Date(new Date(pendiente.creadoEn).getTime() + PLAZO_PENDIENTE_HORAS * 3_600_000).toISOString();
+  return (
+    <div className={`mt-3 rounded-xl border p-3 text-sm ${pendiente.entregadoEn ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-heading font-bold text-blue-900">Constancia de pendiente {numeroConstancia(pendiente.numero)}</p>
+        <span className={`text-xs font-semibold ${pendiente.entregadoEn ? "text-emerald-700" : "text-amber-800"}`}>
+          {pendiente.entregadoEn ? "Entregado" : "Por entregar"}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-slate-700">
+        {pendiente.cantidad} unidades · {pendiente.modalidad === "DOMICILIO" ? "entrega a domicilio autorizada" : "el paciente vuelve a reclamarlo"}
+      </p>
+      <p className="text-xs text-slate-500">
+        Registrada {horaCorta(pendiente.creadoEn)} · plazo máximo {horaCorta(limite)} (48 horas, Res. 1604 de 2013)
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Lo que falta de un renglón: se registra el pendiente preguntándole al paciente si vuelve a
+ * reclamarlo o autoriza la entrega a domicilio (con dirección y teléfono), y se le da el
+ * número de la constancia.
+ */
+function RegistrarPendiente({
+  simulacionId,
+  cedula,
+  recetaId,
+  falta,
+  onRegistrado,
+}: {
+  simulacionId: string;
+  cedula: string;
+  recetaId: string;
+  falta: number;
+  onRegistrado: () => void;
+}) {
+  const [cantidad, setCantidad] = useState(falta);
+  const [modalidad, setModalidad] = useState<"ESTABLECIMIENTO" | "DOMICILIO" | null>(null);
+  const [direccion, setDireccion] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [numero, setNumero] = useState<string | null>(null);
+
+  async function registrar() {
+    if (!modalidad) return;
+    setGuardando(true);
+    setError(null);
+    const res = await fetch("/api/modulos/dispensacion/simulacion/pendiente", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        simulacionId,
+        cedula,
+        recetaId,
+        cantidad,
+        modalidad,
+        direccion: modalidad === "DOMICILIO" ? direccion : null,
+        telefono: modalidad === "DOMICILIO" ? telefono : null,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGuardando(false);
+    if (!res.ok) return setError(data.error ?? "No se pudo registrar el pendiente");
+    setNumero(data.numero);
+    onRegistrado();
+  }
+
+  if (numero) {
+    return (
+      <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+        Pendiente registrado. Dale al paciente el número de su constancia: <b className="font-heading text-lg">{numero}</b>
+      </p>
+    );
+  }
+
+  const claseInput = "mt-1 w-full rounded-xl border border-blue-200 px-3 py-2 text-sm";
+  return (
+    <fieldset className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+      <legend className="px-1 text-sm font-heading font-semibold text-amber-900">Falta entregar: registra el pendiente</legend>
+      <label className="block text-xs font-medium text-slate-700">
+        Cantidad pendiente
+        <input type="number" min={1} max={falta} value={cantidad} onChange={(e) => setCantidad(Number(e.target.value))} className={`${claseInput} max-w-[8rem]`} />
+      </label>
+      <p className="mt-3 text-xs font-medium text-slate-700">Pregúntale al paciente cómo quiere recibir lo que falta</p>
+      <div className="mt-1 grid gap-2 sm:grid-cols-2">
+        {(
+          [
+            ["ESTABLECIMIENTO", "Vuelve a reclamarlo aquí"],
+            ["DOMICILIO", "Autoriza entrega a domicilio"],
+          ] as const
+        ).map(([valor, texto]) => (
+          <label
+            key={valor}
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${modalidad === valor ? "border-blue-600 bg-white" : "border-slate-200 bg-white/60"}`}
+          >
+            <input type="radio" name={`modalidad-${recetaId}`} checked={modalidad === valor} onChange={() => setModalidad(valor)} />
+            {texto}
+          </label>
+        ))}
+      </div>
+      {modalidad === "DOMICILIO" && (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <label className="text-xs font-medium text-slate-700">
+            Dirección
+            <input value={direccion} onChange={(e) => setDireccion(e.target.value)} className={claseInput} />
+          </label>
+          <label className="text-xs font-medium text-slate-700">
+            Teléfono
+            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" className={claseInput} />
+          </label>
+        </div>
+      )}
+      <p className="mt-2 text-xs text-slate-500">
+        La norma (Res. 1604 de 2013) da máximo 48 horas para entregar lo que falta. Se programa el pedido al proveedor.
+      </p>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <button
+        onClick={registrar}
+        disabled={guardando || !modalidad || cantidad < 1 || cantidad > falta || (modalidad === "DOMICILIO" && (!direccion.trim() || !telefono.trim()))}
+        className="mt-3 rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+      >
+        {guardando ? "Registrando..." : "Registrar pendiente y dar constancia"}
+      </button>
+    </fieldset>
   );
 }
 

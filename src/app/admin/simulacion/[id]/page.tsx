@@ -22,6 +22,8 @@ import { definicionSituacion } from "@/lib/simulacion/situaciones";
 type Receta = {
   id: string;
   cantidadAutorizada: number;
+  cantidadRedimida: number;
+  deficitJornada: number;
   medico: string;
   fechaEmision: string;
   fechaVigencia: string;
@@ -824,6 +826,16 @@ function FilaPaciente({
               <span className="font-medium text-slate-700">{r.medicamento.nombre}</span>
               <span className="text-slate-400">{r.medicamento.presentacion}</span>
               <span className="text-slate-500 ml-auto">{r.cantidadAutorizada} unid. · {r.medico}</span>
+              {r.deficitJornada > 0 && (
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                  Faltarán {r.deficitJornada}
+                </span>
+              )}
+              {r.cantidadRedimida > 0 && r.cantidadRedimida < r.cantidadAutorizada && (
+                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-800">
+                  Ya entregado {r.cantidadRedimida}: reclama {r.cantidadAutorizada - r.cantidadRedimida}
+                </span>
+              )}
               {vencida && (
                 <span className="rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">
                   Vencida

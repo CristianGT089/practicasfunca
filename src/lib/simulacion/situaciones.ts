@@ -13,6 +13,8 @@ export type CodigoSituacion =
   | "SUPLANTACION"
   | "TERCERO_AUTORIZADO"
   | "MENOR_DE_EDAD"
+  | "PENDIENTE"
+  | "RECLAMA_PENDIENTE"
   | "ALERGIA"
   | "ALTO_COSTO"
   | "SE_NIEGA_CEDULA"
@@ -63,6 +65,23 @@ export const SITUACIONES: DefinicionSituacion[] = [
     nombre: "Paciente menor de edad",
     queHacer:
       "El menor no reclama solo: verificar su registro civil o tarjeta de identidad y que quien lo acompaña sea su padre, madre o acudiente; registrar el documento del adulto y entregar.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["DISPENSARIO"],
+  },
+  {
+    codigo: "PENDIENTE",
+    nombre: "Medicamento sin existencias suficientes",
+    queHacer:
+      "Entregar lo que hay, registrar el pendiente preguntando si el paciente vuelve o autoriza domicilio, darle la constancia (máximo 48 horas, Res. 1604 de 2013) y, cuando vuelva, entregar lo que faltaba.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["DISPENSARIO"],
+  },
+  {
+    codigo: "RECLAMA_PENDIENTE",
+    nombre: "Viene a reclamar un pendiente",
+    queHacer: "Buscar el pendiente de su constancia y entregar solo lo que se le quedó debiendo, no la fórmula completa.",
     indicacionActor: null,
     verificable: true,
     tipos: ["DISPENSARIO"],
@@ -122,6 +141,14 @@ const EXCLUYENTES: [CodigoSituacion, CodigoSituacion][] = [
   ["SUPLANTACION", "TERCERO_AUTORIZADO"],
   ["SUPLANTACION", "MENOR_DE_EDAD"],
   ["TERCERO_AUTORIZADO", "MENOR_DE_EDAD"],
+  // Un pendiente nuevo y uno de antes en el mismo caso confundirían la constancia.
+  ["PENDIENTE", "RECLAMA_PENDIENTE"],
+  // Al suplantador no se le entrega nada: no hay pendiente que registrar ni reclamar.
+  ["PENDIENTE", "SUPLANTACION"],
+  ["RECLAMA_PENDIENTE", "SUPLANTACION"],
+  // El pendiente de antes es de un medicamento que ya se entregó en parte: sin otras trampas.
+  ["RECLAMA_PENDIENTE", "FORMULA_VENCIDA"],
+  ["RECLAMA_PENDIENTE", "ALERGIA"],
 ];
 
 /**
@@ -187,10 +214,15 @@ export function planAlAzar(total: number, tipo: TipoSimulacion, azar: () => numb
     if (aplica("FORMULA_VENCIDA") && azar() < 0.15) caso.push("FORMULA_VENCIDA");
     if (aplica("ALERGIA") && azar() < 0.15) caso.push("ALERGIA");
     if (aplica("ALTO_COSTO") && azar() < 0.15) caso.push("ALTO_COSTO");
+    // Pendientes: 12% se queda corto de existencias, 8% viene a reclamar uno de antes.
+    const p = azar();
+    const pendiente: CodigoSituacion | null = p < 0.12 ? "PENDIENTE" : p < 0.2 ? "RECLAMA_PENDIENTE" : null;
+    if (pendiente && aplica(pendiente)) caso.push(pendiente);
     // Quién llega: 10% menor con su acudiente, 10% tercero autorizado, 6% suplantación.
     const r = azar();
     const recogida: CodigoSituacion | null = r < 0.1 ? "MENOR_DE_EDAD" : r < 0.2 ? "TERCERO_AUTORIZADO" : r < 0.26 ? "SUPLANTACION" : null;
     if (recogida && aplica(recogida)) caso.push(recogida);
-    return caso;
+    // Lo que no se puede combinar: gana la primera situación sorteada.
+    return caso.filter((c, i) => !caso.slice(0, i).some((previa) => sonExcluyentes(previa, c)));
   });
 }

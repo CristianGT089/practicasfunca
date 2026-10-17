@@ -22,6 +22,7 @@
 import { prisma } from "@/lib/nucleo/prisma";
 import type { CategoriaAfiliado, DecisionRecogida } from "@prisma/client";
 import { calcularCuotaModeradora } from "./cuotaModeradora";
+import { actualizarPendienteDeReceta, existencias, registrarPendiente, type Existencia } from "./pendientes";
 
 export type RenglonSimulacion = {
   // null cuando el medicamento existe en el catálogo pero el paciente NO tiene receta para
@@ -35,7 +36,20 @@ export type RenglonSimulacion = {
   cantidadRedimida: number;
   saldoDisponible: number;
   fechaVigencia: string | null;
+  /** Lo registrado en ESTA visita (antes de la constancia de pendiente, o después si ya la hay). */
   yaGestionado: { resultado: "ENTREGADO" | "RECHAZADO"; cantidad: number } | null;
+  /** Lo que hay en el dispensario ahora; null = medicamento fuera del inventario de la jornada. */
+  existencias: Existencia | null;
+  pendiente: PendienteVista | null;
+};
+
+export type PendienteVista = {
+  numero: number;
+  medicamento: string;
+  cantidad: number;
+  modalidad: "ESTABLECIMIENTO" | "DOMICILIO";
+  creadoEn: string;
+  entregadoEn: string | null;
 };
 
 export type ResultadoBusquedaSimulacion = {
@@ -66,6 +80,8 @@ export type ResultadoBusquedaSimulacion = {
   // Lo que el estudiante ya registró sobre quién reclama (null = todavía no). No dice si
   // acertó: eso se ve en el reporte final.
   recogida: { decision: DecisionRecogida; documentoQuienReclama: string | null } | null;
+  /** Constancias de pendiente del paciente (las de antes y las de esta jornada). */
+  pendientes: PendienteVista[];
   // Cuántos renglones tiene la receta — informativo (para un "1 de 3 gestionados"), sin
   // revelar cuáles son: eso el estudiante lo tiene que buscar uno por uno, igual que pide
   // el documento en vez de que el sistema le diga quién es el paciente.
@@ -83,9 +99,29 @@ function normalizar(texto: string): string {
 async function pacienteDeLaSimulacion(simulacionId: string, cedula: string) {
   return prisma.paciente.findFirst({
     where: { cedula: cedula.trim(), simulacionId },
-    include: { recetas: { include: { medicamento: true } }, recogida: true },
+    include: {
+      recetas: { include: { medicamento: true } },
+      recogida: true,
+      pendientes: { orderBy: { numero: "asc" }, include: { recetaElectronica: { include: { medicamento: true } } } },
+    },
   });
 }
+
+type PacienteConTodo = NonNullable<Awaited<ReturnType<typeof pacienteDeLaSimulacion>>>;
+
+function vistaPendiente(p: PacienteConTodo["pendientes"][number]): PendienteVista {
+  return {
+    numero: p.numero,
+    medicamento: p.recetaElectronica.medicamento.nombre,
+    cantidad: p.cantidad,
+    modalidad: p.modalidad,
+    creadoEn: p.creadoEn.toISOString(),
+    entregadoEn: p.entregadoEn?.toISOString() ?? null,
+  };
+}
+
+/** Viene a reclamar un pendiente de antes de la jornada: la cuota se cobró aquella vez. */
+const cuotaYaCobradaAntes = (p: PacienteConTodo) => p.pendientes.some((x) => x.usuarioId === null);
 
 export async function buscarPacienteSimulacion(simulacionId: string, cedula: string): Promise<ResultadoBusquedaSimulacion> {
   const paciente = await pacienteDeLaSimulacion(simulacionId, cedula);
@@ -95,6 +131,7 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
     paciente: null,
     cuota: { cobrada: false, montoAplicado: null, altoCostoMarcado: null, correcto: null },
     recogida: null,
+    pendientes: [],
     totalRenglones: 0,
   };
   if (!paciente) return vacio;
@@ -102,7 +139,8 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
   const entregaConCuota = await prisma.entregaSimulacion.findFirst({
     where: { simulacionId, pacienteId: paciente.id, altoCostoMarcado: { not: null } },
   });
-  const yaDecidida = entregaConCuota !== null;
+  const cobradaAntes = cuotaYaCobradaAntes(paciente);
+  const yaDecidida = entregaConCuota !== null || cobradaAntes;
 
   return {
     encontrado: true,
@@ -119,14 +157,16 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
     },
     cuota: {
       cobrada: yaDecidida,
-      montoAplicado: entregaConCuota?.cuotaModeradora ?? null,
+      montoAplicado: cobradaAntes ? 0 : (entregaConCuota?.cuotaModeradora ?? null),
       altoCostoMarcado: entregaConCuota?.altoCostoMarcado ?? null,
       correcto: null,
     },
     recogida: paciente.recogida
       ? { decision: paciente.recogida.decision, documentoQuienReclama: paciente.recogida.documentoQuienReclama }
       : null,
-    totalRenglones: paciente.recetas.length,
+    pendientes: paciente.pendientes.map(vistaPendiente),
+    // Lo que quedaba por entregar al empezar la jornada (lo ya redimido antes no cuenta).
+    totalRenglones: paciente.recetas.filter((r) => r.cantidadAutorizada > r.cantidadRedimida).length,
   };
 }
 
@@ -154,7 +194,11 @@ export async function buscarMedicamentoSimulacion(
   const coincidencias = candidatos.filter((m) => normalizar(m.nombre).includes(buscado));
   if (coincidencias.length === 0) return { encontrado: false, renglones: [] };
 
-  const entregas = await prisma.entregaSimulacion.findMany({ where: { simulacionId, pacienteId: paciente.id } });
+  const entregas = await prisma.entregaSimulacion.findMany({
+    where: { simulacionId, pacienteId: paciente.id },
+    orderBy: { creadoEn: "desc" },
+  });
+  const inventario = await existencias(simulacionId, coincidencias.map((m) => m.id));
 
   const renglones: RenglonSimulacion[] = coincidencias.map((med) => {
     const receta = paciente.recetas.find((r) => r.medicamentoId === med.id) ?? null;
@@ -164,7 +208,10 @@ export async function buscarMedicamentoSimulacion(
         .filter((e) => e.recetaElectronicaId === receta.id && e.resultado === "ENTREGADO")
         .reduce((s, e) => s + e.cantidad, 0);
       const cantidadRedimida = receta.cantidadRedimida + redimidoEnSimulacion;
-      const gestion = entregas.find((e) => e.recetaElectronicaId === receta.id) ?? null;
+      const pendiente = paciente.pendientes.find((p) => p.recetaElectronicaId === receta.id) ?? null;
+      // Esta visita: lo registrado después de la constancia (si la hay), que es lo único editable.
+      const gestion =
+        entregas.find((e) => e.recetaElectronicaId === receta.id && (!pendiente || e.creadoEn > pendiente.creadoEn)) ?? null;
 
       return {
         recetaId: receta.id,
@@ -176,6 +223,8 @@ export async function buscarMedicamentoSimulacion(
         saldoDisponible: Math.max(0, receta.cantidadAutorizada - cantidadRedimida),
         fechaVigencia: receta.fechaVigencia.toISOString(),
         yaGestionado: gestion ? { resultado: gestion.resultado, cantidad: gestion.cantidad } : null,
+        existencias: inventario.get(med.id) ?? null,
+        pendiente: pendiente ? vistaPendiente(pendiente) : null,
       };
     }
 
@@ -192,6 +241,8 @@ export async function buscarMedicamentoSimulacion(
       saldoDisponible: 0,
       fechaVigencia: null,
       yaGestionado: gestion ? { resultado: gestion.resultado, cantidad: gestion.cantidad } : null,
+      existencias: inventario.get(med.id) ?? null,
+      pendiente: null,
     };
   });
 
@@ -236,18 +287,41 @@ async function registrarEntrega(opts: {
     throw new Error("Registraste que no se entrega: cambia esa decisión si de verdad corresponde entregar");
   }
 
+  // Lo registrado en esta visita se puede corregir; lo de antes de la constancia de
+  // pendiente ya se entregó y queda.
+  const pendiente = opts.recetaId ? (paciente.pendientes.find((p) => p.recetaElectronicaId === opts.recetaId) ?? null) : null;
+  const deEstaVisita = {
+    ...(opts.recetaId
+      ? { simulacionId: opts.simulacionId, recetaElectronicaId: opts.recetaId }
+      : { simulacionId: opts.simulacionId, recetaElectronicaId: null, medicamentoId: opts.medicamentoId, pacienteId: paciente.id }),
+    ...(pendiente ? { creadoEn: { gt: pendiente.creadoEn } } : {}),
+  };
+
+  // No se entrega lo que no hay en el dispensario.
+  if (opts.resultado === "ENTREGADO") {
+    const medicamentoId = paciente.recetas.find((r) => r.id === opts.recetaId)?.medicamentoId ?? opts.medicamentoId;
+    const hay = (await existencias(opts.simulacionId, [medicamentoId])).get(medicamentoId);
+    if (hay) {
+      const reemplazada = await prisma.entregaSimulacion.aggregate({ where: { ...deEstaVisita, resultado: "ENTREGADO" }, _sum: { cantidad: true } });
+      const disponible = hay.disponible + (reemplazada._sum.cantidad ?? 0);
+      if (opts.cantidad > disponible) {
+        throw new Error(
+          disponible === 0
+            ? "No hay existencias de este medicamento en el dispensario"
+            : `Solo hay ${disponible} unidades en el dispensario: entrega esas y registra el pendiente`
+        );
+      }
+    }
+  }
+
   // La cuota se cobra con la primera ENTREGA: si solo se rechaza, no se entregó ningún
-  // servicio y no hay nada que cobrar.
+  // servicio y no hay nada que cobrar. Si viene por un pendiente de antes, ya se cobró.
   const cuota =
-    opts.resultado === "ENTREGADO"
+    opts.resultado === "ENTREGADO" && !cuotaYaCobradaAntes(paciente)
       ? await decidirCuota(opts.simulacionId, paciente.id, paciente.categoriaAfiliado, opts.altoCostoMarcado)
       : { cuotaModeradora: 0, altoCostoMarcado: null };
 
-  await prisma.entregaSimulacion.deleteMany({
-    where: opts.recetaId
-      ? { simulacionId: opts.simulacionId, recetaElectronicaId: opts.recetaId }
-      : { simulacionId: opts.simulacionId, recetaElectronicaId: null, medicamentoId: opts.medicamentoId, pacienteId: paciente.id },
-  });
+  await prisma.entregaSimulacion.deleteMany({ where: deEstaVisita });
   await prisma.entregaSimulacion.create({
     data: {
       simulacionId: opts.simulacionId,
@@ -261,6 +335,35 @@ async function registrarEntrega(opts: {
       altoCostoMarcado: cuota.altoCostoMarcado,
     },
   });
+  if (opts.recetaId) await actualizarPendienteDeReceta(opts.simulacionId, opts.recetaId);
+}
+
+/**
+ * El estudiante registra lo que le queda debiendo al paciente de un renglón (después de
+ * entregar lo que había) y le da la constancia. No puede ser más de lo que falta.
+ */
+export async function registrarPendienteSimulacion(opts: {
+  simulacionId: string;
+  usuarioId: string;
+  cedula: string;
+  recetaId: string;
+  cantidad: number;
+  modalidad: "ESTABLECIMIENTO" | "DOMICILIO";
+  direccion: string | null;
+  telefono: string | null;
+}) {
+  const paciente = await pacienteDeLaSimulacion(opts.simulacionId, opts.cedula);
+  if (!paciente) throw new Error("Paciente no encontrado en esta simulación");
+  const receta = paciente.recetas.find((r) => r.id === opts.recetaId);
+  if (!receta) throw new Error("Ese medicamento no está en la fórmula de este paciente");
+  const entregado = await prisma.entregaSimulacion.aggregate({
+    where: { simulacionId: opts.simulacionId, recetaElectronicaId: receta.id, resultado: "ENTREGADO" },
+    _sum: { cantidad: true },
+  });
+  const falta = receta.cantidadAutorizada - receta.cantidadRedimida - (entregado._sum.cantidad ?? 0);
+  if (falta <= 0) throw new Error("Ya se entregó todo lo formulado de este medicamento");
+  if (opts.cantidad > falta) throw new Error(`Solo falta entregar ${falta}`);
+  return registrarPendiente({ ...opts, pacienteId: paciente.id });
 }
 
 export async function dispensarRenglonSimulacion(opts: {

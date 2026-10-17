@@ -8,6 +8,7 @@ import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
 import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type PacienteGenerado } from "./generador";
+import { reconstruirInventario } from "./pendientes";
 import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
 import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { planAlAzar, planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
@@ -15,7 +16,11 @@ import { planAlAzar, planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type Codigo
 const incluirPacientes = {
   pacientes: {
     orderBy: { creadoEn: "asc" as const },
-    include: { recetas: { include: { medicamento: { select: { nombre: true, presentacion: true } } } } },
+    include: {
+      recetas: { include: { medicamento: { select: { nombre: true, presentacion: true } } } },
+      // La constancia de antes de la jornada va impresa con el caso que viene a reclamarla.
+      pendientes: { include: { recetaElectronica: { include: { medicamento: { select: { nombre: true } } } } } },
+    },
   },
 };
 
@@ -100,6 +105,8 @@ async function crearBorrador(opts: OpcionesBorrador) {
     },
     include: incluirPacientes,
   });
+  // El dispensario lleva inventario (y pendientes); el mostrador de farmacia no.
+  if (opts.tipo === "DISPENSARIO") await reconstruirInventario(simulacion.id);
 
   return simulacion;
 }
@@ -122,11 +129,15 @@ function aDatosPaciente(p: PacienteGenerado) {
     personaRecogeCedula: p.personaRecogeCedula,
     personaRecogeRelacion: p.personaRecogeRelacion,
     situaciones: p.situaciones,
+    pendientePrefiere: p.pendientePrefiere,
+    direccionDomicilio: p.direccionDomicilio,
     recetas: {
       create: p.renglones.map((r) => ({
         medicamentoId: r.medicamentoId,
         medico: r.medico,
         cantidadAutorizada: r.cantidadAutorizada,
+        cantidadRedimida: r.cantidadRedimida,
+        deficitJornada: r.deficit,
         fechaEmision: r.fechaEmision,
         fechaVigencia: r.fechaVigencia,
       })),
@@ -157,14 +168,22 @@ export async function regenerarPaciente(simulacionId: string, pacienteId: string
         select: { id: true, nombre: true, genero: true },
       })
     : [];
+  // Lo que ya formularon los demás casos: el de un pendiente debe ser exclusivo.
+  const otras = await prisma.recetaElectronica.findMany({
+    where: { paciente: { simulacionId, id: { not: pacienteId } } },
+    select: { medicamentoId: true },
+  });
   const [generado] = await generarPacientes(
     [interprete],
     [paciente.situaciones as CodigoSituacion[]],
-    grupo.map((e) => ({ estudianteId: e.id, nombre: e.nombre, genero: e.genero }))
+    grupo.map((e) => ({ estudianteId: e.id, nombre: e.nombre, genero: e.genero })),
+    otras.map((r) => r.medicamentoId)
   );
 
+  await prisma.pendienteSimulacion.deleteMany({ where: { pacienteId } });
   await prisma.recetaElectronica.deleteMany({ where: { pacienteId } });
   await prisma.paciente.update({ where: { id: pacienteId }, data: aDatosPaciente(generado) });
+  if (simulacion.tipo === "DISPENSARIO") await reconstruirInventario(simulacionId);
 
   return prisma.paciente.findUnique({
     where: { id: pacienteId },
@@ -300,6 +319,8 @@ export async function cerrarSimulacion(simulacionId: string) {
 
   // Primero las entregas: referencian a las cuentas de los puestos, que cerrarSesion borra.
   await prisma.entregaSimulacion.deleteMany({ where: { simulacionId } });
+  await prisma.pendienteSimulacion.deleteMany({ where: { simulacionId } });
+  await prisma.existenciaSimulacion.deleteMany({ where: { simulacionId } });
 
   if (simulacion.sesionTurneroId) {
     const sesion = await prisma.sesionTurnero.findUnique({ where: { id: simulacion.sesionTurneroId } });

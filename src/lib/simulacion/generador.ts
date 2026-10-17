@@ -31,9 +31,15 @@ export type RenglonGenerado = {
   medicamentoId: string;
   medicamentoNombre: string;
   cantidadAutorizada: number;
+  /** Lo que ya se entregó antes de la jornada (caso que viene a reclamar un pendiente). */
+  cantidadRedimida: number;
   medico: string;
   fechaEmision: Date;
   fechaVigencia: Date;
+  /** Caso de pendiente: cuántas unidades faltarán en el dispensario al atenderlo. */
+  deficit: number;
+  /** Caso que reclama un pendiente de antes: lo que se le quedó debiendo. */
+  pendienteAnterior: number;
 };
 
 export type PacienteGenerado = {
@@ -57,6 +63,9 @@ export type PacienteGenerado = {
   personaRecogeRelacion: string | null;
   /** Situaciones de práctica que trae este paciente (vacío = caso normal). */
   situaciones: CodigoSituacion[];
+  /** Caso de pendiente: cómo quiere recibir lo que falta, y a dónde si es a domicilio. */
+  pendientePrefiere: "ESTABLECIMIENTO" | "DOMICILIO" | null;
+  direccionDomicilio: string | null;
 };
 
 function elegir<T>(lista: readonly T[]): T {
@@ -134,6 +143,15 @@ function enGenero(base: { m: string; f: string; n: string }, genero: Genero | nu
   return genero === "FEMENINO" ? base.f : genero === "MASCULINO" ? base.m : base.n;
 }
 
+const CALLES = ["Calle", "Carrera", "Avenida", "Diagonal", "Transversal"];
+const BARRIOS = ["La Esperanza", "San José", "El Prado", "Villa Nueva", "Los Almendros", "Santa Fe", "El Carmen"];
+
+/** Dirección y celular ficticios para un pendiente a domicilio (van en el papel del estudiante). */
+function direccionAlAzar() {
+  const celular = `3${entero(0, 2)}${entero(0, 9)} ${entero(100, 999)} ${entero(1000, 9999)}`;
+  return `${elegir(CALLES)} ${entero(2, 120)} # ${entero(1, 99)}-${entero(1, 99)}, barrio ${elegir(BARRIOS)}. Celular ${celular}`;
+}
+
 const PARENTESCOS_TERCERO = [
   { m: "hijo", f: "hija", n: "hijo(a)", edad: [55, 90] as const },
   { m: "nieto", f: "nieta", n: "nieto(a)", edad: [70, 95] as const },
@@ -159,7 +177,9 @@ export async function generarPacientes(
   interpretes: Interprete[],
   plan: CodigoSituacion[][],
   /** De dónde sale el nombre del familiar. Por defecto, los mismos estudiantes de la tanda. */
-  grupo: Interprete[] = interpretes
+  grupo: Interprete[] = interpretes,
+  /** Medicamentos que ya tienen otros casos de la jornada (al regenerar uno solo). */
+  ocupados: Iterable<string> = []
 ): Promise<PacienteGenerado[]> {
   const catalogo = await prisma.medicamento.findMany({
     // Solo medicamentos: los dispositivos e insumos (equipos, sondas, caretas...) no van en una fórmula.
@@ -176,6 +196,9 @@ export async function generarPacientes(
 
   const pacientes: PacienteGenerado[] = [];
   const usadas = new Set<string>();
+  // Medicamentos ya formulados en esta tanda, y los reservados a un caso de pendiente.
+  const usados = new Set<string>(ocupados);
+  const exclusivos = new Set<string>();
 
   for (const [indice, interprete] of interpretes.entries()) {
     const situaciones = [...(plan[indice] ?? [])];
@@ -239,39 +262,69 @@ export async function generarPacientes(
     const diagnostico = elegirPorEdad(esAltoCosto ? DIAGNOSTICOS_ALTO_COSTO : DIAGNOSTICOS_COMUNES, edad, genero);
     const categoriaAfiliado = elegirPesado(PESOS_CATEGORIA_AFILIADO) as CategoriaAfiliado;
 
-    // 1-3 renglones, del catálogo real. Si el caso es de alergia, el primero es de una familia
-    // alergénica y el paciente queda alérgico a ella; los demás, de ninguna familia.
-    const numRenglones = entero(1, 3);
+    // 1-3 renglones, del catálogo real. Cada renglón "con trampa" va solo en el suyo, para que
+    // enseñe una sola cosa: alergia (familia alergénica, y el paciente queda alérgico),
+    // pendiente (sin existencias suficientes) y fórmula vencida. Los demás, sin nada.
+    const papeles: ("ALERGIA" | "PENDIENTE" | "RECLAMA" | "VENCIDA")[] = [];
+    if (tiene("ALERGIA") && conFamilia.length > 0) papeles.push("ALERGIA");
+    if (tiene("PENDIENTE")) papeles.push("PENDIENTE");
+    if (tiene("RECLAMA_PENDIENTE")) papeles.push("RECLAMA");
+    if (tiene("FORMULA_VENCIDA")) papeles.push("VENCIDA");
+    const numRenglones = Math.max(entero(1, 3), papeles.length);
     const medico = elegir(MEDICOS); // una fórmula la firma un solo médico
     const renglones: RenglonGenerado[] = [];
     const alergias = new Set<string>();
+    // Lo que no está en la fórmula de nadie más, para los pendientes (ver `exclusivos`).
+    const libres = (lista: typeof catalogo) => lista.filter((m) => !exclusivos.has(m.id));
 
     for (let r = 0; r < numRenglones; r++) {
+      const papel = papeles[r] ?? null;
       let medicamento: (typeof catalogo)[number];
-      if (r === 0 && tiene("ALERGIA") && conFamilia.length > 0) {
-        medicamento = elegir(conFamilia);
+      if (papel === "ALERGIA") {
+        medicamento = elegir(libres(conFamilia).length > 0 ? libres(conFamilia) : conFamilia);
         alergias.add(familiaAlergenica(medicamento.principioActivo)!);
+      } else if (papel === "PENDIENTE" || papel === "RECLAMA") {
+        // Con cantidad suficiente para partirla. El del pendiente es exclusivo de este
+        // paciente: si otro también lo tuviera, podría llevarse lo que hay y el caso no
+        // saldría como se pensó.
+        const amplios = sinFamilia.filter((m) => m.stock >= 10);
+        const sinUsar = amplios.filter((m) => !usados.has(m.id));
+        medicamento = elegir(sinUsar.length > 0 ? sinUsar : libres(amplios).length > 0 ? libres(amplios) : catalogo);
+        if (papel === "PENDIENTE") exclusivos.add(medicamento.id);
       } else {
-        medicamento = elegir(sinFamilia.length > 0 ? sinFamilia : catalogo);
+        const base = libres(sinFamilia).length > 0 ? libres(sinFamilia) : libres(catalogo).length > 0 ? libres(catalogo) : catalogo;
+        medicamento = elegir(base);
       }
+      usados.add(medicamento.id);
 
-      const fechaEmision = new Date(Date.now() - entero(0, 20) * 86_400_000);
-      // Si el caso es de fórmula vencida, se vence el último renglón (así, con alergia en el
-      // primero, cada renglón enseña una sola cosa).
-      const vencida = tiene("FORMULA_VENCIDA") && r === numRenglones - 1;
-      const diasVigencia = vencida ? -entero(1, 15) : entero(20, 35);
+      // La de un pendiente que viene a reclamar se formuló hace unos días; la vencida, se vence.
+      const fechaEmision = new Date(Date.now() - (papel === "RECLAMA" ? entero(3, 10) : entero(0, 20)) * 86_400_000);
+      const diasVigencia = papel === "VENCIDA" ? -entero(1, 15) : entero(20, 35);
       const fechaVigencia = new Date(fechaEmision.getTime() + diasVigencia * 86_400_000);
+      const cantidadAutorizada = Math.min(entero(papel === "PENDIENTE" || papel === "RECLAMA" ? 10 : 5, 30), medicamento.stock);
+      // Pendiente: falta entre un tercio y todo lo formulado (a veces no hay nada).
+      const deficit = papel === "PENDIENTE" ? (Math.random() < 0.3 ? cantidadAutorizada : entero(Math.ceil(cantidadAutorizada / 3), cantidadAutorizada - 1)) : 0;
+      // Reclama: ya se le entregó una parte; le quedaron debiendo el resto.
+      const pendienteAnterior = papel === "RECLAMA" ? entero(Math.ceil(cantidadAutorizada / 3), cantidadAutorizada - 1) : 0;
 
       renglones.push({
         medicamentoId: medicamento.id,
         medicamentoNombre: medicamento.nombre,
-        // Nunca más de lo que hay en inventario: si no, el caso sería imposible de atender.
-        cantidadAutorizada: Math.min(entero(5, 30), medicamento.stock),
+        cantidadAutorizada,
+        cantidadRedimida: papel === "RECLAMA" ? cantidadAutorizada - pendienteAnterior : 0,
         medico,
         fechaEmision,
         fechaVigencia,
+        deficit,
+        pendienteAnterior,
       });
     }
+    // En el caso que reclama, los demás renglones ya se entregaron completos aquella vez.
+    if (tiene("RECLAMA_PENDIENTE")) {
+      for (const r of renglones) if (r.pendienteAnterior === 0) r.cantidadRedimida = r.cantidadAutorizada;
+    }
+
+    const pendientePrefiere = tiene("PENDIENTE") ? (Math.random() < 0.7 ? "ESTABLECIMIENTO" : "DOMICILIO") : null;
 
     pacientes.push({
       nombre,
@@ -292,6 +345,8 @@ export async function generarPacientes(
       personaRecogeRelacion,
       // Sin medicamento de familia alergénica en el catálogo, el caso no puede ser de alergia.
       situaciones: situaciones.filter((c) => c !== "ALERGIA" || alergias.size > 0),
+      pendientePrefiere,
+      direccionDomicilio: pendientePrefiere === "DOMICILIO" ? direccionAlAzar() : null,
     });
   }
 

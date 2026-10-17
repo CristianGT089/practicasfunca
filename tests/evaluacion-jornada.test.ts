@@ -154,3 +154,61 @@ test("no entregar a quien sí podía recibir es rechazo indebido", () => {
   assert.ok(r.criterios.some((c) => c.clave === "IDENTIDAD_INCORRECTA"));
 });
 
+// ---------- Pendientes (Res. 1604 de 2013) ----------
+
+const t0 = new Date("2026-09-28T10:00:00Z");
+const t1 = new Date("2026-09-28T10:05:00Z");
+const t2 = new Date("2026-09-28T10:20:00Z");
+const conPendiente = (pendiente: PacienteEvaluado["recetas"][number]["pendiente"], prefiere: "ESTABLECIMIENTO" | "DOMICILIO" = "ESTABLECIMIENTO") =>
+  paciente({
+    situaciones: ["PENDIENTE"],
+    pendientePrefiere: prefiere,
+    recetas: [
+      { id: "r1", cantidadAutorizada: 20, cantidadRedimida: 0, fechaVigencia: futuro, deficitJornada: 8, pendiente, medicamento: { id: "m1", nombre: "Losartán", principioActivo: "losartan" } },
+    ],
+  });
+
+test("pendiente bien manejado: entrega lo que hay, constancia y entrega al volver", () => {
+  const r = evaluarAtencionDispensario(
+    conPendiente({ cantidad: 8, modalidad: "ESTABLECIMIENTO", direccion: null, telefono: null, creadoEn: t1 }),
+    [entrega({ cantidad: 12, creadoEn: t0 }), entrega({ cantidad: 8, creadoEn: t2, altoCostoMarcado: null, cuotaModeradora: 0 })],
+    hoy
+  );
+  assert.equal(r.puntaje, 100, JSON.stringify(r.criterios.filter((c) => !c.cumplido)));
+  assert.equal(r.criterios.filter((c) => c.clave === "PENDIENTE_CORRECTO").length, 4);
+});
+
+test("pendiente sin registrar: es error aunque haya entregado lo que había", () => {
+  const r = evaluarAtencionDispensario(conPendiente(null), [entrega({ cantidad: 12, creadoEn: t0 })], hoy);
+  assert.ok(r.criterios.some((c) => c.clave === "PENDIENTE_INCORRECTO" && c.descripcion.includes("registrar el pendiente")));
+});
+
+test("pendiente: domicilio sin dirección o con la modalidad equivocada es error", () => {
+  const sinDatos = evaluarAtencionDispensario(
+    conPendiente({ cantidad: 8, modalidad: "DOMICILIO", direccion: "", telefono: null, creadoEn: t1 }, "DOMICILIO"),
+    [entrega({ cantidad: 12, creadoEn: t0 })],
+    hoy
+  );
+  assert.ok(sinDatos.criterios.some((c) => c.clave === "PENDIENTE_INCORRECTO"));
+  const otraModalidad = evaluarAtencionDispensario(
+    conPendiente({ cantidad: 8, modalidad: "ESTABLECIMIENTO", direccion: null, telefono: null, creadoEn: t1 }, "DOMICILIO"),
+    [entrega({ cantidad: 12, creadoEn: t0 })],
+    hoy
+  );
+  assert.ok(otraModalidad.criterios.some((c) => c.clave === "PENDIENTE_INCORRECTO"));
+});
+
+test("reclama un pendiente de antes: solo se entrega lo que faltaba y no se cobra cuota", () => {
+  const p = paciente({
+    situaciones: ["RECLAMA_PENDIENTE"],
+    recetas: [
+      { id: "r1", cantidadAutorizada: 20, cantidadRedimida: 14, fechaVigencia: futuro, medicamento: { id: "m1", nombre: "Losartán", principioActivo: "losartan" } },
+      { id: "r2", cantidadAutorizada: 10, cantidadRedimida: 10, fechaVigencia: futuro, medicamento: { id: "m2", nombre: "Omeprazol", principioActivo: "omeprazol" } },
+    ],
+  });
+  const bien = evaluarAtencionDispensario(p, [entrega({ cantidad: 6, altoCostoMarcado: null, cuotaModeradora: 0 })], hoy);
+  assert.equal(bien.puntaje, 100);
+  assert.ok(!bien.criterios.some((c) => c.clave.startsWith("CUOTA")));
+  const deMas = evaluarAtencionDispensario(p, [entrega({ cantidad: 20 })], hoy);
+  assert.ok(deMas.criterios.some((c) => c.clave === "CANTIDAD_INCORRECTA"));
+});

@@ -117,9 +117,15 @@ export async function finalizarJornada(simulacionId: string) {
   ]);
   const porId = new Map(pacientes.map((p) => [p.id, p]));
 
-  // Un turno por paciente (si se le sacó más de uno, cuenta el último que se llamó).
+  // Un turno por paciente: si se le sacó más de uno, cuenta el último que se llamó; salvo
+  // en los casos de pendiente, donde lo principal (entregar lo que había y registrar el
+  // pendiente) pasa en la primera atención.
+  const conPendiente = new Set(pacientes.filter((p) => p.situaciones.includes("PENDIENTE")).map((p) => p.id));
   const ultimoTicket = new Map<string, (typeof tickets)[number]>();
-  for (const t of tickets) ultimoTicket.set(t.pacienteId!, t);
+  for (const t of tickets) {
+    if (conPendiente.has(t.pacienteId!) && ultimoTicket.has(t.pacienteId!)) continue;
+    ultimoTicket.set(t.pacienteId!, t);
+  }
 
   const datos = [...ultimoTicket.values()].map((t) => {
     const p = porId.get(t.pacienteId!)!;
@@ -221,7 +227,13 @@ export async function calificarJornada(simulacionId: string) {
     const paciente = await prisma.paciente.findUnique({
       where: { id: atencion.pacienteId },
       include: {
-        recetas: { include: { medicamento: { select: { id: true, nombre: true, principioActivo: true } } } },
+        recetas: {
+          include: {
+            medicamento: { select: { id: true, nombre: true, principioActivo: true } },
+            // Solo las constancias que hizo el estudiante: la de antes de la jornada no se califica.
+            pendientes: { where: { usuarioId: { not: null } } },
+          },
+        },
         recogida: { select: { decision: true, documentoQuienReclama: true } },
       },
     });
@@ -235,7 +247,7 @@ export async function calificarJornada(simulacionId: string) {
         include: { medicamento: { select: { nombre: true } }, recetaElectronica: { include: { medicamento: { select: { nombre: true } } } } },
       });
       const r = evaluarAtencionDispensario(
-        paciente,
+        { ...paciente, recetas: paciente.recetas.map((rec) => ({ ...rec, pendiente: rec.pendientes[0] ?? null })) },
         entregas.map((e) => ({
           recetaElectronicaId: e.recetaElectronicaId,
           medicamentoId: e.medicamentoId,
@@ -244,6 +256,7 @@ export async function calificarJornada(simulacionId: string) {
           resultado: e.resultado,
           altoCostoMarcado: e.altoCostoMarcado,
           cuotaModeradora: e.cuotaModeradora,
+          creadoEn: e.creadoEn,
         })),
         atencion.llamadoEn ?? ahora,
         simulacion.tipo === "FARMACIA" ? "FARMACIA" : "DISPENSARIO"

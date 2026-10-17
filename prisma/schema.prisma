@@ -171,6 +171,7 @@ model Medicamento {
   renglonesFormula     RenglonFormula[]        @relation("MedicamentoRenglonesFormula")
   entregasDispensacion EntregaDispensacion[]   @relation("MedicamentoEntregasDispensacion")
   entregasSimulacion   EntregaSimulacion[]     @relation("MedicamentoEntregasSimulacion")
+  existenciasSimulacion ExistenciaSimulacion[]
 
   @@map("medicamentos")
 }
@@ -243,6 +244,10 @@ model Paciente {
   // paciente mismo (EL_MISMO) o quien reclama por él (personaRecogeNombre = su nombre).
   estudianteId          String?
   estudiante            Usuario?           @relation("CasosInterpretados", fields: [estudianteId], references: [id], onDelete: SetNull)
+  // Caso de pendiente: cómo quiere recibir lo que falta (lo pregunta el estudiante, Res.
+  // 1604/2013) y, si autoriza domicilio, a dónde. Es la "respuesta" con la que se califica.
+  pendientePrefiere     ModalidadPendiente?
+  direccionDomicilio    String?
   // Situaciones de práctica que trae este paciente de una jornada presencial (códigos de
   // lib/simulacion/situaciones.ts). Vacío = caso normal. Es la "respuesta" del caso.
   situaciones           String[]           @default([])
@@ -255,6 +260,7 @@ model Paciente {
   entregasSimulacion EntregaSimulacion[]
   atencionesJornada  AtencionJornada[]
   recogida           RecogidaSimulacion?
+  pendientes         PendienteSimulacion[]
 
   @@map("pacientes")
 }
@@ -281,6 +287,10 @@ model RecetaElectronica {
 
   entregas           EntregaDispensacion[] @relation("RecetaEntregas")
   entregasSimulacion EntregaSimulacion[]
+  pendientes         PendienteSimulacion[]
+  // Jornada, caso de pendiente: cuántas unidades de este renglón faltarán en el dispensario
+  // (ver lib/simulacion/pendientes.ts#reconstruirInventario). 0 en los demás.
+  deficitJornada     Int                   @default(0)
 
   @@map("recetas_electronicas")
 }
@@ -923,6 +933,8 @@ model Simulacion {
   pacientes        Paciente[]
   entregas         EntregaSimulacion[]
   recogidas        RecogidaSimulacion[]
+  existencias      ExistenciaSimulacion[]
+  pendientes       PendienteSimulacion[]
   participantes    ParticipanteJornada[]
   asignaciones     AsignacionEspacio[]
   atenciones       AtencionJornada[]
@@ -1083,5 +1095,54 @@ enum DecisionRecogida {
   PACIENTE // el paciente en persona, con su documento
   TERCERO // otra persona con autorización (o el padre, madre o acudiente de un menor)
   NO_ENTREGA // los documentos no corresponden o no hay autorización: no se entrega nada
+}
+
+// Inventario del dispensario durante la jornada: cuánto hay de cada medicamento de las
+// fórmulas. Alcanza para todos, salvo en los casos de pendiente (la existencia inicial es
+// menor a lo formulado). El pedido al proveedor (`reposicion`) se programa al registrar el
+// primer pendiente de ese medicamento y llega en `llegaEn` (ver lib/simulacion/pendientes.ts).
+model ExistenciaSimulacion {
+  id            String      @id @default(cuid())
+  simulacionId  String
+  simulacion    Simulacion  @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  medicamentoId String
+  medicamento   Medicamento @relation(fields: [medicamentoId], references: [id])
+  inicial       Int
+  reposicion    Int         @default(0)
+  llegaEn       DateTime?
+
+  @@unique([simulacionId, medicamentoId])
+  @@map("existencias_simulacion")
+}
+
+// Lo que se le quedó debiendo a un paciente de un renglón de su fórmula (Res. 1604 de
+// 2013: entrega completa o, si no, en máximo 48 horas, a domicilio si el afiliado lo
+// autoriza). El número es el de la constancia que se le entrega ("P-0003").
+model PendienteSimulacion {
+  id                  String             @id @default(cuid())
+  simulacionId        String
+  simulacion          Simulacion         @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  numero              Int
+  pacienteId          String
+  paciente            Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  recetaElectronicaId String
+  recetaElectronica   RecetaElectronica  @relation(fields: [recetaElectronicaId], references: [id], onDelete: Cascade)
+  cantidad            Int
+  modalidad           ModalidadPendiente
+  direccion           String?
+  telefono            String?
+  // null = lo generó el sistema (caso que llega a reclamar un pendiente de antes).
+  usuarioId           String?
+  creadoEn            DateTime           @default(now())
+  entregadoEn         DateTime?
+
+  @@unique([simulacionId, numero])
+  @@unique([recetaElectronicaId])
+  @@map("pendientes_simulacion")
+}
+
+enum ModalidadPendiente {
+  ESTABLECIMIENTO // vuelve a reclamarlo al dispensario
+  DOMICILIO // autoriza la entrega en su casa o trabajo
 }
 

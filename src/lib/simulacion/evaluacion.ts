@@ -6,7 +6,7 @@
  */
 import { calcularCuotaModeradora } from "./cuotaModeradora";
 import { familiaAlergenica } from "./bancos";
-import type { CategoriaAfiliado, DecisionRecogida, TipoRecogida } from "@prisma/client";
+import type { CategoriaAfiliado, DecisionRecogida, ModalidadPendiente, TipoRecogida } from "@prisma/client";
 
 /** Tipo de acierto o error, para agrupar los errores comunes de la jornada. */
 export type ClaveCriterio =
@@ -20,6 +20,8 @@ export type ClaveCriterio =
   | "ENTREGO_NO_AUTORIZADO"
   | "IDENTIDAD_CORRECTA"
   | "IDENTIDAD_INCORRECTA"
+  | "PENDIENTE_CORRECTO"
+  | "PENDIENTE_INCORRECTO"
   | "NO_REGISTRADO"
   | "CUOTA_CORRECTA"
   | "CUOTA_INCORRECTA"
@@ -59,6 +61,7 @@ export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
   ENTREGO_A_SUPLANTADOR: "Entregó a quien no era el paciente ni venía autorizado",
   ENTREGO_NO_AUTORIZADO: "Entregó un medicamento que no estaba autorizado",
   IDENTIDAD_INCORRECTA: "Verificó mal quién reclamaba (documentos o autorización)",
+  PENDIENTE_INCORRECTO: "Manejó mal un pendiente (lo disponible, la constancia o la entrega al volver)",
   NO_REGISTRADO: "No registró en el sistema lo que hizo con un medicamento",
   CUOTA_INCORRECTA: "Cobró mal la cuota moderadora (alto costo)",
   ODONTOGRAMA_FALTANTE: "Le faltó marcar hallazgos en el odontograma",
@@ -81,12 +84,26 @@ export type PacienteEvaluado = {
   /** Lo que registró el estudiante sobre quién reclamaba; null = no lo registró. */
   recogida: { decision: DecisionRecogida; documentoQuienReclama: string | null } | null;
   alergias: string[];
+  /** Situaciones del caso (para saber si viene por un pendiente de antes). */
+  situaciones?: string[];
+  /** Caso de pendiente: cómo quería recibir lo que faltaba. */
+  pendientePrefiere?: ModalidadPendiente | null;
   recetas: {
     id: string;
     cantidadAutorizada: number;
     cantidadRedimida: number;
     fechaVigencia: Date;
     medicamento: { id: string; nombre: string; principioActivo: string };
+    /** Caso de pendiente: unidades que faltaban en el dispensario al atenderlo. */
+    deficitJornada?: number;
+    /** La constancia de pendiente de este renglón (null = no se registró). */
+    pendiente?: {
+      cantidad: number;
+      modalidad: ModalidadPendiente;
+      direccion: string | null;
+      telefono: string | null;
+      creadoEn: Date;
+    } | null;
   }[];
 };
 
@@ -98,6 +115,8 @@ export type EntregaEvaluada = {
   resultado: "ENTREGADO" | "RECHAZADO";
   altoCostoMarcado: boolean | null;
   cuotaModeradora: number;
+  /** Cuándo se registró: separa lo entregado antes y después de una constancia de pendiente. */
+  creadoEn?: Date;
 };
 
 const pesos = (n: number) => `$${Math.round(n).toLocaleString("es-CO")}`;
@@ -120,13 +139,20 @@ export function evaluarAtencionDispensario(
   const criterios: Criterio[] = [];
   const suplantacion = paciente.tipoRecogida === "SUPLANTACION";
   const esFarmacia = tipo === "FARMACIA";
-  const entregas = esFarmacia ? agruparVentas(entregasCrudas) : entregasCrudas;
+  const entregas = esFarmacia ? agruparVentas(entregasCrudas) : agruparEntregas(entregasCrudas);
   // En el dispensario, registrar "no se entrega" equivale a rechazar todo lo de la fórmula.
   const noEntrega = !esFarmacia && paciente.recogida?.decision === "NO_ENTREGA";
   if (!esFarmacia) criterios.push(criterioRecogida(paciente));
 
   for (const receta of paciente.recetas) {
     const nombre = receta.medicamento.nombre;
+    // Ya se había entregado completo antes de la jornada (caso que reclama un pendiente).
+    if (receta.cantidadAutorizada - receta.cantidadRedimida <= 0) continue;
+    // Caso de pendiente: se califica el proceso completo de ese renglón.
+    if (!esFarmacia && (receta.deficitJornada ?? 0) > 0 && !suplantacion && !noEntrega) {
+      criterios.push(...criteriosPendiente(paciente, receta, entregasCrudas));
+      continue;
+    }
     const registrado = entregas.find((e) => e.recetaElectronicaId === receta.id);
     // En farmacia, no vender = no entregar (es la forma de rechazar en el mostrador).
     const hecho: EntregaEvaluada | undefined =
@@ -211,6 +237,8 @@ export function evaluarAtencionDispensario(
   // Si no entregó nada no hay cuota que evaluar (y cobrarla sería un error). En farmacia no
   // hay cuota moderadora.
   if (esFarmacia) return resultado(criterios);
+  // Viene por un pendiente de antes: la cuota se cobró aquella vez.
+  if (paciente.situaciones?.includes("RECLAMA_PENDIENTE")) return resultado(criterios);
   const conCuota = entregas.find((e) => e.altoCostoMarcado !== null);
   const entregoAlgo = entregas.some((e) => e.resultado === "ENTREGADO");
   if (!entregoAlgo && conCuota && conCuota.cuotaModeradora > 0) {
@@ -275,6 +303,87 @@ function criterioRecogida(paciente: PacienteEvaluado): Criterio {
     cumplido,
     detalle: `Registró ${registrado}.${r.decision === esperado && !documentoBien ? " La cédula no es la de quien reclamaba." : ""}`,
   };
+}
+
+/**
+ * Un renglón sin existencias suficientes (Res. 1604 de 2013): entregar lo que había,
+ * registrar el pendiente por lo que faltaba con la modalidad que eligió el paciente y, si
+ * volvió durante la jornada, entregarle lo pendiente.
+ */
+function criteriosPendiente(
+  paciente: PacienteEvaluado,
+  receta: PacienteEvaluado["recetas"][number],
+  entregas: EntregaEvaluada[]
+): Criterio[] {
+  const nombre = receta.medicamento.nombre;
+  const saldo = receta.cantidadAutorizada - receta.cantidadRedimida;
+  const deficit = receta.deficitJornada ?? 0;
+  const habia = saldo - deficit;
+  const p = receta.pendiente ?? null;
+  const delRenglon = entregas.filter((e) => e.recetaElectronicaId === receta.id && e.resultado === "ENTREGADO");
+  const suma = (lista: EntregaEvaluada[]) => lista.reduce((s, e) => s + e.cantidad, 0);
+  const antes = suma(p ? delRenglon.filter((e) => !e.creadoEn || e.creadoEn <= p.creadoEn) : delRenglon);
+  const despues = p ? suma(delRenglon.filter((e) => e.creadoEn && e.creadoEn > p.creadoEn)) : 0;
+  const criterios: Criterio[] = [];
+
+  criterios.push({
+    clave: antes === habia ? "PENDIENTE_CORRECTO" : "PENDIENTE_INCORRECTO",
+    descripcion: habia > 0 ? `${nombre}: entregar lo que había (${habia})` : `${nombre}: no había existencias; no se entrega nada en la primera atención`,
+    cumplido: antes === habia,
+    detalle: `Entregó ${antes}.`,
+  });
+  criterios.push({
+    clave: p?.cantidad === deficit ? "PENDIENTE_CORRECTO" : "PENDIENTE_INCORRECTO",
+    descripcion: `${nombre}: registrar el pendiente de ${deficit} y dar la constancia`,
+    cumplido: p?.cantidad === deficit,
+    detalle: p ? `Registró un pendiente de ${p.cantidad}.` : "No registró el pendiente.",
+  });
+  if (p) {
+    const quiere = paciente.pendientePrefiere ?? null;
+    const datosDomicilio = p.modalidad !== "DOMICILIO" || Boolean(p.direccion?.trim() && p.telefono?.trim());
+    const bien = (quiere === null || p.modalidad === quiere) && datosDomicilio;
+    criterios.push({
+      clave: bien ? "PENDIENTE_CORRECTO" : "PENDIENTE_INCORRECTO",
+      descripcion:
+        quiere === "DOMICILIO"
+          ? `${nombre}: el paciente autoriza domicilio; registrar dirección y teléfono`
+          : `${nombre}: el paciente prefiere volver a reclamarlo`,
+      cumplido: bien,
+      detalle: p.modalidad === "DOMICILIO" ? "Registró entrega a domicilio." : "Registró que vuelve a reclamarlo.",
+    });
+    // Si volvió durante la jornada: se le entrega justo lo que faltaba.
+    if (p.modalidad === "ESTABLECIMIENTO" && despues > 0) {
+      criterios.push({
+        clave: despues === p.cantidad ? "PENDIENTE_CORRECTO" : "PENDIENTE_INCORRECTO",
+        descripcion: `${nombre}: al volver, entregar lo pendiente (${p.cantidad})`,
+        cumplido: despues === p.cantidad,
+        detalle: `Entregó ${despues}.`,
+      });
+    }
+  }
+  return criterios;
+}
+
+/**
+ * Dispensario: un renglón puede entregarse en varias visitas (pendientes). Se suman las
+ * entregas; si solo hubo rechazos, cuenta como rechazado.
+ */
+function agruparEntregas(entregas: EntregaEvaluada[]): EntregaEvaluada[] {
+  const porClave = new Map<string, EntregaEvaluada>();
+  for (const e of entregas) {
+    const clave = e.recetaElectronicaId ?? `m:${e.medicamentoId}`;
+    const previa = porClave.get(clave);
+    if (!previa) porClave.set(clave, { ...e });
+    else if (e.resultado === "ENTREGADO" && previa.resultado === "ENTREGADO") porClave.set(clave, { ...previa, cantidad: previa.cantidad + e.cantidad });
+    else if (e.resultado === "ENTREGADO") porClave.set(clave, { ...e, altoCostoMarcado: previa.altoCostoMarcado ?? e.altoCostoMarcado });
+  }
+  // La marca de cuota puede venir en cualquiera de las entregas: se conserva en la agrupada.
+  for (const e of entregas) {
+    if (e.altoCostoMarcado === null) continue;
+    const g = porClave.get(e.recetaElectronicaId ?? `m:${e.medicamentoId}`);
+    if (g && g.altoCostoMarcado === null) porClave.set(e.recetaElectronicaId ?? `m:${e.medicamentoId}`, { ...g, altoCostoMarcado: e.altoCostoMarcado, cuotaModeradora: e.cuotaModeradora });
+  }
+  return [...porClave.values()];
 }
 
 function resultado(criterios: Criterio[]) {

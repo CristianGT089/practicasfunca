@@ -18,6 +18,7 @@
  */
 import { jsPDF } from "jspdf";
 import { definicionSituacion } from "./situaciones";
+import { numeroConstancia } from "./constancias";
 
 type RGB = [number, number, number];
 const NAVY: RGB = [30, 46, 85]; // blue-900
@@ -54,6 +55,11 @@ export type PacienteParaPDF = {
   personaRecogeNombre?: string | null;
   personaRecogeCedula?: string | null;
   personaRecogeRelacion?: string | null;
+  /** Caso de pendiente: cómo quiere recibir lo que falte, y su dirección si es a domicilio. */
+  pendientePrefiere?: "ESTABLECIMIENTO" | "DOMICILIO" | null;
+  direccionDomicilio?: string | null;
+  /** Caso que viene a reclamar: la constancia que le dieron la vez anterior. */
+  pendientes?: { numero: number; cantidad: number; creadoEn: string; usuarioId: string | null; recetaElectronica: { medicamento: { nombre: string } } }[];
 };
 
 const NOMBRE_DOCUMENTO: Record<string, string> = {
@@ -127,12 +133,30 @@ export function papelDelEstudiante(p: PacienteParaPDF): { titulo: string; pasos:
       pasos: ["Pide el turno con el documento de la fórmula. En la ventanilla entrega la fórmula y muestra tu cédula cuando te la pidan."],
     };
   })();
+  if (p.situaciones?.includes("PENDIENTE")) {
+    papel.pasos.push(
+      p.pendientePrefiere === "DOMICILIO"
+        ? `Puede que no te entreguen todo. Si quedan debiendo algo, pide que te lo lleven a domicilio (lo autorizas): ${p.direccionDomicilio ?? "da tu dirección y celular"}. Anota el número de la constancia: ________`
+        : "Puede que no te entreguen todo. Si quedan debiendo algo, di que vuelves a reclamarlo y anota el número de la constancia: ________. Espera a que pasen al menos 3 compañeros y vuelve a pedir turno con el mismo documento."
+    );
+  }
+  if (reclamoAnterior(p)) {
+    if (!esMenor(p) && p.tipoRecogida !== "TERCERO_AUTORIZADO") papel.titulo = "Vienes a reclamar lo que te quedaron debiendo.";
+    papel.pasos.push(
+      "La vez pasada solo te entregaron una parte de la fórmula. Pide el turno con el documento de la fórmula y presenta la constancia de pendiente."
+    );
+    // La mitad de las veces el paciente pide de más: el estudiante debe revisar el sistema.
+    if (Number(p.cedula.slice(-1)) % 2 === 0) papel.pasos.push('Insiste en que te deben la fórmula completa: "a mí no me entregaron nada".');
+  }
   for (const c of p.situaciones ?? []) {
     const ind = definicionSituacion(c)?.indicacionActor;
     if (ind) papel.pasos.push(ind);
   }
   return papel;
 }
+
+/** La constancia de un pendiente de antes de la jornada (caso que viene a reclamarlo). */
+const reclamoAnterior = (p: PacienteParaPDF) => p.pendientes?.find((x) => x.usuarioId === null) ?? null;
 
 /**
  * Una mitad de página. `recetas` vacío = mitad solo con documentos y papel (la fórmula no
@@ -366,7 +390,16 @@ export async function generarRecetasPDF(params: {
   }
 
   /** Tarjeta tipo documento de identidad. */
-  function tarjeta(x: number, y: number, w: number, h: number, titulo: string, nombre: string, lineas: string[]) {
+  function tarjeta(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    titulo: string,
+    nombre: string,
+    lineas: string[],
+    subtitulo = "REPÚBLICA DE COLOMBIA  —  PRÁCTICA"
+  ) {
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(...GRIS_SUAVE);
     doc.setLineWidth(0.3);
@@ -377,7 +410,7 @@ export async function generarRecetasPDF(params: {
     fuente(6.6, "bold", [255, 255, 255]);
     doc.text(ajustar(titulo.toUpperCase(), w - 5), x + 2.8, y + 4.4);
     fuente(6, "normal", GRIS);
-    doc.text("REPÚBLICA DE COLOMBIA  —  PRÁCTICA", x + 2.8, y + 10.2);
+    doc.text(ajustar(subtitulo, w - 5), x + 2.8, y + 10.2);
     fuente(8.6, "bold", NAVY);
     const lineasNombre = (doc.splitTextToSize(nombre, w - 5.6) as string[]).slice(0, 2);
     doc.text(lineasNombre, x + 2.8, y + 15);
@@ -397,33 +430,62 @@ export async function generarRecetasPDF(params: {
     const persona = quienSePresenta(p);
     const ty = y + 4;
     const h = ALTO_DOCUMENTOS - 5;
-    const w = (W - 4) / 2;
-    tarjeta(x, ty, w, h, "Cédula de ciudadanía", persona.nombre, [`CC ${persona.cedula}`]);
+    // Hasta tres documentos en la fila: cédula, el del menor o la autorización, y la constancia.
+    const dibujos: ((xx: number, w: number) => void)[] = [
+      (xx, w) => tarjeta(xx, ty, w, h, "Cédula de ciudadanía", persona.nombre, [`CC ${persona.cedula}`]),
+    ];
 
     if (esMenor(p)) {
       const relacion = (p.personaRecogeRelacion ?? "acudiente").replace(/^./, (c) => c.toUpperCase());
-      tarjeta(x + w + 4, ty, w, h, NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "Documento", p.nombre, [
-        `${documentoDe(p)}   (${anios(p.edad)})`,
-        `${relacion}: ${persona.nombre}`,
-      ]);
+      dibujos.push((xx, w) =>
+        tarjeta(xx, ty, w, h, NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "Documento", p.nombre, [
+          `${documentoDe(p)}   (${anios(p.edad)})`,
+          `${relacion}: ${persona.nombre}`,
+        ])
+      );
     } else if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
-      // Autorización escrita, con la copia del documento del paciente.
-      doc.setFillColor(255, 255, 255);
-      doc.setDrawColor(...GRIS_SUAVE);
-      doc.roundedRect(x + w + 4, ty, w, h, 2.2, 2.2, "FD");
-      const xa = x + w + 4 + 2.8;
-      fuente(6.6, "bold", AZUL);
-      doc.text("AUTORIZACIÓN", xa, ty + 4.6);
-      fuente(6.7, "normal", TEXTO);
-      const texto = `Yo, ${p.nombre}, ${documentoDe(p)}, autorizo a ${persona.nombre}, CC ${persona.cedula}, mi ${p.personaRecogeRelacion ?? "familiar"}, a reclamar mis medicamentos. Adjunto copia de mi documento.`;
-      const lineas = (doc.splitTextToSize(texto, w - 5.6) as string[]).slice(0, 6);
-      doc.text(lineas, xa, ty + 8.8);
-      doc.setDrawColor(...GRIS);
-      doc.setLineWidth(0.2);
-      doc.line(xa, ty + h - 4.2, xa + 30, ty + h - 4.2);
-      fuente(6.5, "italic", GRIS);
-      doc.text(`Firma: ${p.nombre.split(" ")[0]}`, xa, ty + h - 1.6);
+      dibujos.push((xx, w) => {
+        // Autorización escrita, con la copia del documento del paciente.
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(...GRIS_SUAVE);
+        doc.roundedRect(xx, ty, w, h, 2.2, 2.2, "FD");
+        const xa = xx + 2.8;
+        fuente(6.6, "bold", AZUL);
+        doc.text("AUTORIZACIÓN", xa, ty + 4.6);
+        fuente(6.7, "normal", TEXTO);
+        const texto = `Yo, ${p.nombre}, ${documentoDe(p)}, autorizo a ${persona.nombre}, CC ${persona.cedula}, mi ${p.personaRecogeRelacion ?? "familiar"}, a reclamar mis medicamentos. Adjunto copia de mi documento.`;
+        const lineas = (doc.splitTextToSize(texto, w - 5.6) as string[]).slice(0, 6);
+        doc.text(lineas, xa, ty + 8.8);
+        doc.setDrawColor(...GRIS);
+        doc.setLineWidth(0.2);
+        doc.line(xa, ty + h - 4.2, xa + Math.min(30, w - 6), ty + h - 4.2);
+        fuente(6.5, "italic", GRIS);
+        doc.text(`Firma: ${p.nombre.split(" ")[0]}`, xa, ty + h - 1.6);
+      });
     }
+
+    const anterior = reclamoAnterior(p);
+    if (anterior) {
+      dibujos.push((xx, w) =>
+        tarjeta(
+          xx,
+          ty,
+          w,
+          h,
+          "Constancia de pendiente",
+          numeroConstancia(anterior.numero),
+          [
+            `${anterior.recetaElectronica.medicamento.nombre}: ${anterior.cantidad} unidades`,
+            `Registrada ${new Date(anterior.creadoEn).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}. Plazo: 48 horas.`,
+          ],
+          "DISPENSARIO  —  RES. 1604 DE 2013"
+        )
+      );
+    }
+
+    const n = dibujos.length;
+    const w = n === 1 ? (W - 4) / 2 : (W - 4 * (n - 1)) / n;
+    dibujos.forEach((dibujar, i) => dibujar(x + i * (w + 4), w));
   }
 
   const ANCHO_TEXTO_PAPEL = W - 12;
