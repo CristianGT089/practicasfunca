@@ -9,7 +9,8 @@
  * FDI: ubicarlo y anotarlo en el odontograma es parte del examen. Si el paciente es menor,
  * quien interpreta es el adulto que lo trae (no se atiende solo).
  *
- * Material de práctica: los pacientes son ficticios.
+ * Material de práctica: los pacientes son ficticios. (El "·" no existe en la fuente del PDF:
+ * se usa "|" o "—".)
  */
 import { jsPDF } from "jspdf";
 import { normalizarEsperado, SUPERFICIES_PLACA } from "./historia";
@@ -19,6 +20,8 @@ import { tipoDocumentoVigente } from "./documento";
 
 export type CasoParaTarjeta = {
   titulo: string;
+  /** El estudiante que interpreta el caso (si es menor, es el acudiente con su nombre). */
+  interpreteNombre?: string | null;
   paciente: {
     nombres: string;
     primerApellido: string;
@@ -48,7 +51,8 @@ function edad(iso: string) {
   return e;
 }
 
-export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: CasoParaTarjeta[]) {
+/** `opciones.devolver`: solo para pruebas fuera del navegador (devuelve el PDF en vez de descargarlo). */
+export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: CasoParaTarjeta[], opciones: { devolver?: boolean } = {}) {
   const doc = new jsPDF({ unit: "mm", format: "letter" });
   const ancho = doc.internal.pageSize.getWidth();
   const alto = doc.internal.pageSize.getHeight();
@@ -84,18 +88,23 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
     };
 
     const p = c.paciente;
-    escribir("Tarjeta del paciente · material de práctica", 8, "normal", GRIS);
+    escribir("Tarjeta del paciente  —  material de práctica", 8, "normal", GRIS);
     escribir(`${p.nombres} ${p.primerApellido} ${p.segundoApellido ?? ""}`.trim(), 16, "bold", AZUL);
     escribir(
-      `${edad(p.fechaNacimiento)} años · ${tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} ${p.documento}${p.ocupacion ? ` · ${p.ocupacion}` : ""}`,
+      `${edad(p.fechaNacimiento)} años  |  ${tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} ${p.documento}${p.ocupacion ? `  |  ${p.ocupacion}` : ""}`,
       10,
       "normal",
       GRIS
     );
-    escribir(`Jornada: ${nombreJornada} · Tarjeta ${i + 1}`, 8, "normal", GRIS);
+    escribir(`Jornada: ${nombreJornada}  |  Tarjeta ${i + 1}${c.interpreteNombre ? `  |  Lo interpreta: ${c.interpreteNombre}` : ""}`, 8, "normal", GRIS);
     y += 2;
     if (edad(p.fechaNacimiento) < 18) {
-      const quien = p.contactoEmergencia ? `${p.contactoEmergencia}${p.parentescoContacto ? ` (${p.parentescoContacto.toLowerCase()})` : ""}` : "el adulto responsable";
+      const parentesco = p.parentescoContacto ? ` (${p.parentescoContacto.toLowerCase()})` : "";
+      const quien = c.interpreteNombre
+        ? `su acudiente${parentesco}, con tu propio nombre: ${c.interpreteNombre}`
+        : p.contactoEmergencia
+          ? `${p.contactoEmergencia}${parentesco}`
+          : "el adulto responsable";
       escribir(
         `Es menor de edad y no viene solo: interpretas a ${quien}, que lo trae a consulta. Respondes tú las preguntas, ` +
           `muestras su ${tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento) === "RC" ? "registro civil" : "tarjeta de identidad"} y tu cédula ` +
@@ -146,5 +155,6 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
     doc.text("Documento de práctica, FUNCA Prácticas. El paciente es ficticio.", ancho / 2, alto - 8, { align: "center" });
   });
 
+  if (opciones.devolver) return doc;
   doc.save(`tarjetas-${nombreJornada.trim().toLowerCase().replace(/\s+/g, "-")}.pdf`);
 }

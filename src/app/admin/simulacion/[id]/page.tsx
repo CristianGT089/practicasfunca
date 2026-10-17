@@ -79,7 +79,9 @@ type Simulacion = {
 
 type CasoOdontologiaJornada = {
   id: string;
+  interpreteNombre: string | null;
   escenarioOdontologia: {
+    escenarioId: string;
     denticion: string;
     motivoConsulta: string;
     relatoAnamnesis: string;
@@ -195,6 +197,7 @@ export default function SimulacionDetallePage() {
           simulacion.nombre,
           simulacion.casosOdontologia.map((c) => ({
             titulo: c.escenarioOdontologia.escenario.titulo,
+            interpreteNombre: c.interpreteNombre,
             paciente: c.escenarioOdontologia.paciente,
             motivoConsulta: c.escenarioOdontologia.motivoConsulta,
             relatoAnamnesis: c.escenarioOdontologia.relatoAnamnesis,
@@ -476,22 +479,7 @@ export default function SimulacionDetallePage() {
       )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.pacientesReales && !simulacion.dictado && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-heading font-semibold text-blue-900">Casos de la jornada</h2>
-          {simulacion.casosOdontologia.map((c) => {
-            const p = c.escenarioOdontologia.paciente;
-            return (
-              <div key={c.id} className="tarjeta-sm p-4 text-sm">
-                <p className="font-medium text-slate-800">{c.escenarioOdontologia.escenario.titulo}</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {p.nombres} {p.primerApellido} · {tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} {p.documento} · dentición{" "}
-                  {c.escenarioOdontologia.denticion.toLowerCase()}
-                </p>
-                <p className="text-xs text-slate-600 mt-1 italic">“{c.escenarioOdontologia.motivoConsulta}”</p>
-              </div>
-            );
-          })}
-        </div>
+        <CasosOdontologiaBorrador simulacion={simulacion} onCambio={cargar} />
       )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo === "ENFERMERIA" && (
@@ -532,6 +520,105 @@ export default function SimulacionDetallePage() {
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Casos de una jornada de Odontología en el borrador: quién interpreta cada uno y, con
+ * "Cambiar casos", quitar o agregar (los intérpretes se reparten de nuevo).
+ */
+function CasosOdontologiaBorrador({ simulacion, onCambio }: { simulacion: Simulacion; onCambio: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [disponibles, setDisponibles] = useState<{ id: string; titulo: string }[]>([]);
+  const [elegidos, setElegidos] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  function abrirEditor() {
+    setElegidos(simulacion.casosOdontologia.map((c) => c.escenarioOdontologia.escenarioId));
+    setEditando(true);
+    fetch("/api/modulos/odontologia/admin/casos")
+      .then((r) => r.json())
+      .then((d) =>
+        setDisponibles(
+          (d.casos ?? [])
+            .filter((c: { activo: boolean; odontologia: unknown }) => c.activo && c.odontologia)
+            .map((c: { id: string; titulo: string }) => ({ id: c.id, titulo: c.titulo }))
+        )
+      );
+  }
+
+  async function guardar() {
+    setGuardando(true);
+    setError(null);
+    const res = await fetch(`/api/simulaciones/${simulacion.id}/casos-odontologia`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ casosIds: elegidos }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGuardando(false);
+    if (!res.ok) return setError(data.error ?? "No se pudieron cambiar los casos");
+    setEditando(false);
+    onCambio();
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-heading font-semibold text-blue-900">Casos de la jornada</h2>
+        {!editando && (
+          <button onClick={abrirEditor} className="text-sm text-blue-700 hover:underline">
+            Cambiar casos
+          </button>
+        )}
+      </div>
+      {editando ? (
+        <div className="tarjeta-sm p-4 text-sm">
+          <p className="text-xs text-slate-500 mb-2">Marca los casos que se atienden. Al guardar, los intérpretes se reparten de nuevo.</p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {disponibles.map((c) => (
+              <label key={c.id} className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={elegidos.includes(c.id)}
+                  onChange={() => setElegidos((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : [...l, c.id]))}
+                  className="mt-0.5"
+                />
+                {c.titulo}
+              </label>
+            ))}
+            {disponibles.length === 0 && <p className="text-xs text-slate-500">Cargando casos...</p>}
+          </div>
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <div className="mt-3 flex items-center gap-3">
+            <button onClick={guardar} disabled={guardando || elegidos.length === 0} className="btn-primario disabled:opacity-40">
+              {guardando ? "Guardando..." : `Guardar (${elegidos.length} casos)`}
+            </button>
+            <button onClick={() => setEditando(false)} className="text-sm text-slate-500 hover:underline">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        simulacion.casosOdontologia.map((c) => {
+          const p = c.escenarioOdontologia.paciente;
+          return (
+            <div key={c.id} className="tarjeta-sm p-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-slate-800">{c.escenarioOdontologia.escenario.titulo}</p>
+                {c.interpreteNombre && <span className="text-xs text-slate-500">Lo interpreta {c.interpreteNombre}</span>}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {p.nombres} {p.primerApellido} · {tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} {p.documento} · dentición{" "}
+                {c.escenarioOdontologia.denticion.toLowerCase()}
+              </p>
+              <p className="text-xs text-slate-600 mt-1 italic">“{c.escenarioOdontologia.motivoConsulta}”</p>
+            </div>
+          );
+        })
       )}
     </div>
   );

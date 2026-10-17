@@ -1035,6 +1035,10 @@ model CasoJornadaOdontologia {
   escenarioOdontologiaId String
   escenarioOdontologia   EscenarioOdontologia @relation(fields: [escenarioOdontologiaId], references: [id])
   orden                  Int                  @default(0)
+  // El estudiante del grupo que interpreta este caso con la tarjeta. Si el paciente es menor,
+  // él es el acudiente, con su propio nombre (así se registra y se califica).
+  interpreteId           String?
+  interpreteNombre       String?
 
   atenciones AtencionJornada[]
 

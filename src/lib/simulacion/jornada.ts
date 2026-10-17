@@ -361,7 +361,11 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
   const denticion = denticionDe(caso.denticion);
   const resultadoEsperado = caso.escenario.resultadoEsperado;
   // El acudiente se califica con la edad que tenía el paciente el día de la atención.
-  const acudiente = acudienteEsperadoDeCaso(caso.paciente, atencion.llamadoEn ?? ahora);
+  // Si un estudiante interpretó el caso, el acudiente del menor es él, con su nombre.
+  const acudiente = acudienteEsperadoDeCaso(
+    { ...caso.paciente, contactoEmergencia: atencion.casoOdontologia?.interpreteNombre ?? caso.paciente.contactoEmergencia },
+    atencion.llamadoEn ?? ahora
+  );
   const revision = revisarHistoria(esperado, historia, denticion, resultadoEsperado, atencion.remision, acudiente);
   // La próxima cita que agendó al cerrar la historia (agenda de práctica de la jornada).
   const citas = await prisma.citaOdontologia.findMany({ where: { atencionId: atencion.id, estado: { not: "CANCELADA" } } });

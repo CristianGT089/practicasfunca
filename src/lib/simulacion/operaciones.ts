@@ -412,7 +412,6 @@ async function crearJornadaOdontologia(opts: {
       ...(opts.grupoId ? { grupo: { connect: { id: opts.grupoId } } } : {}),
       ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
       participantes: { create: estudiantesGrupo.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
-      casosOdontologia: { create: casos.map((c, i) => ({ escenarioOdontologiaId: c.id, orden: i })) },
       turnero: {
         create: {
           nombre: `Unidades — ${opts.nombre}`,
@@ -424,9 +423,46 @@ async function crearJornadaOdontologia(opts: {
     },
     include: incluirPacientes,
   });
+  if (!opts.pacientesReales) await asignarCasosOdontologia(simulacion.id, opts.casosOdontologiaIds ?? []);
   // La agenda de práctica de la jornada empieza con otros pacientes ya citados.
   await rellenarAgendaJornada(simulacion.id, opts.numeroEspacios ?? 3);
   return simulacion;
+}
+
+/**
+ * Casos de una jornada de Odontología con tarjeta (al crearla o, en el borrador, al quitar o
+ * agregar casos). Cada caso queda a cargo de un estudiante del grupo que lo interpreta; si el
+ * paciente es menor, ese estudiante es su acudiente con su propio nombre.
+ */
+export async function asignarCasosOdontologia(simulacionId: string, escenarioIds: string[]) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion || simulacion.tipo !== "ODONTOLOGIA" || simulacion.dictado || simulacion.pacientesReales) {
+    throw new Error("Esta jornada no trabaja con casos");
+  }
+  if (simulacion.estado !== "BORRADOR") throw new Error("Los casos solo se cambian antes de iniciar la jornada");
+  const encontrados = await prisma.escenarioOdontologia.findMany({
+    where: { escenarioId: { in: escenarioIds }, escenario: { activo: true } },
+    select: { id: true, escenarioId: true },
+  });
+  // En el orden en que los eligió el docente.
+  const casos = escenarioIds.map((id) => encontrados.find((e) => e.escenarioId === id)).filter((e): e is NonNullable<typeof e> => Boolean(e));
+  if (casos.length === 0) throw new Error("Elige al menos un caso de odontología");
+  const estudiantes = simulacion.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: simulacion.grupoId } }, activo: true, temporal: false },
+        select: { id: true, nombre: true },
+      })
+    : [];
+  const barajados = [...estudiantes].sort(() => Math.random() - 0.5);
+  await prisma.$transaction([
+    prisma.casoJornadaOdontologia.deleteMany({ where: { simulacionId } }),
+    prisma.casoJornadaOdontologia.createMany({
+      data: casos.map((c, i) => {
+        const e = barajados.length ? barajados[i % barajados.length] : null;
+        return { simulacionId, escenarioOdontologiaId: c.id, orden: i, interpreteId: e?.id ?? null, interpreteNombre: e?.nombre ?? null };
+      }),
+    }),
+  ]);
 }
 
 /**
