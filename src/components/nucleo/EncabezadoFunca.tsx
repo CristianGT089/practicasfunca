@@ -15,8 +15,9 @@ export type ItemNav = {
 
 /**
  * Cabecera común de los tres roles, con el estilo de nueva.funca.edu.co: azul navy (para
- * diferenciarla del sitio público, que la tiene blanca), fija arriba, navegación en píldoras y la cuenta a la derecha. En celular la navegación pasa a
- * una fila que se desliza de lado.
+ * diferenciarla del sitio público, que la tiene blanca), fija arriba, navegación en píldoras y la cuenta a la derecha. En pantallas
+ * medianas y celulares la navegación pasa a una segunda fila (que se parte en dos si no cabe) con las mismas entradas y
+ * los mismos desplegables: nunca se aplanan, así el menú se mantiene corto.
  */
 export default function EncabezadoFunca({
   etiqueta,
@@ -51,7 +52,7 @@ export default function EncabezadoFunca({
           </Link>
 
           {nav.length > 0 && (
-            <nav aria-label="Principal" className="hidden xl:flex items-center gap-0.5 shrink-0">
+            <nav aria-label="Principal" className="hidden lg:flex items-center gap-0.5 shrink-0">
               {nav.map((item) => (
                 <ItemNavegacion key={item.href} item={item} />
               ))}
@@ -62,7 +63,10 @@ export default function EncabezadoFunca({
         </div>
 
         {nav.length > 0 && (
-          <nav aria-label="Principal" className="xl:hidden -mx-4 px-4 pb-2 flex gap-1 overflow-x-auto">
+          <nav
+            aria-label="Principal"
+            className="lg:hidden pb-2 flex flex-wrap gap-1"
+          >
             {nav.map((item) => (
               <ItemNavegacion key={item.href} item={item} compacto />
             ))}
@@ -99,7 +103,10 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
     };
   }, [abierto]);
 
-  // En celular los menús se aplanan: cada subsección es una píldora más.
+  // Posición del panel en la fila compacta: fijo bajo el botón, a lo ancho de la pantalla en
+  // celular (un panel pegado al botón se saldría por el borde).
+  const [arriba, setArriba] = useState(0);
+
   if (!item.secciones) {
     return (
       <Link href={item.href} className={clasePildora(item.activo)} aria-current={item.activo ? "page" : undefined}>
@@ -107,28 +114,23 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
       </Link>
     );
   }
-  if (compacto) {
-    return (
-      <>
-        {item.secciones.flatMap((s) => s.items).map((s) => (
-          <Link key={s.href} href={s.href} className={clasePildora(s.activo)} aria-current={s.activo ? "page" : undefined}>
-            {s.label}
-          </Link>
-        ))}
-      </>
-    );
-  }
 
   return (
-    <div ref={ref} className="relative" onMouseLeave={() => setAbierto(false)}>
+    <div ref={ref} className={compacto ? "shrink-0" : "relative"} onMouseLeave={compacto ? undefined : () => setAbierto(false)}>
       <button
         type="button"
         className={clasePildora(item.activo)}
         aria-expanded={abierto}
         aria-haspopup="true"
-        // Con mouse el hover ya lo abrió: el clic no debe cerrarlo. Se cierra al salir, con Esc o clic afuera.
-        onClick={() => setAbierto(true)}
-        onMouseEnter={() => setAbierto(true)}
+        // Con mouse el hover ya lo abrió: el clic no debe cerrarlo. Se cierra al salir, con Esc o
+        // clic afuera. En la fila compacta (táctil) el toque abre y cierra.
+        onClick={(e) => {
+          if (compacto) {
+            setArriba(e.currentTarget.getBoundingClientRect().bottom + 8);
+            setAbierto((v) => !v);
+          } else setAbierto(true);
+        }}
+        onMouseEnter={compacto ? undefined : () => setAbierto(true)}
       >
         {item.label}
         <svg aria-hidden viewBox="0 0 12 12" className={`h-3 w-3 transition-transform ${abierto ? "rotate-180" : ""}`}>
@@ -136,10 +138,14 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
         </svg>
       </button>
       {abierto && (
-        <div className="absolute right-0 top-full pt-2 z-50">
+        <div className={compacto ? "fixed inset-x-3 z-50 sm:left-auto sm:right-4 sm:w-[30rem]" : "absolute right-0 top-full pt-2 z-50"} style={compacto ? { top: arriba } : undefined}>
           <div
             className={`rounded-2xl border border-blue-200 bg-white p-2 shadow-[0_20px_40px_-16px_rgba(30,46,85,0.35)] grid gap-x-2 gap-y-1 ${
-              item.secciones.length > 1 ? "grid-cols-2 w-[30rem]" : "w-60"
+              compacto
+                ? `max-h-[70vh] overflow-y-auto ${item.secciones.length > 1 ? "sm:grid-cols-2" : ""}`
+                : item.secciones.length > 1
+                  ? "grid-cols-2 w-[30rem]"
+                  : "w-60"
             }`}
           >
             {item.secciones.map((s, i) => (
