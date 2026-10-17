@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/nucleo/prisma";
 import type { TipoSimulacion } from "@prisma/client";
 import { CATEGORIAS_PRIORIDAD_DEFAULT, SERVICIOS_DEFAULT } from "@/lib/turnero/config";
-import { abrirSesion, cerrarSesion } from "@/lib/turnero/operaciones";
+import { abrirSesion, cerrarSesion, iniciarSesionPreparada, prepararSesion } from "@/lib/turnero/operaciones";
 import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiantesTemporales";
 import { generarPassword } from "@/lib/nucleo/passwords";
 import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
@@ -25,7 +25,13 @@ const incluirPacientes = {
  * Simulación, con los servicios/categorías por defecto (se pueden ajustar después desde
  * "Configurar turnero" si hace falta, pero no es el camino esperado).
  */
-export async function crearSimulacionBorrador(opts: {
+export async function crearSimulacionBorrador(opts: OpcionesBorrador) {
+  const simulacion = await crearBorrador(opts);
+  await prepararPuestos(simulacion.id, opts.creadaPorId ?? null);
+  return simulacion;
+}
+
+type OpcionesBorrador = {
   nombre: string;
   tipo: TipoSimulacion;
   numeroEspacios?: number;
@@ -44,7 +50,9 @@ export async function crearSimulacionBorrador(opts: {
   dictado?: OpcionesDictado | null;
   /** Ronda de medicamentos de Enfermería: códigos de los casos (lib/modulos/enfermeria/ronda.ts). */
   casosEnfermeria?: string[];
-}) {
+};
+
+async function crearBorrador(opts: OpcionesBorrador) {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
   if (opts.tipo === "ENFERMERIA") return crearJornadaEnfermeria(opts);
 
@@ -163,12 +171,43 @@ const PUESTOS_POR_TIPO = {
 } as const;
 
 /**
- * Abre la jornada: el turnero empieza a funcionar y se crea de una vez una cuenta por
- * espacio ("Ventanilla 1", "Unidad 2"...), que entra directo a su pantalla y ya sabe qué
- * espacio es. Devuelve las contraseñas para mostrarlas en ese momento (no se guardan).
+ * Deja la jornada lista desde el borrador, para que el docente lo tenga todo antes de
+ * iniciar: el turnero en estado PREPARADA (con sus espacios, pero sin turnos) y una cuenta
+ * por espacio ("Ventanilla 1", "Unidad 2"...) que entra directo a su pantalla y ya sabe qué
+ * espacio es. Los computadores pueden iniciar sesión antes de clase: esperan hasta que la
+ * jornada empieza. El dictado no usa computadores de puesto.
+ */
+async function prepararPuestos(simulacionId: string, creadoPorId: string | null) {
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
+  if (!simulacion || simulacion.dictado || simulacion.sesionTurneroId) return;
+  const sesion = await prepararSesion(simulacion.turneroId, PUESTOS_POR_TIPO[simulacion.tipo].prefijo);
+  await prisma.simulacion.update({ where: { id: simulacionId }, data: { sesionTurneroId: sesion.id } });
+  await crearCuentasDeEspacios(simulacionId, sesion.id, creadoPorId);
+}
+
+async function crearCuentasDeEspacios(simulacionId: string, sesionTurneroId: string, creadoPorId: string | null | undefined) {
+  const simulacion = await prisma.simulacion.findUniqueOrThrow({ where: { id: simulacionId }, include: { turnero: true } });
+  const modulo = await prisma.modulo.findUnique({ where: { slug: MODULO_DE_TIPO_JORNADA[simulacion.tipo] } });
+  if (!modulo) return [];
+  const config = PUESTOS_POR_TIPO[simulacion.tipo];
+  return crearPuestosTemporales({
+    moduloIds: [modulo.id],
+    rutaDirecta: config.ruta,
+    sesionTurneroId,
+    cantidad: simulacion.turnero.numeroEspacios,
+    prefijo: config.prefijo,
+    creadoPorId,
+    numerarEspacios: true,
+  });
+}
+
+/**
+ * Inicia la jornada: el turnero preparado empieza a funcionar y los computadores que ya
+ * habían entrado se activan solos. Las jornadas creadas antes de preparar los puestos en el
+ * borrador crean aquí su turnero y sus cuentas, y devuelven las contraseñas.
  */
 export async function abrirSimulacion(simulacionId: string, creadoPorId?: string | null) {
-  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId }, include: { turnero: true } });
+  const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
   if (!simulacion || simulacion.estado !== "BORRADOR") throw new Error("La simulación ya está abierta o cerrada");
 
   // Dictado: cada estudiante entra con su propia cuenta; no hay turnos ni computadores.
@@ -177,28 +216,20 @@ export async function abrirSimulacion(simulacionId: string, creadoPorId?: string
     return { sesionTurneroId: null, cuentas: [] };
   }
 
-  const sesion = await abrirSesion(simulacion.turneroId);
+  let sesionId = simulacion.sesionTurneroId;
+  let cuentas: { nombre: string; usuario: string; password: string }[] = [];
+  if (!sesionId) {
+    sesionId = (await abrirSesion(simulacion.turneroId)).id;
+    cuentas = await crearCuentasDeEspacios(simulacionId, sesionId, creadoPorId);
+  }
 
   await prisma.simulacion.update({
     where: { id: simulacionId },
-    data: { estado: "ABIERTA", sesionTurneroId: sesion.id, abiertaEn: new Date() },
+    data: { estado: "ABIERTA", sesionTurneroId: sesionId, abiertaEn: new Date() },
   });
+  if (simulacion.sesionTurneroId) await iniciarSesionPreparada(sesionId);
 
-  const modulo = await prisma.modulo.findUnique({ where: { slug: MODULO_DE_TIPO_JORNADA[simulacion.tipo] } });
-  const config = PUESTOS_POR_TIPO[simulacion.tipo];
-  const cuentas = modulo
-    ? await crearPuestosTemporales({
-        moduloIds: [modulo.id],
-        rutaDirecta: config.ruta,
-        sesionTurneroId: sesion.id,
-        cantidad: simulacion.turnero.numeroEspacios,
-        prefijo: config.prefijo,
-        creadoPorId,
-        numerarEspacios: true,
-      })
-    : [];
-
-  return { sesionTurneroId: sesion.id, cuentas };
+  return { sesionTurneroId: sesionId, cuentas };
 }
 
 /**
@@ -207,7 +238,9 @@ export async function abrirSimulacion(simulacionId: string, creadoPorId?: string
  */
 export async function verCredencialesPuestos(simulacionId: string) {
   const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
-  if (!simulacion?.sesionTurneroId || simulacion.estado !== "ABIERTA") throw new Error("La jornada no está en curso");
+  if (!simulacion?.sesionTurneroId || (simulacion.estado !== "BORRADOR" && simulacion.estado !== "ABIERTA")) {
+    throw new Error("La jornada ya terminó: sus computadores no tienen cuenta");
+  }
   const puestos = await prisma.usuario.findMany({
     where: { sesionTurneroId: simulacion.sesionTurneroId },
     orderBy: [{ espacioNumero: "asc" }, { nombre: "asc" }],
@@ -227,7 +260,9 @@ export async function verCredencialesPuestos(simulacionId: string) {
  */
 export async function regenerarCredencialesPuestos(simulacionId: string) {
   const simulacion = await prisma.simulacion.findUnique({ where: { id: simulacionId } });
-  if (!simulacion?.sesionTurneroId || simulacion.estado !== "ABIERTA") throw new Error("La jornada no está en curso");
+  if (!simulacion?.sesionTurneroId || (simulacion.estado !== "BORRADOR" && simulacion.estado !== "ABIERTA")) {
+    throw new Error("La jornada ya terminó: sus computadores no tienen cuenta");
+  }
   const puestos = await prisma.usuario.findMany({
     where: { sesionTurneroId: simulacion.sesionTurneroId },
     orderBy: [{ espacioNumero: "asc" }, { nombre: "asc" }],
@@ -433,4 +468,6 @@ async function crearJornadaEnfermeria(opts: {
 async function cerrarSesionYPuestos(sesionId: string) {
   const puestos = await prisma.usuario.findMany({ where: { sesionTurneroId: sesionId }, select: { id: true } });
   await eliminarUsuarios(puestos.map((u) => u.id));
+  // Un borrador descartado deja su sesión PREPARADA: se cierra para que no quede colgando.
+  await prisma.sesionTurnero.updateMany({ where: { id: sesionId, estado: "PREPARADA" }, data: { estado: "CERRADA", cerradaEn: new Date() } });
 }

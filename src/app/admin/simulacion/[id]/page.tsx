@@ -112,7 +112,7 @@ export default function SimulacionDetallePage() {
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [ventanillas, setVentanillas] = useState<Record<number, string | null>>({});
   const [confirmandoFin, setConfirmandoFin] = useState(false);
-  // Contraseñas de las cuentas de los computadores: solo se conocen justo al iniciar.
+  // Contraseñas de las cuentas de los computadores en jornadas antiguas (creadas al iniciar).
   const [cuentasNuevas, setCuentasNuevas] = useState<CuentaPuesto[] | null>(null);
 
   const cargar = useCallback(async () => {
@@ -144,8 +144,21 @@ export default function SimulacionDetallePage() {
       setError(data.error ?? "No se pudo iniciar la jornada");
       return;
     }
-    setCuentasNuevas(data.cuentas ?? []);
+    // Las cuentas ya se crearon con el borrador; solo las jornadas antiguas las traen al iniciar.
+    setCuentasNuevas(data.cuentas?.length ? data.cuentas : null);
     cargar();
+  }
+
+  async function descartar() {
+    if (!confirm("¿Descartar este borrador? Se borran sus pacientes y las cuentas de los computadores.")) return;
+    setError(null);
+    const res = await fetch(`/api/simulaciones/${id}/cerrar`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "No se pudo descartar el borrador");
+      return;
+    }
+    router.push("/admin/simulacion");
   }
 
   async function descargarPdf() {
@@ -239,7 +252,8 @@ export default function SimulacionDetallePage() {
               ? ` · ${simulacion.situaciones.length} pacientes · ${simulacion.turnero.numeroEspacios} estación(es)`
               : simulacion.tipo === "ODONTOLOGIA"
               ? ` · ${simulacion.pacientesReales ? "pacientes reales" : `${simulacion.casosOdontologia.length} casos`} · ${simulacion.turnero.numeroEspacios} unidades`
-              : simulacion.estado !== "CERRADA" && ` · ${simulacion.pacientes.length} pacientes`}{" "}
+              : simulacion.estado !== "CERRADA" &&
+                ` · ${simulacion.pacientes.length} pacientes · ${simulacion.turnero.numeroEspacios} ventanilla${simulacion.turnero.numeroEspacios === 1 ? "" : "s"}`}{" "}
             · {ETIQUETA_ESTADO[simulacion.estado]}
           </p>
           {simulacion.situaciones.length > 0 && simulacion.tipo !== "ENFERMERIA" && (
@@ -258,6 +272,11 @@ export default function SimulacionDetallePage() {
               className="text-sm text-blue-700 hover:underline disabled:opacity-40"
             >
               {generandoPdf ? "Generando..." : simulacion.tipo === "ENFERMERIA" ? "Descargar manillas y tarjetas (PDF)" : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
+            </button>
+          )}
+          {simulacion.estado === "BORRADOR" && (
+            <button onClick={descartar} className="text-sm text-slate-500 hover:text-red-600">
+              Descartar borrador
             </button>
           )}
           {simulacion.estado === "BORRADOR" && (
@@ -307,14 +326,40 @@ export default function SimulacionDetallePage() {
 
       {simulacion.estado === "BORRADOR" && !simulacion.dictado && simulacion.tipo !== "ENFERMERIA" && (
         <p className="text-xs text-slate-400 mb-4">
-          Revisa cada paciente antes de iniciar. Puedes regenerar los que no sirvan para la clase. Descarga el PDF: trae la receta y las
-          indicaciones para el compañero que interpreta a cada paciente.
+          Antes de iniciar: revisa cada caso (puedes regenerar los que no sirvan), descarga el PDF para repartir las fórmulas e
+          indicaciones, entra en cada computador con su cuenta y elige quién empieza en cada ventanilla.
         </p>
       )}
 
       {simulacion.estado === "BORRADOR" && (
         <div className="mb-6">
           <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
+        </div>
+      )}
+
+      {/* Todo lo de los computadores se deja listo antes de iniciar: sus cuentas (pueden
+          entrar ya; esperan a que empiece) y quién arranca en cada espacio. */}
+      {simulacion.estado === "BORRADOR" && !simulacion.dictado && (
+        <div className="mb-6 flex flex-col gap-4">
+          {simulacion.sesionTurneroId && (
+            <ComputadoresListos
+              sesionId={simulacion.sesionTurneroId}
+              conTurnero={simulacion.tipo === "DISPENSARIO" || simulacion.tipo === "FARMACIA"}
+            />
+          )}
+          {simulacion.sesionTurneroId && <CuentasPuestos simulacionId={simulacion.id} iniciales={null} />}
+          <Ventanillas
+            simulacionId={simulacion.id}
+            espacios={Array.from({ length: simulacion.turnero.numeroEspacios }, (_, i) => ({
+              numero: i + 1,
+              nombre: `${etiquetaEspacio(simulacion.tipo)} ${i + 1}`,
+              ticketCodigo: null,
+            }))}
+            participantes={simulacion.participantes}
+            actuales={ventanillas}
+            onCambio={setVentanillas}
+            etiqueta={etiquetaEspacio(simulacion.tipo)}
+          />
         </div>
       )}
 
@@ -458,6 +503,53 @@ export default function SimulacionDetallePage() {
 }
 
 /**
+ * En el borrador: qué computadores ya entraron con su cuenta (se actualiza en vivo) y, en
+ * las jornadas con turnero, las pantallas de registro y tablero, que se pueden dejar
+ * abiertas desde ya: muestran la espera y se activan solas al iniciar.
+ */
+function ComputadoresListos({ sesionId, conTurnero }: { sesionId: string; conTurnero: boolean }) {
+  const { snapshot } = useSnapshotTurnero(sesionId);
+  if (!snapshot) return null;
+  const listos = snapshot.espacios.filter((e) => e.listo).length;
+  return (
+    <section className="tarjeta-sm p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-heading font-semibold text-blue-900">
+          Computadores listos: {listos} de {snapshot.espacios.length}
+        </h2>
+        {conTurnero && (
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a href={`/admin/turnero/tablero?sesion=${sesionId}`} target="_blank" className="text-blue-700 hover:underline">
+              Abrir tablero (proyectar) ↗
+            </a>
+            <a href={`/admin/turnero/registro?sesion=${sesionId}`} target="_blank" className="text-blue-700 hover:underline">
+              Abrir registro de turnos ↗
+            </a>
+          </div>
+        )}
+      </div>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {snapshot.espacios.map((e) => (
+          <li
+            key={e.numero}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${e.listo ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+          >
+            {e.listo ? "✓ " : ""}
+            {e.nombre ?? `Espacio ${e.numero}`}
+            {e.listo ? "" : ": falta entrar"}
+          </li>
+        ))}
+      </ul>
+      {conTurnero && (
+        <p className="mt-2 text-xs text-slate-500">
+          El tablero y el registro muestran la espera y se activan solos cuando inicies la jornada.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
  * Control en vivo del turnero de esta Simulación (espacios, cola, puestos temporales) —
  * vive acá directamente: no hay una sección de "Turnero" aparte a la que ir. Cerrar la
  * Simulación (arriba) es lo único que cierra este turnero; acá solo se opera el día a día.
@@ -494,10 +586,10 @@ function ControlTurnero({
   return (
     <div className="mb-8">
       <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
-        <a href="/admin/turnero/registro" target="_blank" className="text-blue-700 hover:underline">
+        <a href={`/admin/turnero/registro?sesion=${sesionId}`} target="_blank" className="text-blue-700 hover:underline">
           Abrir pantalla de registro ↗
         </a>
-        <a href="/admin/turnero/tablero" target="_blank" className="text-blue-700 hover:underline">
+        <a href={`/admin/turnero/tablero?sesion=${sesionId}`} target="_blank" className="text-blue-700 hover:underline">
           Abrir tablero ↗
         </a>
         <span className={`ml-auto text-xs ${conectado ? "text-green-600" : "text-amber-600"}`}>
@@ -518,7 +610,7 @@ function ControlTurnero({
       <PuestosTemporales
         sesionTurneroId={sesionId}
         titulo="Agregar más computadores"
-        descripcion="Las cuentas de las ventanillas ya se crearon al iniciar. Usa esto solo si necesitas otro computador; se borran al cerrar la jornada."
+        descripcion="Las cuentas de las ventanillas ya se crearon con la jornada. Usa esto solo si necesitas otro computador; se borran al cerrar la jornada."
         colapsable
         modoInicial="generico"
         prefijoInicial="Ventanilla"
@@ -738,6 +830,10 @@ function FilaPaciente({
       </div>
     </div>
   );
+}
+
+function etiquetaEspacio(tipo: Simulacion["tipo"]) {
+  return tipo === "ODONTOLOGIA" ? "Unidad" : tipo === "ENFERMERIA" ? "Estación" : "Ventanilla";
 }
 
 function etiquetaCategoria(categoria: string) {

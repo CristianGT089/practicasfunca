@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
 import type { TicketVista } from "@/lib/turnero/snapshot";
 import { anunciar, desbloquearAudio } from "@/lib/turnero/voz";
+import TableroEnEspera, { CuentaRegresiva } from "@/components/turnero/TableroEnEspera";
 
 const SEGUNDOS_ANUNCIO = 5;
 const CLAVE_SONIDO = "turnero-tablero-sonido";
@@ -12,6 +13,12 @@ export default function TurneroTableroPage() {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
 
   const buscarSesion = useCallback(async () => {
+    // Abierto desde la jornada: trae su sesión (`?sesion=`), aunque haya otras en curso.
+    const propia = new URLSearchParams(window.location.search).get("sesion");
+    if (propia) {
+      setSesionId(propia);
+      return;
+    }
     const res = await fetch("/api/turnero/sesion-activa");
     const data = await res.json();
     setSesionId(data.sesionId ?? null);
@@ -66,6 +73,19 @@ export default function TurneroTableroPage() {
     }
   }, [snapshot, sonidoActivo]);
 
+  // --- Inicio de la jornada: si el tablero estaba en espera, cuenta regresiva y a trabajar ---
+  const [cuenta, setCuenta] = useState(false);
+  const estadoPrevioRef = useRef<string | null>(null);
+  const estado = snapshot?.sesion.estado ?? null;
+  useEffect(() => {
+    if (estadoPrevioRef.current === "PREPARADA" && estado === "ABIERTA") {
+      setCuenta(true);
+      if (sonidoActivo) anunciar("¡Comienza la jornada!");
+    }
+    estadoPrevioRef.current = estado;
+  }, [estado, sonidoActivo]);
+  const terminarCuenta = useCallback(() => setCuenta(false), []);
+
   useEffect(() => {
     if (!anuncio) return;
     const t = setTimeout(() => setAnuncio(null), SEGUNDOS_ANUNCIO * 1000);
@@ -75,9 +95,13 @@ export default function TurneroTableroPage() {
   if (!sesionId || !snapshot) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center text-slate-400 text-xl">
-        {sesionId === undefined ? "Cargando..." : "Esperando a que se abra el turnero..."}
+        {sesionId === undefined || (sesionId && !finalizada) ? "Cargando..." : "No hay ninguna jornada preparada ni en curso."}
       </div>
     );
+  }
+
+  if (snapshot.sesion.estado === "PREPARADA") {
+    return <TableroEnEspera snapshot={snapshot} sonidoActivo={sonidoActivo} onActivarSonido={activarSonido} />;
   }
 
   const { espacios, enEspera, llamados } = snapshot;
@@ -87,6 +111,7 @@ export default function TurneroTableroPage() {
 
   return (
     <div className="mx-auto max-w-6xl py-4">
+      {cuenta && <CuentaRegresiva onFin={terminarCuenta} />}
       {anuncio && (
         <AnuncioLlamado
           ticket={anuncio.ticket}

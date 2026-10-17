@@ -74,6 +74,14 @@ export default function EstacionEnfermeriaPage() {
     cargar();
   }, [cargar]);
 
+  // Sin jornada abierta (el computador entró antes de que empiece): revisa sola cada 10 s,
+  // para que nadie tenga que recargar cuando el docente la inicie.
+  useEffect(() => {
+    if (jornada !== null) return;
+    const id = setInterval(cargar, 10_000);
+    return () => clearInterval(id);
+  }, [jornada, cargar]);
+
   const guardarAhora = useCallback(async () => {
     if (!atencionId) return;
     setGuardado("guardando");
@@ -187,7 +195,7 @@ export default function EstacionEnfermeriaPage() {
         {barra}
         <div className="mx-auto max-w-xl px-4 py-16 text-center">
           <h1 className="font-heading text-xl font-semibold text-blue-900">No hay una ronda de enfermería abierta</h1>
-          <p className="mt-2 text-sm text-slate-600">Cuando el docente inicie la jornada, vuelve a revisar.</p>
+          <p className="mt-2 text-sm text-slate-600">Cuando el docente inicie la jornada, esta pantalla se activa sola.</p>
           <button onClick={cargar} className="btn-primario mt-4">
             Volver a revisar
           </button>

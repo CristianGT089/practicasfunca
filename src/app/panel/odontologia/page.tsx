@@ -105,6 +105,14 @@ export default function ConsultorioOdontologiaPage() {
     cargar();
   }, [cargar]);
 
+  // Sin jornada abierta (el computador entró antes de que empiece): revisa sola cada 10 s,
+  // para que nadie tenga que recargar cuando el docente la inicie.
+  useEffect(() => {
+    if (jornada !== null) return;
+    const id = setInterval(cargar, 10_000);
+    return () => clearInterval(id);
+  }, [jornada, cargar]);
+
   const guardarAhora = useCallback(async () => {
     if (!atencionId) return;
     setEstadoGuardado("guardando");
@@ -290,7 +298,7 @@ export default function ConsultorioOdontologiaPage() {
         {barra}
         <div className="mx-auto max-w-xl px-4 py-16 text-center">
           <h1 className="font-heading text-xl font-semibold text-cyan-900">No hay una jornada de odontología abierta</h1>
-          <p className="mt-2 text-sm text-slate-600">Cuando el docente inicie la jornada, recarga esta página.</p>
+          <p className="mt-2 text-sm text-slate-600">Cuando el docente inicie la jornada, esta pantalla se activa sola.</p>
           <button onClick={cargar} className="mt-4 rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">
             Volver a revisar
           </button>

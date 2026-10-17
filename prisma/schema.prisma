@@ -672,6 +672,10 @@ enum ReglaPrioridad {
 }
 
 enum EstadoSesionTurnero {
+  // Jornada presencial en borrador: ya existen sus espacios y las cuentas de los
+  // computadores (para dejarlos listos antes de clase), pero no se pueden sacar ni llamar
+  // turnos hasta que el docente inicia la jornada.
+  PREPARADA
   ABIERTA
   CERRADA
 }
@@ -736,6 +740,9 @@ model Espacio {
   estado         EstadoEspacio @default(LIBRE)
   ticketActualId String?       @unique
   ticketActual   Ticket?       @relation("TicketEnEspacio", fields: [ticketActualId], references: [id])
+  // Cuándo entró por última vez la cuenta del computador de este espacio (jornadas): el
+  // tablero y el docente ven qué computadores ya están listos antes de iniciar.
+  listoEn        DateTime?
 
   @@unique([sesionId, numero])
   @@map("espacios_turnero")

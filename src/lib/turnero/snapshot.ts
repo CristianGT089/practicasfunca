@@ -26,6 +26,8 @@ export type EspacioVista = {
   nombre: string | null;
   estado: "LIBRE" | "LLAMANDO" | "ATENDIENDO" | "PAUSA";
   ticket: TicketVista | null;
+  /** Ya entró la cuenta del computador de este espacio (jornadas). */
+  listo: boolean;
 };
 
 export type PuestoVista = { id: string; nombre: string; usuario: string };
@@ -33,7 +35,8 @@ export type PuestoVista = { id: string; nombre: string; usuario: string };
 export type SnapshotTurnero = {
   sesion: {
     id: string;
-    estado: "ABIERTA" | "CERRADA";
+    /** PREPARADA = jornada en borrador: los computadores esperan a que el docente la inicie. */
+    estado: "PREPARADA" | "ABIERTA" | "CERRADA";
     numeroEspacios: number;
     turnero: {
       id: string;
@@ -45,6 +48,8 @@ export type SnapshotTurnero = {
     // Si este turnero corre dentro de una Simulación: Registro exige cédula al emitir.
     simulacionId: string | null;
   };
+  /** La jornada dueña del turnero: lo que muestra el tablero mientras espera el inicio. */
+  jornada: { nombre: string; tipo: string; estudiantes: number } | null;
   espacios: EspacioVista[];
   enEspera: TicketVista[];
   llamados: TicketVista[];
@@ -59,7 +64,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
     where: { id: sesionId },
     include: {
       turnero: true,
-      simulacion: { select: { id: true } },
+      simulacion: { select: { id: true, nombre: true, tipo: true, _count: { select: { participantes: true } } } },
       espacios: { orderBy: { numero: "asc" }, include: { ticketActual: { include: { paciente: true } } } },
       tickets: { orderBy: { emitidoEn: "asc" }, include: { paciente: true } },
       puestos: { orderBy: { creadoEn: "asc" }, select: { id: true, nombre: true, usuario: true } },
@@ -112,6 +117,7 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
     nombre: e.nombre,
     estado: e.estado,
     ticket: e.ticketActual ? aVista(e.ticketActual) : null,
+    listo: e.listoEn !== null,
   }));
 
   return {
@@ -128,6 +134,9 @@ export async function construirSnapshot(sesionId: string): Promise<SnapshotTurne
       },
       simulacionId: sesion.simulacion?.id ?? null,
     },
+    jornada: sesion.simulacion
+      ? { nombre: sesion.simulacion.nombre, tipo: sesion.simulacion.tipo, estudiantes: sesion.simulacion._count.participantes }
+      : null,
     espacios,
     enEspera,
     llamados,

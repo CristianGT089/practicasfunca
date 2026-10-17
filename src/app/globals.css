@@ -101,3 +101,48 @@ h1, h2, h3, h4, h5, h6 {
     transform: scale(1);
   }
 }
+
+/* Tablero en espera (jornada preparada): fondo con burbujas que flotan despacio, latido
+   de los computadores que faltan y "pop" de la cuenta regresiva al iniciar. Todo se usa con
+   motion-safe:, así que se apaga si el sistema pide reducir el movimiento. */
+@keyframes espera-flotar {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-28px) scale(1.05);
+  }
+}
+
+@keyframes espera-latido {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes espera-consejo {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cuenta-pop {
+  from {
+    transform: scale(1.6);
+    opacity: 0.2;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

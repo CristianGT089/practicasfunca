@@ -7,6 +7,12 @@ export default function TurneroRegistroPage() {
   const [sesionId, setSesionId] = useState<string | null | undefined>(undefined);
 
   const buscarSesion = useCallback(async () => {
+    // Abierto desde la jornada: trae su sesión (`?sesion=`), aunque haya otras en curso.
+    const propia = new URLSearchParams(window.location.search).get("sesion");
+    if (propia) {
+      setSesionId(propia);
+      return;
+    }
     const res = await fetch("/api/turnero/sesion-activa");
     const data = await res.json();
     setSesionId(data.sesionId ?? null);
@@ -24,7 +30,17 @@ export default function TurneroRegistroPage() {
 
   if (sesionId === undefined) return <Centro>Cargando...</Centro>;
   if (!sesionId || !snapshot)
-    return <Centro>No hay un turnero abierto. Pídele al administrador que lo abra desde Control.</Centro>;
+    return <Centro>No hay ninguna jornada en curso. El turnero se abre cuando el docente inicia la jornada.</Centro>;
+  // Jornada preparada: la pantalla queda lista y se activa sola al iniciar (llega por SSE).
+  if (snapshot.sesion.estado === "PREPARADA")
+    return (
+      <Centro>
+        <div>
+          <p className="font-heading text-2xl font-bold text-blue-900">{snapshot.jornada?.nombre ?? "Jornada"}</p>
+          <p className="mt-2">La jornada todavía no empieza. Esta pantalla se activa sola cuando el docente la inicie.</p>
+        </div>
+      </Centro>
+    );
 
   return <Kiosco sesionId={sesionId} snapshot={snapshot} />;
 }

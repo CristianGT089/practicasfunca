@@ -19,19 +19,57 @@ export async function abrirSesion(turneroId: string) {
     data: { estado: "CERRADA", cerradaEn: new Date() },
   });
 
-  const sesion = await prisma.sesionTurnero.create({
+  return crearSesion(turneroId, turnero.numeroEspacios, "ABIERTA");
+}
+
+function crearSesion(turneroId: string, numeroEspacios: number, estado: "PREPARADA" | "ABIERTA", prefijo = "Espacio") {
+  return prisma.sesionTurnero.create({
     data: {
       turneroId,
-      numeroEspacios: turnero.numeroEspacios,
+      numeroEspacios,
+      estado,
       espacios: {
-        create: Array.from({ length: turnero.numeroEspacios }, (_, i) => ({
+        create: Array.from({ length: numeroEspacios }, (_, i) => ({
           numero: i + 1,
-          nombre: `Espacio ${i + 1}`,
+          nombre: `${prefijo} ${i + 1}`,
         })),
       },
     },
   });
-  return sesion;
+}
+
+/**
+ * Sesión de una jornada en borrador: ya tiene sus espacios (para enlazar las cuentas de los
+ * computadores y repartir las ventanillas antes de clase), pero no admite turnos hasta
+ * `iniciarSesionPreparada`.
+ */
+export async function prepararSesion(turneroId: string, prefijo: string) {
+  const turnero = await prisma.turnero.findUnique({ where: { id: turneroId } });
+  if (!turnero || !turnero.activo) throw new Error("Turnero no encontrado");
+  return crearSesion(turneroId, turnero.numeroEspacios, "PREPARADA", prefijo);
+}
+
+/**
+ * La cuenta del computador de un espacio entró: el espacio queda "listo" (lo ven el tablero
+ * en espera y el docente). Solo la primera vez, para no notificar en cada recarga.
+ */
+export async function marcarPuestoListo(usuario: { sesionTurneroId: string | null; espacioNumero: number | null }) {
+  if (!usuario.sesionTurneroId || !usuario.espacioNumero) return;
+  const { count } = await prisma.espacio.updateMany({
+    where: { sesionId: usuario.sesionTurneroId, numero: usuario.espacioNumero, listoEn: null },
+    data: { listoEn: new Date() },
+  });
+  if (count > 0) emitirCambio(usuario.sesionTurneroId);
+}
+
+/** Pone a funcionar una sesión preparada; los computadores que ya entraron se activan solos. */
+export async function iniciarSesionPreparada(sesionId: string) {
+  const { count } = await prisma.sesionTurnero.updateMany({
+    where: { id: sesionId, estado: "PREPARADA" },
+    data: { estado: "ABIERTA", iniciadaEn: new Date() },
+  });
+  if (count === 0) throw new Error("El turnero de esta jornada ya no está preparado");
+  emitirCambio(sesionId);
 }
 
 export async function emitirTicket(

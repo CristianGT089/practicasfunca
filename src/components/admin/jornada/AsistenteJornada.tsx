@@ -485,7 +485,7 @@ export default function AsistenteJornada({
               <label htmlFor="espacios" className="block text-xs font-medium text-slate-500 mb-1">
                 {esOdonto ? "Unidades (sillas) que se usan" : esEnfermeria ? "Estaciones de enfermería (computadores)" : "Ventanillas que se usan"}
               </label>
-              <p className="text-xs text-slate-400 mb-1">Al iniciar la jornada se crea una cuenta por cada una, con su contraseña, lista para cada computador.</p>
+              <p className="text-xs text-slate-400 mb-1">Al crear la jornada se crea una cuenta por cada una, con su contraseña: puedes dejar los computadores listos antes de iniciar.</p>
               <input
                 id="espacios"
                 type="number"
@@ -548,7 +548,7 @@ export default function AsistenteJornada({
             {modalidad !== "DICTADO" && (
               <>
                 <dt className="text-slate-500">{esOdonto ? "Unidades" : esEnfermeria ? "Estaciones" : "Ventanillas"}</dt>
-                <dd className="text-slate-800">{numeroEspacios} (una cuenta por cada una al iniciar)</dd>
+                <dd className="text-slate-800">{numeroEspacios} (una cuenta de computador por cada una)</dd>
               </>
             )}
             {modalidad === "DICTADO" && (

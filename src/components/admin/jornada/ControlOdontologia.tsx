@@ -100,7 +100,7 @@ export default function ControlOdontologia({
         <PuestosTemporales
           sesionTurneroId={sesionTurneroId}
           titulo="Agregar más computadores"
-          descripcion="Las cuentas de los computadores ya se crearon al iniciar. Usa esto solo si necesitas otro; se borran al cerrar la jornada."
+          descripcion="Las cuentas de los computadores ya se crearon con la jornada. Usa esto solo si necesitas otro; se borran al cerrar la jornada."
           colapsable
           modoInicial="generico"
           prefijoInicial={etiqueta}

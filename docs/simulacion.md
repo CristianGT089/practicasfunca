@@ -265,3 +265,28 @@ cédula.
 6. Las situaciones de identidad (suplantación, tercero, menor, "no quiere mostrar la
    cédula") quedan solo para el Dispensario: el mostrador de Farmacia no pide documento.
 
+## Todo listo antes de iniciar (2026-10-16)
+
+Pedido del usuario (accesibilidad): el docente debe tenerlo todo antes de pulsar "Iniciar
+jornada", no configurar cosas en medio de la clase.
+
+- El número de ventanillas/unidades/estaciones se pide en el asistente (ya era así).
+- **Las cuentas de los computadores se crean con el borrador**, no al iniciar. El turnero
+  de la jornada nace en estado `PREPARADA` (`EstadoSesionTurnero`): tiene sus espacios y
+  sus cuentas, pero no admite turnos. Los computadores pueden entrar desde antes: el panel
+  de ventanilla dice "la jornada todavía no empieza" y se activa solo al iniciar (SSE);
+  consultorio y estación revisan solos cada 10 s. `sesion-activa` devuelve a cada cuenta de
+  computador su propia sesión, aunque haya otras abiertas.
+- **Quién empieza en cada espacio** se elige en el borrador (la asignación con hora previa
+  al inicio cuenta desde el primer turno).
+- "Descartar borrador" borra pacientes y cuentas, y cierra el turnero preparado.
+- Las jornadas creadas antes de este cambio (sin sesión) siguen creando turnero y cuentas
+  al iniciar.
+- **Tablero en espera.** El turnero solo existe con su jornada. Con la jornada preparada,
+  el tablero (`?sesion=` desde la jornada) proyecta una pantalla de espera
+  (`TableroEnEspera`): nombre de la jornada, qué computadores ya entraron
+  (`Espacio.listoEn`, se marca la primera vez que entra la cuenta del puesto) y consejos de
+  práctica que rotan. Al iniciar, cuenta regresiva 3-2-1 y pasa solo al tablero normal. Las
+  animaciones usan `motion-safe:` (se apagan si el sistema pide reducir movimiento). El
+  registro de turnos muestra "la jornada todavía no empieza" y también se activa solo.
+

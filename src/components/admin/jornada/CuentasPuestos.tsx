@@ -5,9 +5,10 @@ import { useState } from "react";
 export type CuentaPuesto = { nombre: string; usuario: string; password: string | null };
 
 /**
- * Cuentas de los computadores de la jornada (una por ventanilla o unidad), creadas al
- * iniciarla. Se muestran al iniciar; después se pueden volver a ver confirmando la
- * contraseña del docente, o generar otras (los computadores que ya entraron siguen dentro).
+ * Cuentas de los computadores de la jornada (una por ventanilla o unidad), creadas junto
+ * con el borrador para que el docente las deje listas antes de iniciar. Se ven confirmando
+ * la contraseña del docente, o se generan otras (los computadores que ya entraron siguen
+ * dentro).
  */
 export default function CuentasPuestos({ simulacionId, iniciales }: { simulacionId: string; iniciales: CuentaPuesto[] | null }) {
   const [cuentas, setCuentas] = useState<CuentaPuesto[] | null>(iniciales);
@@ -62,7 +63,8 @@ export default function CuentasPuestos({ simulacionId, iniciales }: { simulacion
         <div>
           <h2 className="text-sm font-heading font-semibold text-blue-900">Cuentas de los computadores</h2>
           <p className="text-xs text-slate-500">
-            Una por espacio. Cada una entra directo a su pantalla y ya sabe qué espacio es. Se borran al cerrar la jornada.
+            Una por espacio. Cada una entra directo a su pantalla y ya sabe qué espacio es. Puedes dejarlas abiertas desde ya:
+            esperan a que inicies la jornada. Se borran al cerrarla.
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-xs">

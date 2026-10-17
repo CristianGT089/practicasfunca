@@ -28,7 +28,7 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
   useEffect(() => {
     const guardado = Number(localStorage.getItem(CLAVE_LOCAL));
     if (guardado > 0) setMiEspacio(guardado);
-    // Las cuentas creadas al iniciar una jornada ya saben qué ventanilla son.
+    // Las cuentas de los computadores de una jornada ya saben qué ventanilla son.
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((d) => {
@@ -96,6 +96,18 @@ export default function PanelMiEspacio({ onEstado }: { onEstado?: (estado: Estad
   }
 
   const espacio = snapshot.espacios.find((e) => e.numero === miEspacio);
+
+  // Jornada en borrador: el computador ya entró y sabe qué espacio es; espera al docente.
+  if (snapshot.sesion.estado === "PREPARADA") {
+    return (
+      <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 mb-5 text-sm text-blue-900">
+        <p className="font-semibold">
+          {miEspacio ? `Este computador es la ventanilla ${miEspacio}.` : "Este computador ya está listo."} La jornada todavía no empieza.
+        </p>
+        <p className="text-xs text-blue-800 mt-1">Esta pantalla se activa sola cuando el docente la inicie: no hace falta recargar.</p>
+      </div>
+    );
+  }
 
   if (miEspacio == null || !espacio) {
     return (
