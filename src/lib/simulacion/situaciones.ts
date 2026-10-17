@@ -18,7 +18,15 @@ export type CodigoSituacion =
   | "ALERGIA"
   | "ALTO_COSTO"
   | "SE_NIEGA_CEDULA"
-  | "PACIENTE_MOLESTO";
+  | "PACIENTE_MOLESTO"
+  // Recepción técnica: un producto del pedido llega con esta novedad.
+  | "REC_VENCIMIENTO"
+  | "REC_LOTE"
+  | "REC_INVIMA"
+  | "REC_FRIO"
+  | "REC_EMPAQUE"
+  | "REC_FALTANTE"
+  | "REC_NO_SOLICITADO";
 
 export type DefinicionSituacion = {
   codigo: CodigoSituacion;
@@ -120,6 +128,67 @@ export const SITUACIONES: DefinicionSituacion[] = [
   },
 ];
 
+// Recepción técnica (Res. 1403 de 2007, Manual de condiciones esenciales: recepción
+// administrativa y técnica). Cada una le pasa a UN producto del pedido.
+SITUACIONES.push(
+  {
+    codigo: "REC_VENCIMIENTO",
+    nombre: "Vencimiento corto o vencido",
+    queHacer: "Revisar la fecha de vencimiento: con menos de la vida útil mínima de la política del servicio (6 meses), se rechaza.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_LOTE",
+    nombre: "El lote no coincide con la factura",
+    queHacer: "Comparar el lote de la caja con el de la factura: si no coincide, el producto no es conforme y se rechaza.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_INVIMA",
+    nombre: "Sin registro sanitario INVIMA",
+    queHacer: "Verificar que la etiqueta traiga el registro sanitario INVIMA: sin él no se recibe.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_FRIO",
+    nombre: "Cadena de frío rota",
+    queHacer: "En los refrigerados, revisar el registro de temperatura del transporte: fuera de 2 a 8 °C se rechaza.",
+    indicacionActor: "Si te preguntan por la temperatura, muestra el registro del termómetro que viene con la caja.",
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_EMPAQUE",
+    nombre: "Empaque dañado",
+    queHacer: "Inspeccionar el empaque: roto, húmedo o abierto, el producto se rechaza.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_FALTANTE",
+    nombre: "Llegan menos unidades de las facturadas",
+    queHacer: "Contar lo que llega: se recibe lo que llegó en buen estado y se deja la novedad del faltante en el acta.",
+    indicacionActor: 'Si te dicen que faltan unidades, responde: "así me lo despacharon, que quede en el acta".',
+    verificable: true,
+    tipos: ["RECEPCION"],
+  },
+  {
+    codigo: "REC_NO_SOLICITADO",
+    nombre: "Producto que no se pidió",
+    queHacer: "Comparar la factura con la orden de compra: lo que no se pidió no se recibe y se devuelve.",
+    indicacionActor: 'Si te dicen que eso no se pidió, insiste un poco: "a mí me dijeron que lo trajera".',
+    verificable: true,
+    tipos: ["RECEPCION"],
+  }
+);
+
 const POR_CODIGO = new Map(SITUACIONES.map((s) => [s.codigo, s]));
 
 export function definicionSituacion(codigo: string): DefinicionSituacion | undefined {
@@ -209,6 +278,19 @@ function sonExcluyentes(a: CodigoSituacion, b: CodigoSituacion) {
  */
 export function planAlAzar(total: number, tipo: TipoSimulacion, azar: () => number = Math.random): CodigoSituacion[][] {
   const aplica = (c: CodigoSituacion) => POR_CODIGO.get(c)?.tipos.includes(tipo) ?? false;
+  // Recepción: cada pedido trae una o dos novedades al azar (y uno de cada cuatro, ninguna).
+  if (tipo === "RECEPCION") {
+    const novedades = SITUACIONES.filter((s) => s.tipos.includes("RECEPCION")).map((s) => s.codigo);
+    return Array.from({ length: Math.max(0, total) }, () => {
+      if (azar() < 0.25) return [];
+      const caso = [novedades[Math.floor(azar() * novedades.length)]];
+      if (azar() < 0.4) {
+        const otra = novedades[Math.floor(azar() * novedades.length)];
+        if (!caso.includes(otra)) caso.push(otra);
+      }
+      return caso;
+    });
+  }
   return Array.from({ length: Math.max(0, total) }, () => {
     const caso: CodigoSituacion[] = [];
     if (aplica("FORMULA_VENCIDA") && azar() < 0.15) caso.push("FORMULA_VENCIDA");

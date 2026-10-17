@@ -296,13 +296,13 @@ jornada", no configurar cosas en medio de la clase.
   animaciones usan `motion-safe:` (se apagan si el sistema pide reducir movimiento). El
   registro de turnos muestra "la jornada todavía no empieza" y también se activa solo.
 
-## Solo medicamentos y pendientes (2026-10-17)
+## Solo medicamentos, pendientes y recepción técnica (2026-10-17)
 
 ### Fórmulas solo con medicamentos
 El catálogo importado mezcla medicamentos con dispositivos e insumos (equipos, sondas,
 caretas, antisépticos en frasco). `lib/simulacion/catalogo.ts` reconoce el medicamento por su
 forma farmacéutica (tabletas, cápsulas, jarabe, inyectable, inhalador...); el generador de
-fórmulas solo usa esos.
+fórmulas solo usa esos. Los dispositivos con registro INVIMA se usan en la recepción técnica.
 
 ### Pendientes en el dispensario (Res. 1604 de 2013)
 La entrega debe ser completa; si no, lo que falta se entrega en máximo 48 horas, a domicilio
@@ -325,3 +325,25 @@ si el afiliado lo autoriza, y queda constancia.
   modalidad que eligió el paciente y, si volvió, entregar lo pendiente. La atención se le
   atribuye a quien atendió la primera visita.
 
+### Jornada de recepción técnica (tipo `RECEPCION`, Res. 1403 de 2007)
+- **Roles**: el estudiante en el computador es el receptor (auxiliar/técnico del servicio
+  farmacéutico); cada estudiante del grupo, cuando no está en un computador, es el
+  transportador del proveedor y trae un pedido (factura + etiquetas de las cajas impresas);
+  el docente hace de director técnico (supervisa y califica). Módulo: Dispensación.
+- **Pedido** (`EntregaProveedor` + `ItemRecepcion`): 4 a 6 productos (medicamentos e
+  insumos del catálogo real y, a veces, un refrigerado de práctica: el catálogo no trae
+  ninguno). Se guarda una copia de los datos de cada producto: lo pedido (orden de compra),
+  lo facturado y lo que llega en la caja.
+- **Novedades** (situaciones `REC_*`, cada una en un producto): vencimiento corto o vencido
+  (política del servicio: vida útil mínima de 6 meses), lote distinto al de la factura, sin
+  registro INVIMA, cadena de frío rota (fuera de 2 a 8 °C), empaque dañado (se rechazan),
+  faltante (se recibe lo que llegó y queda la novedad) y producto no solicitado (se devuelve).
+- **Pantalla** `/panel/recepcion`: con la política del servicio visible; el receptor abre la
+  factura, ve la orden de compra y la factura (no lo que dice la caja ni la novedad), anota
+  por cada producto lo que ve en la etiqueta (cantidad contada, lote, vencimiento, registro
+  INVIMA, temperatura, empaque), decide aceptar o rechazar con el motivo y firma el acta.
+- **Calificación** (`recepcion.ts#evaluarRecepcion`): datos bien registrados y decisión
+  correcta por producto, y el acta firmada. Una atención por pedido abierto, a nombre de
+  quien estaba en ese puesto.
+- **PDF** (`recepcionPdf.ts`): una hoja por pedido con la factura, las etiquetas para recortar
+  (con el registro de temperatura en los refrigerados y el sello de caja rota) y "Tu papel".

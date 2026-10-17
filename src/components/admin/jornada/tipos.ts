@@ -24,7 +24,7 @@ export type Reporte = {
   simulacion: {
     id: string;
     nombre: string;
-    tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
+    tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA" | "RECEPCION";
     estado: string;
     grupo: string | null;
     situaciones: string[];

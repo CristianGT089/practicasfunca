@@ -20,6 +20,7 @@ import { normalizarMarcas } from "@/lib/modulos/odontologia/odontograma";
 import { mapaCalor } from "@/lib/modulos/odontologia/dictado";
 import { hojaVacia, normalizarHoja, notaHoja, revisarHoja } from "@/lib/modulos/enfermeria/hoja";
 import { casoRonda, esperadoDeCaso } from "@/lib/modulos/enfermeria/ronda";
+import { evaluarRecepcion, type MotivoRecepcion, type RegistroItem } from "./recepcion";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -95,6 +96,32 @@ export async function finalizarJornada(simulacionId: string) {
       data: { estado: "CERRADA", cerradaEn: new Date() },
     });
     emitirCambio(simulacion.sesionTurneroId);
+  }
+
+  // Recepción: una atención por pedido que el receptor alcanzó a abrir, a nombre de quien
+  // estaba en ese puesto cuando lo abrió.
+  if (simulacion.tipo === "RECEPCION") {
+    const [entregas, asignaciones] = await Promise.all([
+      prisma.entregaProveedor.findMany({ where: { simulacionId, iniciadaEn: { not: null } } }),
+      prisma.asignacionEspacio.findMany({ where: { simulacionId }, orderBy: { desde: "asc" } }),
+    ]);
+    await prisma.$transaction([
+      prisma.atencionJornada.deleteMany({ where: { simulacionId } }),
+      prisma.atencionJornada.createMany({
+        data: entregas.map((e) => ({
+          simulacionId,
+          entregaProveedorId: e.id,
+          pacienteNombre: `${e.factura} · ${e.proveedor}`,
+          pacienteCedula: e.transportador,
+          situaciones: e.situaciones,
+          espacioNumero: e.espacioNumero,
+          llamadoEn: e.iniciadaEn,
+          participanteId: e.espacioNumero ? participanteEn(asignaciones, e.espacioNumero, e.iniciadaEn!) : null,
+        })),
+      }),
+      prisma.simulacion.update({ where: { id: simulacionId }, data: { estado: "EN_REVISION" } }),
+    ]);
+    return;
   }
 
   // En Odontología y Enfermería las atenciones ya existen: se crean cuando el estudiante abre la historia.
@@ -209,6 +236,23 @@ export async function calificarJornada(simulacionId: string) {
 
   if (simulacion.tipo === "ENFERMERIA") {
     for (const atencion of atenciones) await calificarAtencionEnfermeria(atencion.id, ahora);
+    await cerrarSimulacion(simulacionId);
+    return;
+  }
+
+  if (simulacion.tipo === "RECEPCION") {
+    for (const atencion of atenciones) {
+      if (!atencion.entregaProveedorId) continue;
+      const entrega = await prisma.entregaProveedor.findUnique({ where: { id: atencion.entregaProveedorId }, include: { items: true } });
+      if (!entrega) continue;
+      const { criterios, puntaje } = evaluarRecepcion(
+        entrega.items
+          .sort((a, b) => a.orden - b.orden)
+          .map((it) => ({ ...it, defecto: it.defecto as MotivoRecepcion | null, registro: it.registro as RegistroItem | null })),
+        entrega.actaFirmadaEn !== null
+      );
+      await prisma.atencionJornada.update({ where: { id: atencion.id }, data: { criterios, puntaje, calificadaEn: ahora } });
+    }
     await cerrarSimulacion(simulacionId);
     return;
   }

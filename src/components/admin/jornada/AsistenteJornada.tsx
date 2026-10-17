@@ -18,11 +18,11 @@ import { CASOS_RONDA } from "@/lib/modulos/enfermeria/ronda";
 import Odontograma from "@/components/modulos/odontologia/Odontograma";
 import { GrillaSi } from "@/components/modulos/odontologia/SeccionesHistoria";
 
-export type Tipo = "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
+export type Tipo = "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA" | "RECEPCION";
 type CasoOdonto = { id: string; titulo: string; activo: boolean; odontologia: { paciente: { nombres: string; primerApellido: string } } | null };
 type GrupoOpcion = { id: string; nombre: string; estudiantes: unknown[] };
 
-export type Modalidad = "RONDA" | "TURNOS_DISPENSARIO" | "TURNOS_FARMACIA" | "CASOS" | "REALES" | "DICTADO";
+export type Modalidad = "RONDA" | "TURNOS_DISPENSARIO" | "TURNOS_FARMACIA" | "RECEPCION" | "CASOS" | "REALES" | "DICTADO";
 
 const MODALIDADES: { id: Modalidad; tipo: Tipo; titulo: string; texto: string; ideal: string }[] = [
   {
@@ -45,6 +45,14 @@ const MODALIDADES: { id: Modalidad; tipo: Tipo; titulo: string; texto: string; i
     titulo: "Farmacia (mostrador) con turnos",
     texto: "Turnero y ventanillas. Cada estudiante llega con su fórmula; se califica lo que se le vende.",
     ideal: "Practicar venta y atención en mostrador.",
+  },
+  {
+    id: "RECEPCION",
+    tipo: "RECEPCION",
+    titulo: "Recepción técnica de medicamentos e insumos",
+    texto:
+      "Cada estudiante llega como transportador de un proveedor, con la factura y las etiquetas de los productos. En los computadores se compara con la orden de compra, se inspecciona cada producto y se firma el acta. Se califica solo.",
+    ideal: "Practicar la recepción administrativa y técnica (Res. 1403 de 2007).",
   },
   {
     id: "CASOS",
@@ -149,8 +157,8 @@ export default function AsistenteJornada({
   const grupo = grupos.find((g) => g.id === grupoId);
   // Un caso por estudiante del grupo, con su nombre (ver generador.ts).
   const cantidadTurnos = grupo?.estudiantes.length ?? 0;
-  // Modalidades con un caso por estudiante del grupo y situaciones a elegir.
-  const porEstudiante = modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA";
+  // Modalidades con un caso por estudiante del grupo (fórmula o pedido) y situaciones a elegir.
+  const porEstudiante = modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA" || modalidad === "RECEPCION";
 
   function elegirModalidad(m: Modalidad) {
     // Si el nombre era el sugerido para otra modalidad (o está vacío), se actualiza.
@@ -256,7 +264,7 @@ export default function AsistenteJornada({
                 onClick={() => elegirModalidad(m.id)}
                 className={`tarjeta-accion ${modalidad === m.id ? "border-blue-700 bg-blue-50" : ""}`}
               >
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">{m.tipo === "ODONTOLOGIA" ? "Odontología" : m.tipo === "ENFERMERIA" ? "Enfermería" : m.tipo === "FARMACIA" ? "Farmacia" : "Dispensario"}</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">{m.tipo === "ODONTOLOGIA" ? "Odontología" : m.tipo === "ENFERMERIA" ? "Enfermería" : m.tipo === "FARMACIA" ? "Farmacia" : m.tipo === "RECEPCION" ? "Servicio farmacéutico" : "Dispensario"}</p>
                 <p className="font-heading font-semibold text-blue-900">{m.titulo}</p>
                 <p className="mt-1 text-xs text-slate-600">{m.texto}</p>
                 <p className="mt-2 text-[11px] text-slate-500">
@@ -360,9 +368,18 @@ export default function AsistenteJornada({
               <p className="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-sm text-blue-900">
                 {grupo ? (
                   <>
-                    Se arma <b>un caso por cada estudiante</b> del grupo ({cantidadTurnos}), con su nombre. Cuando no está en una
-                    ventanilla, cada uno lleva su fórmula y sus documentos: los suyos, o los de un familiar si el caso es de un menor
-                    de edad o de alguien que reclama por otro.
+                    {modalidad === "RECEPCION" ? (
+                      <>
+                        Se arma <b>un pedido por cada estudiante</b> del grupo ({cantidadTurnos}). Cuando no está en un computador, llega
+                        como transportador del proveedor con la factura y las etiquetas de los productos (vienen en el PDF).
+                      </>
+                    ) : (
+                      <>
+                        Se arma <b>un caso por cada estudiante</b> del grupo ({cantidadTurnos}), con su nombre. Cuando no está en una
+                        ventanilla, cada uno lleva su fórmula y sus documentos: los suyos, o los de un familiar si el caso es de un menor
+                        de edad o de alguien que reclama por otro.
+                      </>
+                    )}
                   </>
                 ) : (
                   "Elige el grupo: se arma un caso por cada uno de sus estudiantes, con su nombre."
@@ -483,7 +500,13 @@ export default function AsistenteJornada({
           {modalidad !== "DICTADO" && (
             <div>
               <label htmlFor="espacios" className="block text-xs font-medium text-slate-500 mb-1">
-                {esOdonto ? "Unidades (sillas) que se usan" : esEnfermeria ? "Estaciones de enfermería (computadores)" : "Ventanillas que se usan"}
+                {esOdonto
+                  ? "Unidades (sillas) que se usan"
+                  : esEnfermeria
+                    ? "Estaciones de enfermería (computadores)"
+                    : modalidad === "RECEPCION"
+                      ? "Puestos de recepción (computadores)"
+                      : "Ventanillas que se usan"}
               </label>
               <p className="text-xs text-slate-400 mb-1">Al crear la jornada se crea una cuenta por cada una, con su contraseña: puedes dejar los computadores listos antes de iniciar.</p>
               <input
@@ -523,7 +546,7 @@ export default function AsistenteJornada({
             <dd className="text-slate-800">{grupo ? `${grupo.nombre} (${grupo.estudiantes.length} estudiantes)` : "Sin grupo"}</dd>
             {porEstudiante && (
               <>
-                <dt className="text-slate-500">Casos</dt>
+                <dt className="text-slate-500">{modalidad === "RECEPCION" ? "Pedidos" : "Casos"}</dt>
                 <dd className="text-slate-800">{cantidadTurnos}, uno por estudiante</dd>
                 <dt className="text-slate-500">Situaciones</dt>
                 <dd className="text-slate-800">
@@ -547,7 +570,7 @@ export default function AsistenteJornada({
             )}
             {modalidad !== "DICTADO" && (
               <>
-                <dt className="text-slate-500">{esOdonto ? "Unidades" : esEnfermeria ? "Estaciones" : "Ventanillas"}</dt>
+                <dt className="text-slate-500">{esOdonto ? "Unidades" : esEnfermeria ? "Estaciones" : modalidad === "RECEPCION" ? "Puestos" : "Ventanillas"}</dt>
                 <dd className="text-slate-800">{numeroEspacios} (una cuenta de computador por cada una)</dd>
               </>
             )}

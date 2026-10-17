@@ -22,6 +22,10 @@ export type ClaveCriterio =
   | "IDENTIDAD_INCORRECTA"
   | "PENDIENTE_CORRECTO"
   | "PENDIENTE_INCORRECTO"
+  // Recepción técnica
+  | "RECEPCION_CORRECTA"
+  | "RECEPCION_DATOS"
+  | "RECEPCION_DECISION"
   | "NO_REGISTRADO"
   | "CUOTA_CORRECTA"
   | "CUOTA_INCORRECTA"
@@ -62,6 +66,8 @@ export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
   ENTREGO_NO_AUTORIZADO: "Entregó un medicamento que no estaba autorizado",
   IDENTIDAD_INCORRECTA: "Verificó mal quién reclamaba (documentos o autorización)",
   PENDIENTE_INCORRECTO: "Manejó mal un pendiente (lo disponible, la constancia o la entrega al volver)",
+  RECEPCION_DATOS: "Registró mal los datos de un producto (lote, vencimiento, INVIMA, cantidad o temperatura)",
+  RECEPCION_DECISION: "Recibió algo no conforme, rechazó algo conforme, o no firmó el acta",
   NO_REGISTRADO: "No registró en el sistema lo que hizo con un medicamento",
   CUOTA_INCORRECTA: "Cobró mal la cuota moderadora (alto costo)",
   ODONTOGRAMA_FALTANTE: "Le faltó marcar hallazgos en el odontograma",

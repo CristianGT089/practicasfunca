@@ -892,6 +892,7 @@ enum TipoSimulacion {
   DISPENSARIO // por fórmula, sobre /panel/dispensacion, con cuota moderadora
   ODONTOLOGIA // historia clínica + odontograma, sobre /panel/odontologia; pacientes interpretados con tarjeta
   ENFERMERIA // ronda de medicamentos con hoja de enfermería, sobre /panel/enfermeria; casos en lib/modulos/enfermeria/ronda.ts
+  RECEPCION // recepción técnica de medicamentos y dispositivos médicos, sobre /panel/recepcion; ver lib/simulacion/recepcion.ts
 }
 
 enum EstadoSimulacion {
@@ -935,6 +936,7 @@ model Simulacion {
   recogidas        RecogidaSimulacion[]
   existencias      ExistenciaSimulacion[]
   pendientes       PendienteSimulacion[]
+  entregasProveedor EntregaProveedor[]
   participantes    ParticipanteJornada[]
   asignaciones     AsignacionEspacio[]
   atenciones       AtencionJornada[]
@@ -1015,6 +1017,9 @@ model AtencionJornada {
   denticion         String?
   rubrica           Json?
   comentario        String?
+  // Recepción técnica: el pedido que se recibió.
+  entregaProveedorId String?
+  entregaProveedor   EntregaProveedor? @relation(fields: [entregaProveedorId], references: [id], onDelete: SetNull)
 
   @@index([simulacionId])
   @@map("atenciones_jornada")
@@ -1146,3 +1151,68 @@ enum ModalidadPendiente {
   DOMICILIO // autoriza la entrega en su casa o trabajo
 }
 
+// ---------- Recepción técnica (jornada RECEPCION) ----------
+
+// Un pedido que llega al servicio farmacéutico: lo trae un estudiante haciendo de
+// transportador del proveedor, con la factura y los productos (etiquetas impresas). El
+// receptor lo compara con la orden de compra y con cada producto, y firma el acta.
+model EntregaProveedor {
+  id            String     @id @default(cuid())
+  simulacionId  String
+  simulacion    Simulacion @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  factura       String // "FE-48213": con este número lo busca el receptor
+  ordenCompra   String // "OC-0007"
+  proveedor     String
+  nitProveedor  String
+  // El estudiante que hace de transportador (y su nombre, por si se borra la cuenta).
+  estudianteId  String?
+  transportador String
+  situaciones   String[]   @default([])
+  orden         Int        @default(0)
+  // Lo que hizo el receptor: desde qué espacio y cuándo empezó, y el acta.
+  espacioNumero Int?
+  iniciadaEn    DateTime?
+  actaFirmadaEn DateTime?
+  observaciones String?
+  usuarioId     String?
+
+  items      ItemRecepcion[]
+  atenciones AtencionJornada[]
+
+  @@unique([simulacionId, factura])
+  @@map("entregas_proveedor")
+}
+
+// Un renglón del pedido. Se guarda una copia de los datos del producto (del catálogo real o
+// de los de cadena de frío de práctica): lo pedido en la orden, lo facturado y lo que llega
+// físicamente (lo impreso en la etiqueta). `defecto` es la "respuesta"; `registro`, lo que
+// anotó el receptor.
+model ItemRecepcion {
+  id                   String           @id @default(cuid())
+  entregaId            String
+  entrega              EntregaProveedor @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  orden                Int
+  nombre               String
+  presentacion         String
+  laboratorio          String?
+  esDispositivo        Boolean          @default(false)
+  requiereFrio         Boolean          @default(false)
+  registroInvima       String // el del producto (para comparar)
+  // Orden de compra y factura
+  cantidadPedida       Int // 0 = no se pidió
+  cantidadFacturada    Int
+  loteFacturado        String
+  vencimientoFacturado DateTime
+  // Lo que llega en la caja
+  cantidadLlega        Int
+  loteReal             String
+  vencimientoReal      DateTime
+  registroEtiqueta     String? // null = la etiqueta no trae registro sanitario
+  temperaturaLlegada   Float? // solo cadena de frío: lo que marca el registrador del transporte
+  empaqueIntegro       Boolean          @default(true)
+  defecto              String? // código de lib/simulacion/recepcion.ts; null = conforme
+  registro             Json?
+  actualizadoEn        DateTime?
+
+  @@map("items_recepcion")
+}

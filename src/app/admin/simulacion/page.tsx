@@ -32,7 +32,7 @@ const COLOR_ESTADO: Record<Simulacion["estado"], string> = {
   CERRADA: "bg-slate-100 text-slate-500",
 };
 
-const ETIQUETA_TIPO: Record<Tipo, string> = { FARMACIA: "Farmacia", DISPENSARIO: "Dispensario", ODONTOLOGIA: "Odontología", ENFERMERIA: "Enfermería" };
+const ETIQUETA_TIPO: Record<Tipo, string> = { FARMACIA: "Farmacia", DISPENSARIO: "Dispensario", ODONTOLOGIA: "Odontología", ENFERMERIA: "Enfermería", RECEPCION: "Recepción técnica" };
 
 export default function SimulacionPage() {
   const [simulaciones, setSimulaciones] = useState<Simulacion[]>([]);

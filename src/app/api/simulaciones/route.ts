@@ -37,7 +37,7 @@ export async function GET() {
 const crearSchema = z
   .object({
     nombre: z.string().trim().min(1).max(80),
-    tipo: z.enum(["FARMACIA", "DISPENSARIO", "ODONTOLOGIA", "ENFERMERIA"]),
+    tipo: z.enum(["FARMACIA", "DISPENSARIO", "ODONTOLOGIA", "ENFERMERIA", "RECEPCION"]),
     numeroEspacios: z.number().int().min(1).max(20).default(3),
     grupoId: z.string().min(1).nullable().default(null),
     situaciones: z.array(z.string()).max(20).default([]),

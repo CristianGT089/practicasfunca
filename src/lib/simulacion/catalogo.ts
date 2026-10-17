@@ -2,7 +2,7 @@
  * Qué artículos del catálogo real son medicamentos que se dispensan con fórmula, y cuáles
  * son dispositivos médicos e insumos (equipos, sondas, gasas, caretas, antisépticos en
  * frasco...). El inventario importado no los distingue por un campo propio: se reconoce el
- * medicamento por su forma farmacéutica.
+ * medicamento por su forma farmacéutica. Los insumos sí sirven en la recepción técnica.
  *
  * Puro respecto a la DB: devuelve filtros de Prisma y una función para probarlos.
  */
@@ -42,3 +42,8 @@ export const filtroMedicamentosDispensables: Prisma.MedicamentoWhereInput = {
   ]),
 };
 
+/** Dispositivos médicos e insumos: lo que no es medicamento dispensable (y no es basura del inventario). */
+export const filtroDispositivosMedicos: Prisma.MedicamentoWhereInput = {
+  NOT: filtroMedicamentosDispensables,
+  registroInvima: { not: null },
+};

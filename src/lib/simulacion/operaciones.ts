@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type PacienteGenerado } from "./generador";
 import { reconstruirInventario } from "./pendientes";
+import { generarEntregasRecepcion } from "./recepcionJornada";
 import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
 import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { planAlAzar, planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
@@ -60,6 +61,7 @@ type OpcionesBorrador = {
 async function crearBorrador(opts: OpcionesBorrador) {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
   if (opts.tipo === "ENFERMERIA") return crearJornadaEnfermeria(opts);
+  if (opts.tipo === "RECEPCION") return crearJornadaRecepcion(opts);
 
   // Un caso por estudiante del grupo, con su nombre: cada uno lleva su fórmula a la
   // ventanilla cuando no está atendiendo. Los estudiantes quedan además como participantes
@@ -197,6 +199,7 @@ const PUESTOS_POR_TIPO = {
   DISPENSARIO: { ruta: "/panel/dispensacion", prefijo: "Ventanilla" },
   ODONTOLOGIA: { ruta: "/panel/odontologia", prefijo: "Unidad" },
   ENFERMERIA: { ruta: "/panel/enfermeria", prefijo: "Estación" },
+  RECEPCION: { ruta: "/panel/recepcion", prefijo: "Recepción" },
 } as const;
 
 /**
@@ -321,6 +324,7 @@ export async function cerrarSimulacion(simulacionId: string) {
   await prisma.entregaSimulacion.deleteMany({ where: { simulacionId } });
   await prisma.pendienteSimulacion.deleteMany({ where: { simulacionId } });
   await prisma.existenciaSimulacion.deleteMany({ where: { simulacionId } });
+  await prisma.entregaProveedor.deleteMany({ where: { simulacionId } });
 
   if (simulacion.sesionTurneroId) {
     const sesion = await prisma.sesionTurnero.findUnique({ where: { id: simulacion.sesionTurneroId } });
@@ -354,6 +358,7 @@ export async function obtenerSimulacion(simulacionId: string) {
       grupo: { select: { id: true, nombre: true } },
       participantes: { orderBy: { creadoEn: "asc" }, select: { id: true, nombre: true, invitado: true, usuarioId: true } },
       turnero: { select: { numeroEspacios: true } },
+      entregasProveedor: { orderBy: { orden: "asc" }, include: { items: { orderBy: { orden: "asc" } } } },
       casosOdontologia: {
         orderBy: { orden: "asc" },
         include: {
@@ -494,6 +499,51 @@ async function crearJornadaEnfermeria(opts: {
     },
     include: incluirPacientes,
   });
+}
+
+/**
+ * Recepción técnica: un pedido por estudiante del grupo (él es el transportador que lo
+ * trae, con la factura y las etiquetas). Situaciones elegidas por el docente o al azar.
+ */
+async function crearJornadaRecepcion(opts: OpcionesBorrador) {
+  if (!opts.grupoId) throw new Error("Elige el grupo que hace la jornada: cada pedido lo trae uno de sus estudiantes");
+  const estudiantes = await prisma.usuario.findMany({
+    where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true, temporal: false },
+    orderBy: { nombre: "asc" },
+    select: { id: true, nombre: true },
+  });
+  if (estudiantes.length === 0) throw new Error("El grupo no tiene estudiantes: cada pedido lo trae uno de ellos");
+  const situaciones = opts.situaciones ?? [];
+  const plan =
+    situaciones.length > 0
+      ? planDeSituaciones(estudiantes.length, situaciones, opts.proporcionNormales ?? PROPORCION_NORMALES_DEFAULT)
+      : planAlAzar(estudiantes.length, "RECEPCION");
+
+  const simulacion = await prisma.simulacion.create({
+    data: {
+      nombre: opts.nombre,
+      tipo: "RECEPCION",
+      situaciones,
+      grupo: { connect: { id: opts.grupoId } },
+      ...(opts.creadaPorId ? { creadaPor: { connect: { id: opts.creadaPorId } } } : {}),
+      participantes: { create: estudiantes.map((e) => ({ nombre: e.nombre, usuarioId: e.id })) },
+      turnero: {
+        create: {
+          nombre: `Recepción — ${opts.nombre}`,
+          numeroEspacios: opts.numeroEspacios ?? 2,
+          servicios: SERVICIOS_DEFAULT,
+          categorias: CATEGORIAS_PRIORIDAD_DEFAULT,
+        },
+      },
+    },
+    include: incluirPacientes,
+  });
+  await generarEntregasRecepcion(
+    simulacion.id,
+    estudiantes.map((e) => ({ estudianteId: e.id, nombre: e.nombre })),
+    plan
+  );
+  return simulacion;
 }
 
 async function cerrarSesionYPuestos(sesionId: string) {

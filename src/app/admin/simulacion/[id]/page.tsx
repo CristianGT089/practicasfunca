@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { generarRecetasPDF } from "@/lib/simulacion/recetaPdf";
+import { generarRecepcionPDF, type PedidoParaPDF } from "@/lib/simulacion/recepcionPdf";
+import { decisionEsperada, nombreMotivo, type MotivoRecepcion } from "@/lib/simulacion/recepcion";
 import { useSnapshotTurnero } from "@/components/turnero/useSnapshotTurnero";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
 import Participantes from "@/components/admin/jornada/Participantes";
@@ -53,13 +55,19 @@ type Paciente = {
 type Simulacion = {
   id: string;
   nombre: string;
-  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
+  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA" | "RECEPCION";
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   turnero: { numeroEspacios: number };
   pacientesReales: boolean;
   dictado: boolean;
   dictadoSecciones: "ODONTOGRAMA" | "COMPLETA" | null;
   casosOdontologia: CasoOdontologiaJornada[];
+  entregasProveedor: (Omit<PedidoParaPDF, "items"> & {
+    id: string;
+    iniciadaEn: string | null;
+    actaFirmadaEn: string | null;
+    items: (PedidoParaPDF["items"][number] & { id: string; cantidadPedida: number; defecto: string | null; registro: unknown })[];
+  })[];
   turneroId: string;
   sesionTurneroId: string | null;
   situaciones: string[];
@@ -97,6 +105,7 @@ const ETIQUETA_TIPO: Record<Simulacion["tipo"], string> = {
   DISPENSARIO: "Dispensario",
   ODONTOLOGIA: "Odontología",
   ENFERMERIA: "Enfermería · ronda de medicamentos",
+  RECEPCION: "Recepción técnica",
 };
 
 const ETIQUETA_ESTADO: Record<Simulacion["estado"], string> = {
@@ -174,6 +183,10 @@ export default function SimulacionDetallePage() {
           simulacion.nombre,
           simulacion.situaciones.map((c) => casoRonda(c)).filter((c): c is NonNullable<typeof c> => Boolean(c))
         );
+        return;
+      }
+      if (simulacion.tipo === "RECEPCION") {
+        await generarRecepcionPDF({ nombreJornada: simulacion.nombre, pedidos: simulacion.entregasProveedor });
         return;
       }
       if (simulacion.tipo === "ODONTOLOGIA") {
@@ -254,6 +267,8 @@ export default function SimulacionDetallePage() {
               ? ` · dictado de ${simulacion.dictadoSecciones === "COMPLETA" ? "la historia completa" : "odontograma"}`
               : simulacion.tipo === "ENFERMERIA"
               ? ` · ${simulacion.situaciones.length} pacientes · ${simulacion.turnero.numeroEspacios} estación(es)`
+              : simulacion.tipo === "RECEPCION"
+              ? ` · ${simulacion.entregasProveedor.length} pedidos · ${simulacion.turnero.numeroEspacios} puesto(s)`
               : simulacion.tipo === "ODONTOLOGIA"
               ? ` · ${simulacion.pacientesReales ? "pacientes reales" : `${simulacion.casosOdontologia.length} casos`} · ${simulacion.turnero.numeroEspacios} unidades`
               : simulacion.estado !== "CERRADA" &&
@@ -269,13 +284,14 @@ export default function SimulacionDetallePage() {
         <div className="flex flex-wrap items-center gap-3">
           {(simulacion.pacientes.length > 0 ||
             (simulacion.tipo === "ENFERMERIA" && simulacion.estado !== "CERRADA") ||
+            (simulacion.tipo === "RECEPCION" && simulacion.entregasProveedor.length > 0) ||
             (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA" && !simulacion.dictado)) && (
             <button
               onClick={descargarPdf}
               disabled={generandoPdf}
               className="text-sm text-blue-700 hover:underline disabled:opacity-40"
             >
-              {generandoPdf ? "Generando..." : simulacion.tipo === "ENFERMERIA" ? "Descargar manillas y tarjetas (PDF)" : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
+              {generandoPdf ? "Generando..." : simulacion.tipo === "ENFERMERIA" ? "Descargar manillas y tarjetas (PDF)" : simulacion.tipo === "RECEPCION" ? "Descargar facturas y etiquetas (PDF)" : simulacion.tipo === "ODONTOLOGIA" ? "Descargar tarjetas de pacientes (PDF)" : "Descargar recetas (PDF)"}
             </button>
           )}
           {simulacion.estado === "BORRADOR" && (
@@ -330,7 +346,9 @@ export default function SimulacionDetallePage() {
 
       {simulacion.estado === "BORRADOR" && !simulacion.dictado && simulacion.tipo !== "ENFERMERIA" && (
         <p className="text-xs text-slate-400 mb-4">
-          {simulacion.tipo === "ODONTOLOGIA"
+          {simulacion.tipo === "RECEPCION"
+            ? "Antes de iniciar: descarga las facturas y etiquetas y entrégale a cada estudiante las suyas (es el transportador de ese pedido), entra en cada computador con su cuenta y elige quién empieza en cada puesto de recepción."
+            : simulacion.tipo === "ODONTOLOGIA"
             ? simulacion.pacientesReales
               ? "Antes de iniciar: entra en cada computador con su cuenta y elige quién empieza en cada unidad."
               : "Antes de iniciar: descarga las tarjetas y entrégale una a cada compañero que interpreta un paciente, entra en cada computador con su cuenta y elige quién empieza en cada unidad."
@@ -394,6 +412,15 @@ export default function SimulacionDetallePage() {
           ruta="/panel/enfermeria"
           pantalla="la estación de enfermería"
           registro="hoja"
+        />
+      )}
+
+      {simulacion.tipo === "RECEPCION" && (simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
+        <PedidosRecepcion
+          simulacion={simulacion}
+          ventanillas={ventanillas}
+          onVentanillas={setVentanillas}
+          onRecargar={cargar}
         />
       )}
 
@@ -505,6 +532,96 @@ export default function SimulacionDetallePage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Recepción técnica. En el borrador: los pedidos con lo que trae cada producto (el docente sí
+ * ve las novedades). En curso: quién está en cada puesto y cómo va cada pedido (se refresca
+ * solo).
+ */
+function PedidosRecepcion({
+  simulacion,
+  ventanillas,
+  onVentanillas,
+  onRecargar,
+}: {
+  simulacion: Simulacion;
+  ventanillas: Record<number, string | null>;
+  onVentanillas: (v: Record<number, string | null>) => void;
+  onRecargar: () => void;
+}) {
+  const enCurso = simulacion.estado === "ABIERTA";
+  useEffect(() => {
+    if (!enCurso) return;
+    const t = setInterval(onRecargar, 6000);
+    return () => clearInterval(t);
+  }, [enCurso, onRecargar]);
+
+  return (
+    <div className="mb-6 flex flex-col gap-4">
+      {enCurso && (
+        <>
+          <a href="/panel/recepcion" target="_blank" className="text-sm text-blue-700 hover:underline">
+            Abrir la pantalla de recepción (vista del estudiante) ↗
+          </a>
+          <Ventanillas
+            simulacionId={simulacion.id}
+            espacios={Array.from({ length: simulacion.turnero.numeroEspacios }, (_, i) => ({
+              numero: i + 1,
+              nombre: `Recepción ${i + 1}`,
+              ticketCodigo: null,
+            }))}
+            participantes={simulacion.participantes}
+            actuales={ventanillas}
+            onCambio={onVentanillas}
+            etiqueta="Recepción"
+          />
+        </>
+      )}
+      <h2 className="text-sm font-heading font-semibold text-blue-900">Pedidos de la jornada</h2>
+      {simulacion.entregasProveedor.map((p) => {
+        const hechos = p.items.filter((i) => i.registro).length;
+        return (
+          <div key={p.id} className="tarjeta-sm p-4 text-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-medium text-slate-800">
+                  {p.factura} · {p.proveedor}
+                </p>
+                <p className="text-xs text-slate-500">Lo trae {p.transportador} · {p.ordenCompra}</p>
+              </div>
+              <span
+                className={`pildora ${
+                  p.actaFirmadaEn ? "bg-emerald-100 text-emerald-700" : p.iniciadaEn ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {p.actaFirmadaEn ? "Acta firmada" : p.iniciadaEn ? `En recepción: ${hechos} de ${p.items.length}` : "Sin recibir"}
+              </span>
+            </div>
+            <ul className="mt-2 flex flex-col gap-1">
+              {p.items.map((it) => {
+                const esperado = decisionEsperada({ ...it, vencimientoReal: new Date(it.vencimientoReal), defecto: it.defecto as MotivoRecepcion | null });
+                return (
+                  <li key={it.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
+                    <span className="font-medium text-slate-700">{it.nombre}</span>
+                    <span className="text-slate-400">{it.cantidadFacturada} unid.</span>
+                    {it.requiereFrio && <span className="rounded bg-sky-100 px-1.5 py-0.5 font-semibold text-sky-800">Refrigerado</span>}
+                    <span
+                      className={`ml-auto rounded px-1.5 py-0.5 font-semibold ${
+                        it.defecto ? (esperado.decision === "RECHAZAR" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800") : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {it.defecto ? `${esperado.decision === "RECHAZAR" ? "Rechazar" : "Novedad"}: ${nombreMotivo(it.defecto)}` : "Conforme"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -850,7 +967,7 @@ function FilaPaciente({
 }
 
 function etiquetaEspacio(tipo: Simulacion["tipo"]) {
-  return tipo === "ODONTOLOGIA" ? "Unidad" : tipo === "ENFERMERIA" ? "Estación" : "Ventanilla";
+  return tipo === "ODONTOLOGIA" ? "Unidad" : tipo === "ENFERMERIA" ? "Estación" : tipo === "RECEPCION" ? "Recepción" : "Ventanilla";
 }
 
 function etiquetaCategoria(categoria: string) {

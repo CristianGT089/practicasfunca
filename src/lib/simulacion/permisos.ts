@@ -15,6 +15,8 @@ export const MODULO_DE_TIPO_JORNADA = {
   DISPENSARIO: "dispensacion",
   ODONTOLOGIA: "odontologia",
   ENFERMERIA: "enfermeria",
+  // La recepción técnica es del servicio farmacéutico: la ven los docentes de Dispensación.
+  RECEPCION: "dispensacion",
 } as const;
 
 /** Filtro de Prisma para las jornadas presenciales visibles. */

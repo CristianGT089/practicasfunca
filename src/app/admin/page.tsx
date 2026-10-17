@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 type Jornada = {
   id: string;
   nombre: string;
-  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
+  tipo: "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA" | "RECEPCION";
   estado: "BORRADOR" | "ABIERTA" | "EN_REVISION" | "CERRADA";
   creadaEn: string;
   pacientesReales: boolean;
@@ -16,7 +16,7 @@ type Jornada = {
 };
 
 const MODALIDAD = (j: Jornada) =>
-  j.dictado ? "Dictado" : j.pacientesReales ? "Pacientes reales" : j.tipo === "ODONTOLOGIA" ? "Consultorio" : j.tipo === "ENFERMERIA" ? "Ronda de medicamentos" : j.tipo === "FARMACIA" ? "Farmacia" : "Dispensario";
+  j.dictado ? "Dictado" : j.pacientesReales ? "Pacientes reales" : j.tipo === "ODONTOLOGIA" ? "Consultorio" : j.tipo === "ENFERMERIA" ? "Ronda de medicamentos" : j.tipo === "RECEPCION" ? "Recepción técnica" : j.tipo === "FARMACIA" ? "Farmacia" : "Dispensario";
 
 const ESTADO: Record<Jornada["estado"], { texto: string; clase: string; accion: string }> = {
   BORRADOR: { texto: "Lista para iniciar", clase: "bg-gold-100 text-gold-700", accion: "Iniciar" },
