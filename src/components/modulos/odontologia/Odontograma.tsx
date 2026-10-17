@@ -338,14 +338,17 @@ export function SimboloHallazgo({ codigo, tamano = 30 }: { codigo: CodigoHallazg
 
 type Fila = { dientes: readonly number[]; desplazamiento: number };
 
-function filasDe(denticion: Denticion): { superiores: Fila[]; inferiores: Fila[] } {
+/**
+ * Siempre las cuatro filas, como en el formato en papel: permanentes y temporales, sea el
+ * paciente adulto o niño (pedido de las docentes). La dentición del paciente solo decide qué
+ * dientes cuentan para el índice de placa, "Marcar el resto como sano" y los avisos de la mixta.
+ */
+function filasDelOdontograma(): { superiores: Fila[]; inferiores: Fila[] } {
   const perSup = { dientes: FILAS.permanenteSuperior, desplazamiento: 0 };
   const perInf = { dientes: FILAS.permanenteInferior, desplazamiento: 0 };
   // Los temporales se alinean bajo los 5 dientes más cercanos a la línea media, como en el papel.
   const tempSup = { dientes: FILAS.temporalSuperior, desplazamiento: 3 };
   const tempInf = { dientes: FILAS.temporalInferior, desplazamiento: 3 };
-  if (denticion === "PERMANENTE") return { superiores: [perSup], inferiores: [perInf] };
-  if (denticion === "TEMPORAL") return { superiores: [tempSup], inferiores: [tempInf] };
   return { superiores: [perSup, tempSup], inferiores: [tempInf, perInf] };
 }
 
@@ -380,7 +383,7 @@ export default function Odontograma({ denticion, marcas, onChange, estados, most
   const cerrarMenu = useCallback(() => setMenu(null), []);
   const editable = Boolean(onChange);
   const def = herramienta === "BORRAR" ? "BORRAR" : definicionHallazgo(herramienta)!;
-  const { superiores, inferiores } = filasDe(denticion);
+  const { superiores, inferiores } = filasDelOdontograma();
   const filas = useMemo(() => [...superiores, ...inferiores], [superiores, inferiores]);
   const altoTotal = (superiores.length + inferiores.length) * ALTO_FILA + SEPARACION_ARCADAS;
 
