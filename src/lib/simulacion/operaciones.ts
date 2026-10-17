@@ -6,7 +6,7 @@ import { crearPuestosTemporales, eliminarUsuarios } from "@/lib/nucleo/estudiant
 import { generarPassword } from "@/lib/nucleo/passwords";
 import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
 import bcrypt from "bcryptjs";
-import { MODULO_DE_TIPO_JORNADA } from "./permisos";
+import { MODULOS_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type PacienteGenerado } from "./generador";
 import { reconstruirInventario } from "./pendientes";
 import { generarEntregasRecepcion } from "./recepcionJornada";
@@ -220,11 +220,11 @@ async function prepararPuestos(simulacionId: string, creadoPorId: string | null)
 
 async function crearCuentasDeEspacios(simulacionId: string, sesionTurneroId: string, creadoPorId: string | null | undefined) {
   const simulacion = await prisma.simulacion.findUniqueOrThrow({ where: { id: simulacionId }, include: { turnero: true } });
-  const modulo = await prisma.modulo.findUnique({ where: { slug: MODULO_DE_TIPO_JORNADA[simulacion.tipo] } });
-  if (!modulo) return [];
+  const modulos = await prisma.modulo.findMany({ where: { slug: { in: [...MODULOS_DE_TIPO_JORNADA[simulacion.tipo]] } } });
+  if (modulos.length === 0) return [];
   const config = PUESTOS_POR_TIPO[simulacion.tipo];
   return crearPuestosTemporales({
-    moduloIds: [modulo.id],
+    moduloIds: modulos.map((m) => m.id),
     rutaDirecta: config.ruta,
     sesionTurneroId,
     cantidad: simulacion.turnero.numeroEspacios,

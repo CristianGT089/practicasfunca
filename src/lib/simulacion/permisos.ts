@@ -7,25 +7,32 @@ import { prisma } from "@/lib/nucleo/prisma";
 import { requireGestor, slugsGestionados, type Gestor } from "@/lib/nucleo/permisos";
 
 /**
- * Qué módulo respalda cada tipo de jornada presencial: un docente solo ve las jornadas de
- * los módulos que enseña.
+ * Qué módulos respaldan cada tipo de jornada presencial: un docente ve (y crea) las jornadas
+ * de los tipos en los que enseña al menos uno de esos módulos.
  */
-export const MODULO_DE_TIPO_JORNADA = {
-  FARMACIA: "farmacia",
-  DISPENSARIO: "dispensacion",
-  ODONTOLOGIA: "odontologia",
-  ENFERMERIA: "enfermeria",
-  // La recepción técnica es del servicio farmacéutico: la ven los docentes de Dispensación.
-  RECEPCION: "dispensacion",
-} as const;
+export const MODULOS_DE_TIPO_JORNADA = {
+  FARMACIA: ["farmacia"],
+  DISPENSARIO: ["dispensacion"],
+  ODONTOLOGIA: ["odontologia"],
+  ENFERMERIA: ["enfermeria"],
+  // La recepción técnica es de todo el servicio farmacéutico: Farmacia y Dispensación.
+  RECEPCION: ["farmacia", "dispensacion"],
+} as const satisfies Record<string, readonly string[]>;
+
+type TipoJornada = keyof typeof MODULOS_DE_TIPO_JORNADA;
+
+/** Tipos de jornada de los módulos dados (null = todos, coordinación). */
+function tiposDeModulos(slugs: string[] | null): TipoJornada[] {
+  return (Object.entries(MODULOS_DE_TIPO_JORNADA) as [TipoJornada, readonly string[]][])
+    .filter(([, modulos]) => slugs === null || modulos.some((m) => slugs.includes(m)))
+    .map(([tipo]) => tipo);
+}
 
 /** Filtro de Prisma para las jornadas presenciales visibles. */
 export async function filtroJornadas(usuario: Gestor): Promise<Prisma.SimulacionWhereInput> {
   const slugs = await slugsGestionados(usuario);
   if (slugs === null) return {};
-  const tipos = (Object.entries(MODULO_DE_TIPO_JORNADA) as [keyof typeof MODULO_DE_TIPO_JORNADA, string][])
-    .filter(([, slug]) => slugs.includes(slug))
-    .map(([tipo]) => tipo);
+  const tipos = tiposDeModulos(slugs);
   return {
     AND: [
       { tipo: { in: tipos } },
@@ -47,9 +54,6 @@ export async function requireGestorDeJornada(simulacionId: string): Promise<Gest
 }
 
 /** Tipos de jornada que puede crear (según sus módulos). */
-export async function tiposJornadaPermitidos(usuario: Gestor): Promise<(keyof typeof MODULO_DE_TIPO_JORNADA)[]> {
-  const slugs = await slugsGestionados(usuario);
-  return (Object.entries(MODULO_DE_TIPO_JORNADA) as [keyof typeof MODULO_DE_TIPO_JORNADA, string][])
-    .filter(([, slug]) => slugs === null || slugs.includes(slug))
-    .map(([tipo]) => tipo);
+export async function tiposJornadaPermitidos(usuario: Gestor): Promise<TipoJornada[]> {
+  return tiposDeModulos(await slugsGestionados(usuario));
 }
