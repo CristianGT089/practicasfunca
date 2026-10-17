@@ -6,7 +6,7 @@
  */
 import { calcularCuotaModeradora } from "./cuotaModeradora";
 import { familiaAlergenica } from "./bancos";
-import type { CategoriaAfiliado, TipoRecogida } from "@prisma/client";
+import type { CategoriaAfiliado, DecisionRecogida, TipoRecogida } from "@prisma/client";
 
 /** Tipo de acierto o error, para agrupar los errores comunes de la jornada. */
 export type ClaveCriterio =
@@ -18,6 +18,8 @@ export type ClaveCriterio =
   | "ENTREGO_CON_ALERGIA"
   | "ENTREGO_A_SUPLANTADOR"
   | "ENTREGO_NO_AUTORIZADO"
+  | "IDENTIDAD_CORRECTA"
+  | "IDENTIDAD_INCORRECTA"
   | "NO_REGISTRADO"
   | "CUOTA_CORRECTA"
   | "CUOTA_INCORRECTA"
@@ -56,6 +58,7 @@ export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
   ENTREGO_CON_ALERGIA: "Entregó un medicamento al que el paciente es alérgico",
   ENTREGO_A_SUPLANTADOR: "Entregó a quien no era el paciente ni venía autorizado",
   ENTREGO_NO_AUTORIZADO: "Entregó un medicamento que no estaba autorizado",
+  IDENTIDAD_INCORRECTA: "Verificó mal quién reclamaba (documentos o autorización)",
   NO_REGISTRADO: "No registró en el sistema lo que hizo con un medicamento",
   CUOTA_INCORRECTA: "Cobró mal la cuota moderadora (alto costo)",
   ODONTOGRAMA_FALTANTE: "Le faltó marcar hallazgos en el odontograma",
@@ -73,6 +76,10 @@ export type PacienteEvaluado = {
   esAltoCosto: boolean;
   categoriaAfiliado: CategoriaAfiliado | null;
   tipoRecogida: TipoRecogida;
+  /** Documento de quien reclama por el paciente (tercero o suplantador); null si es él mismo. */
+  personaRecogeCedula: string | null;
+  /** Lo que registró el estudiante sobre quién reclamaba; null = no lo registró. */
+  recogida: { decision: DecisionRecogida; documentoQuienReclama: string | null } | null;
   alergias: string[];
   recetas: {
     id: string;
@@ -114,6 +121,9 @@ export function evaluarAtencionDispensario(
   const suplantacion = paciente.tipoRecogida === "SUPLANTACION";
   const esFarmacia = tipo === "FARMACIA";
   const entregas = esFarmacia ? agruparVentas(entregasCrudas) : entregasCrudas;
+  // En el dispensario, registrar "no se entrega" equivale a rechazar todo lo de la fórmula.
+  const noEntrega = !esFarmacia && paciente.recogida?.decision === "NO_ENTREGA";
+  if (!esFarmacia) criterios.push(criterioRecogida(paciente));
 
   for (const receta of paciente.recetas) {
     const nombre = receta.medicamento.nombre;
@@ -121,7 +131,7 @@ export function evaluarAtencionDispensario(
     // En farmacia, no vender = no entregar (es la forma de rechazar en el mostrador).
     const hecho: EntregaEvaluada | undefined =
       registrado ??
-      (esFarmacia
+      (esFarmacia || noEntrega
         ? { recetaElectronicaId: receta.id, medicamentoId: null, medicamentoNombre: nombre, cantidad: 0, resultado: "RECHAZADO", altoCostoMarcado: null, cuotaModeradora: 0 }
         : undefined);
     const familia = familiaAlergenica(receta.medicamento.principioActivo);
@@ -152,7 +162,13 @@ export function evaluarAtencionDispensario(
         clave: bien ? "RECHAZO_CORRECTO" : motivo.clave,
         descripcion: `${nombre}: no entregar, porque ${motivo.texto}`,
         cumplido: bien,
-        detalle: bien ? (esFarmacia ? "No lo vendió." : "Lo rechazó.") : `${esFarmacia ? "Vendió" : "Entregó"} ${hecho.cantidad}.`,
+        detalle: bien
+          ? esFarmacia
+            ? "No lo vendió."
+            : noEntrega
+              ? "No lo entregó."
+              : "Lo rechazó."
+          : `${esFarmacia ? "Vendió" : "Entregó"} ${hecho.cantidad}.`,
       });
       continue;
     }
@@ -165,7 +181,9 @@ export function evaluarAtencionDispensario(
         cumplido: false,
         detalle: esFarmacia
           ? "No lo vendió, pero la fórmula estaba vigente y sin alergia."
-          : "Lo rechazó, pero estaba vigente, autorizado y sin alergia.",
+          : noEntrega
+            ? "No entregó nada, pero quien reclamaba sí podía recibirlo."
+            : "Lo rechazó, pero estaba vigente, autorizado y sin alergia.",
       });
     } else {
       const bien = hecho.cantidad === saldo;
@@ -216,6 +234,47 @@ export function evaluarAtencionDispensario(
   }
 
   return resultado(criterios);
+}
+
+const ESPERADO_RECOGIDA: Record<TipoRecogida, DecisionRecogida> = {
+  EL_MISMO: "PACIENTE",
+  TERCERO_AUTORIZADO: "TERCERO",
+  SUPLANTACION: "NO_ENTREGA",
+};
+
+const soloDigitos = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
+
+/**
+ * Quién reclama: el paciente en persona, alguien autorizado (con su cédula bien registrada)
+ * o, en una suplantación, nadie (no se entrega). Lo decide el estudiante comparando los
+ * documentos con la fórmula; el sistema no se lo dice durante la jornada.
+ */
+function criterioRecogida(paciente: PacienteEvaluado): Criterio {
+  const esperado = ESPERADO_RECOGIDA[paciente.tipoRecogida];
+  const descripcion =
+    esperado === "PACIENTE"
+      ? "Quién reclama: el paciente en persona"
+      : esperado === "TERCERO"
+        ? `Quién reclama: otra persona autorizada, CC ${paciente.personaRecogeCedula ?? "—"}`
+        : "Quién reclama: los documentos no corresponden al paciente y no hay autorización; no se entrega";
+  const r = paciente.recogida;
+  if (!r) {
+    return { clave: "IDENTIDAD_INCORRECTA", descripcion, cumplido: false, detalle: "No registró quién reclamaba." };
+  }
+  const documentoBien = esperado !== "TERCERO" || soloDigitos(r.documentoQuienReclama) === soloDigitos(paciente.personaRecogeCedula);
+  const cumplido = r.decision === esperado && documentoBien;
+  const registrado =
+    r.decision === "PACIENTE"
+      ? "el paciente en persona"
+      : r.decision === "TERCERO"
+        ? `otra persona autorizada, CC ${r.documentoQuienReclama ?? "—"}`
+        : "que no se entregaba";
+  return {
+    clave: cumplido ? "IDENTIDAD_CORRECTA" : "IDENTIDAD_INCORRECTA",
+    descripcion,
+    cumplido,
+    detalle: `Registró ${registrado}.${r.decision === esperado && !documentoBien ? " La cédula no es la de quien reclamaba." : ""}`,
+  };
 }
 
 function resultado(criterios: Criterio[]) {

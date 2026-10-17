@@ -104,6 +104,7 @@ model Usuario {
 
   gruposComoDocente    Grupo[]               @relation("GrupoDocentes")
   gruposComoEstudiante Grupo[]               @relation("GrupoEstudiantes")
+  casosInterpretados   Paciente[]            @relation("CasosInterpretados")
   participaciones      ParticipanteJornada[]
   simulacionesCreadas  Simulacion[]          @relation("SimulacionesCreadas")
 
@@ -210,7 +211,11 @@ enum TipoRecogida {
 model Paciente {
   id                    String             @id @default(cuid())
   nombre                String
+  // Número del documento del paciente (el que va en la fórmula). En una jornada, el del
+  // menor es su registro civil o tarjeta de identidad, no una cédula: ver tipoDocumento.
   cedula                String             @unique
+  // CC (18+) | TI (7-17) | RC (0-6). Los pacientes sembrados son adultos: CC.
+  tipoDocumento         String             @default("CC")
   edad                  Int
   alergias              String[] // tags que cruzan contra Medicamento.tags
   antecedentes          String? // texto libre: enfermedades, medicación crónica
@@ -233,7 +238,11 @@ model Paciente {
   tipoRecogida          TipoRecogida       @default(EL_MISMO)
   personaRecogeNombre   String? // solo si tipoRecogida != EL_MISMO
   personaRecogeCedula   String? // documento que presenta esa persona (no el del paciente)
-  personaRecogeRelacion String? // solo si TERCERO_AUTORIZADO, ej "esposo(a)", "hijo(a)"
+  personaRecogeRelacion String? // solo si TERCERO_AUTORIZADO, ej "hija", "madre" (acudiente de un menor)
+  // Jornada presencial: el estudiante del grupo que lleva este caso a la ventanilla. Es el
+  // paciente mismo (EL_MISMO) o quien reclama por él (personaRecogeNombre = su nombre).
+  estudianteId          String?
+  estudiante            Usuario?           @relation("CasosInterpretados", fields: [estudianteId], references: [id], onDelete: SetNull)
   // Situaciones de práctica que trae este paciente de una jornada presencial (códigos de
   // lib/simulacion/situaciones.ts). Vacío = caso normal. Es la "respuesta" del caso.
   situaciones           String[]           @default([])
@@ -245,6 +254,7 @@ model Paciente {
   ticketsTurnero     Ticket[]
   entregasSimulacion EntregaSimulacion[]
   atencionesJornada  AtencionJornada[]
+  recogida           RecogidaSimulacion?
 
   @@map("pacientes")
 }
@@ -905,6 +915,7 @@ model Simulacion {
 
   pacientes        Paciente[]
   entregas         EntregaSimulacion[]
+  recogidas        RecogidaSimulacion[]
   participantes    ParticipanteJornada[]
   asignaciones     AsignacionEspacio[]
   atenciones       AtencionJornada[]
@@ -1040,3 +1051,30 @@ model EntregaSimulacion {
   @@index([pacienteId])
   @@map("entregas_simulacion")
 }
+
+// Quién reclama: lo que el estudiante de la ventanilla decidió al comparar los documentos
+// que le presentan con la fórmula, antes de entregar. Se califica contra
+// Paciente.tipoRecogida (ver evaluacion.ts). Una por paciente; se puede corregir mientras
+// se atiende. usuarioId sin relación, igual que la trazabilidad de las entregas: las
+// cuentas de los puestos se borran al cerrar.
+model RecogidaSimulacion {
+  id                    String           @id @default(cuid())
+  simulacionId          String
+  simulacion            Simulacion       @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  pacienteId            String           @unique
+  paciente              Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  usuarioId             String
+  decision              DecisionRecogida
+  // Si reclama otra persona: el número de su documento, tal como lo registró el estudiante.
+  documentoQuienReclama String?
+  creadoEn              DateTime         @default(now())
+
+  @@map("recogidas_simulacion")
+}
+
+enum DecisionRecogida {
+  PACIENTE // el paciente en persona, con su documento
+  TERCERO // otra persona con autorización (o el padre, madre o acudiente de un menor)
+  NO_ENTREGA // los documentos no corresponden o no hay autorización: no se entrega nada
+}
+

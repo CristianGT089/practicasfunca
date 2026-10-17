@@ -103,7 +103,7 @@ export async function finalizarJornada(simulacionId: string) {
     return;
   }
 
-  const [tickets, asignaciones, pacientes, entregas] = await Promise.all([
+  const [tickets, asignaciones, pacientes, entregas, recogidas] = await Promise.all([
     simulacion.sesionTurneroId
       ? prisma.ticket.findMany({
           where: { sesionId: simulacion.sesionTurneroId, pacienteId: { not: null }, estado: { in: ["LLAMADO", "ATENDIDO"] } },
@@ -113,6 +113,7 @@ export async function finalizarJornada(simulacionId: string) {
     prisma.asignacionEspacio.findMany({ where: { simulacionId }, orderBy: { desde: "asc" } }),
     prisma.paciente.findMany({ where: { simulacionId }, select: { id: true, nombre: true, cedula: true, situaciones: true } }),
     prisma.entregaSimulacion.findMany({ where: { simulacionId }, select: { pacienteId: true } }),
+    prisma.recogidaSimulacion.findMany({ where: { simulacionId }, select: { pacienteId: true } }),
   ]);
   const porId = new Map(pacientes.map((p) => [p.id, p]));
 
@@ -136,8 +137,9 @@ export async function finalizarJornada(simulacionId: string) {
     };
   });
 
-  // Pacientes que alguien atendió en el sistema sin turno (o con un turno que no se registró).
-  const conEntregas = new Set(entregas.map((e) => e.pacienteId));
+  // Pacientes que alguien atendió en el sistema sin turno (o con un turno que no se registró):
+  // entregó algo o, al menos, registró quién reclamaba (una suplantación no tiene entregas).
+  const conEntregas = new Set([...entregas, ...recogidas].map((e) => e.pacienteId));
   for (const pacienteId of conEntregas) {
     if (ultimoTicket.has(pacienteId)) continue;
     const p = porId.get(pacienteId);
@@ -218,7 +220,10 @@ export async function calificarJornada(simulacionId: string) {
     if (!atencion.pacienteId) continue;
     const paciente = await prisma.paciente.findUnique({
       where: { id: atencion.pacienteId },
-      include: { recetas: { include: { medicamento: { select: { id: true, nombre: true, principioActivo: true } } } } },
+      include: {
+        recetas: { include: { medicamento: { select: { id: true, nombre: true, principioActivo: true } } } },
+        recogida: { select: { decision: true, documentoQuienReclama: true } },
+      },
     });
     if (!paciente) continue;
 

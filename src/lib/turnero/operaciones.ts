@@ -57,11 +57,11 @@ export async function emitirTicket(
   let pacienteId: string | null = null;
   if (sesion.simulacion) {
     const documento = cedula?.trim();
-    if (!documento) throw new Error("Esta simulación requiere la cédula del paciente para sacar turno");
+    if (!documento) throw new Error("Esta jornada requiere el documento del paciente (el de la fórmula) para sacar turno");
     const paciente = await prisma.paciente.findFirst({
       where: { cedula: documento, simulacionId: sesion.simulacion.id },
     });
-    if (!paciente) throw new Error("Esa cédula no corresponde a ningún paciente de esta simulación");
+    if (!paciente) throw new Error("Ese documento no corresponde a ningún paciente de esta jornada");
     pacienteId = paciente.id;
   }
 

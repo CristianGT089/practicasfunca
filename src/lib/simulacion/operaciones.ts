@@ -7,10 +7,10 @@ import { generarPassword } from "@/lib/nucleo/passwords";
 import { cifrar, descifrar } from "@/lib/nucleo/cifrado";
 import bcrypt from "bcryptjs";
 import { MODULO_DE_TIPO_JORNADA } from "./permisos";
-import { generarPacientes, type NombreSolicitado, type PacienteGenerado } from "./generador";
+import { generarPacientes, type PacienteGenerado } from "./generador";
 import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
 import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
-import { planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
+import { planAlAzar, planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
 
 const incluirPacientes = {
   pacientes: {
@@ -28,9 +28,6 @@ const incluirPacientes = {
 export async function crearSimulacionBorrador(opts: {
   nombre: string;
   tipo: TipoSimulacion;
-  // Uno de los dos: nombres puntuales (y género, si se sabe) o solo una cantidad al azar.
-  pacientes?: NombreSolicitado[];
-  cantidadPacientes?: number;
   numeroEspacios?: number;
   // Jornada presencial evaluada:
   grupoId?: string | null;
@@ -51,23 +48,29 @@ export async function crearSimulacionBorrador(opts: {
   if (opts.tipo === "ODONTOLOGIA") return crearJornadaOdontologia(opts);
   if (opts.tipo === "ENFERMERIA") return crearJornadaEnfermeria(opts);
 
-  const solicitud = opts.pacientes && opts.pacientes.length > 0 ? opts.pacientes : opts.cantidadPacientes ?? 0;
-  const total = Array.isArray(solicitud) ? solicitud.length : solicitud;
+  // Un caso por estudiante del grupo, con su nombre: cada uno lleva su fórmula a la
+  // ventanilla cuando no está atendiendo. Los estudiantes quedan además como participantes
+  // (se pueden sumar invitados en el momento, pero sin caso propio).
+  const estudiantesGrupo = opts.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true, temporal: false },
+        orderBy: { nombre: "asc" },
+        select: { id: true, nombre: true, genero: true },
+      })
+    : [];
+  if (!opts.grupoId) throw new Error("Elige el grupo que hace la jornada: cada caso se arma con uno de sus estudiantes");
+  if (estudiantesGrupo.length === 0) throw new Error("El grupo no tiene estudiantes: cada caso se arma con uno de ellos");
+
+  const total = estudiantesGrupo.length;
   const situaciones = opts.situaciones ?? [];
   const plan =
     situaciones.length > 0
       ? planDeSituaciones(total, situaciones, opts.proporcionNormales ?? PROPORCION_NORMALES_DEFAULT)
-      : undefined;
-  const generados = await generarPacientes(solicitud, { plan });
-
-  // Los estudiantes del grupo quedan como participantes; se pueden sumar más en el momento.
-  const estudiantesGrupo = opts.grupoId
-    ? await prisma.usuario.findMany({
-        where: { gruposComoEstudiante: { some: { id: opts.grupoId } }, activo: true },
-        orderBy: { nombre: "asc" },
-        select: { id: true, nombre: true },
-      })
-    : [];
+      : planAlAzar(total, opts.tipo);
+  const generados = await generarPacientes(
+    estudiantesGrupo.map((e) => ({ estudianteId: e.id, nombre: e.nombre, genero: e.genero })),
+    plan
+  );
 
   const simulacion = await prisma.simulacion.create({
     data: {
@@ -97,7 +100,9 @@ function aDatosPaciente(p: PacienteGenerado) {
   return {
     nombre: p.nombre,
     cedula: p.cedula,
+    tipoDocumento: p.tipoDocumento,
     edad: p.edad,
+    ...(p.estudianteId ? { estudiante: { connect: { id: p.estudianteId } } } : {}),
     genero: p.genero,
     alergias: p.alergias,
     antecedentes: p.antecedentes,
@@ -130,15 +135,15 @@ export async function regenerarPaciente(simulacionId: string, pacienteId: string
   const paciente = await prisma.paciente.findUnique({ where: { id: pacienteId } });
   if (!paciente || paciente.simulacionId !== simulacionId) throw new Error("Paciente no encontrado en esta simulación");
 
-  // El nombre (y género) del paciente se conserva — es lo que el admin eligió a propósito
-  // o ya se imprimió/mostró; "regenerar" es para el resto de la historia clínica, no para
-  // cambiar de quién se trata.
-  // Conserva las situaciones que le tocaron (las eligió el docente); en modo libre se
-  // vuelven a sortear.
-  const [generado] = await generarPacientes(
-    [{ nombre: paciente.nombre, genero: paciente.genero }],
-    simulacion.situaciones.length > 0 ? { plan: [paciente.situaciones as CodigoSituacion[]] } : {}
-  );
+  // Se conservan el estudiante que lleva el caso y sus situaciones (las eligió el docente o
+  // ya se sortearon): "regenerar" es para el resto de la historia clínica y la fórmula.
+  const estudiante = paciente.estudianteId
+    ? await prisma.usuario.findUnique({ where: { id: paciente.estudianteId }, select: { id: true, nombre: true, genero: true } })
+    : null;
+  const interprete = estudiante
+    ? { estudianteId: estudiante.id, nombre: estudiante.nombre, genero: estudiante.genero }
+    : { estudianteId: null, nombre: paciente.personaRecogeNombre ?? paciente.nombre, genero: paciente.genero };
+  const [generado] = await generarPacientes([interprete], [paciente.situaciones as CodigoSituacion[]]);
 
   await prisma.recetaElectronica.deleteMany({ where: { pacienteId } });
   await prisma.paciente.update({ where: { id: pacienteId }, data: aDatosPaciente(generado) });

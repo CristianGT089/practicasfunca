@@ -12,6 +12,7 @@ export type CodigoSituacion =
   | "FORMULA_VENCIDA"
   | "SUPLANTACION"
   | "TERCERO_AUTORIZADO"
+  | "MENOR_DE_EDAD"
   | "ALERGIA"
   | "ALTO_COSTO"
   | "SE_NIEGA_CEDULA"
@@ -41,18 +42,30 @@ export const SITUACIONES: DefinicionSituacion[] = [
   {
     codigo: "SUPLANTACION",
     nombre: "Suplantación",
-    queHacer: "Pedir el documento, notar que no es del titular ni viene autorizado, y no entregar nada.",
-    indicacionActor: "Preséntate como si fueras el paciente y muestra la cédula que dice \"quien se presenta\".",
+    queHacer:
+      "Comparar la cédula de quien se presenta con el documento de la fórmula: no coinciden y no trae autorización, así que no se entrega nada.",
+    indicacionActor: null, // la indicación la arma recetaPdf.ts con los nombres del caso
     verificable: true,
-    tipos: ["DISPENSARIO", "FARMACIA"],
+    // Solo el dispensario verifica identidad; en el mostrador de farmacia no se pide documento.
+    tipos: ["DISPENSARIO"],
   },
   {
     codigo: "TERCERO_AUTORIZADO",
     nombre: "Tercero autorizado",
-    queHacer: "Verificar el parentesco o la autorización de quien reclama y, si todo está en regla, entregar.",
-    indicacionActor: "Di que vienes a reclamar por el paciente y explica tu parentesco si te lo preguntan.",
+    queHacer:
+      "Reclama otra persona: verificar la autorización escrita del paciente y la cédula de quien reclama, registrar su documento y entregar.",
+    indicacionActor: null,
     verificable: true,
-    tipos: ["DISPENSARIO", "FARMACIA"],
+    tipos: ["DISPENSARIO"],
+  },
+  {
+    codigo: "MENOR_DE_EDAD",
+    nombre: "Paciente menor de edad",
+    queHacer:
+      "El menor no reclama solo: verificar su registro civil o tarjeta de identidad y que quien lo acompaña sea su padre, madre o acudiente; registrar el documento del adulto y entregar.",
+    indicacionActor: null,
+    verificable: true,
+    tipos: ["DISPENSARIO"],
   },
   {
     codigo: "ALERGIA",
@@ -76,7 +89,7 @@ export const SITUACIONES: DefinicionSituacion[] = [
     queHacer: "Explicar con calma por qué se necesita el documento y no atender sin verificar la identidad.",
     indicacionActor: "Al principio niégate a mostrar la cédula: \"siempre vengo y nunca me la piden\". Si te lo explican bien, muéstrala.",
     verificable: false,
-    tipos: ["DISPENSARIO", "FARMACIA"],
+    tipos: ["DISPENSARIO"],
   },
   {
     codigo: "PACIENTE_MOLESTO",
@@ -102,7 +115,14 @@ export function situacionesDeTipo(tipo: TipoSimulacion): DefinicionSituacion[] {
 export const PROPORCION_NORMALES_DEFAULT = 0.33;
 
 /** Situaciones que se excluyen entre sí en un mismo paciente. */
-const EXCLUYENTES: [CodigoSituacion, CodigoSituacion][] = [["SUPLANTACION", "TERCERO_AUTORIZADO"]];
+/** Las tres dicen quién llega a la ventanilla: un caso trae a lo sumo una. */
+export const SITUACIONES_DE_RECOGIDA: CodigoSituacion[] = ["SUPLANTACION", "TERCERO_AUTORIZADO", "MENOR_DE_EDAD"];
+
+const EXCLUYENTES: [CodigoSituacion, CodigoSituacion][] = [
+  ["SUPLANTACION", "TERCERO_AUTORIZADO"],
+  ["SUPLANTACION", "MENOR_DE_EDAD"],
+  ["TERCERO_AUTORIZADO", "MENOR_DE_EDAD"],
+];
 
 /**
  * Reparte las situaciones elegidas entre `total` pacientes: garantiza que cada situación
@@ -152,4 +172,25 @@ export function planDeSituaciones(
 
 function sonExcluyentes(a: CodigoSituacion, b: CodigoSituacion) {
   return a === b || EXCLUYENTES.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+}
+
+/**
+ * Cuando el docente no elige situaciones: cada caso se sortea por separado, con más
+ * frecuencia que en la vida real para que en una jornada sí aparezcan. Solo usa las
+ * situaciones verificables del tipo de jornada; las de actuación (molesto, se niega) las
+ * elige el docente a propósito.
+ */
+export function planAlAzar(total: number, tipo: TipoSimulacion, azar: () => number = Math.random): CodigoSituacion[][] {
+  const aplica = (c: CodigoSituacion) => POR_CODIGO.get(c)?.tipos.includes(tipo) ?? false;
+  return Array.from({ length: Math.max(0, total) }, () => {
+    const caso: CodigoSituacion[] = [];
+    if (aplica("FORMULA_VENCIDA") && azar() < 0.15) caso.push("FORMULA_VENCIDA");
+    if (aplica("ALERGIA") && azar() < 0.15) caso.push("ALERGIA");
+    if (aplica("ALTO_COSTO") && azar() < 0.15) caso.push("ALTO_COSTO");
+    // Quién llega: 10% menor con su acudiente, 10% tercero autorizado, 6% suplantación.
+    const r = azar();
+    const recogida: CodigoSituacion | null = r < 0.1 ? "MENOR_DE_EDAD" : r < 0.2 ? "TERCERO_AUTORIZADO" : r < 0.26 ? "SUPLANTACION" : null;
+    if (recogida && aplica(recogida)) caso.push(recogida);
+    return caso;
+  });
 }

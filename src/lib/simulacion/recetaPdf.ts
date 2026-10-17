@@ -7,6 +7,10 @@
  * recortar) — ahorra papel. Cada mitad lleva su propio encabezado porque, una vez recortada,
  * queda como un papel independiente. Si el número de pacientes es impar, la última página
  * solo llena el lado izquierdo — no hay problema, se recorta igual.
+ *
+ * Debajo de cada fórmula van los documentos que presenta el estudiante que la lleva (su
+ * cédula de práctica y, según el caso, el documento del menor o la autorización escrita).
+ * Las páginas salen en el orden de los estudiantes, para repartirlas por nombre.
  */
 import { jsPDF } from "jspdf";
 import { definicionSituacion } from "./situaciones";
@@ -41,6 +45,8 @@ function fechaCorta(iso: string) {
 export type PacienteParaPDF = {
   nombre: string;
   cedula: string;
+  /** CC | TI | RC (ver generador.ts). */
+  tipoDocumento?: string;
   edad: number;
   diagnostico: string | null;
   alergias: string[];
@@ -60,21 +66,46 @@ export type PacienteParaPDF = {
   personaRecogeRelacion?: string | null;
 };
 
-/** Qué debe hacer el compañero que interpreta a este paciente (vacío = actuar normal). */
+const NOMBRE_DOCUMENTO: Record<string, string> = {
+  CC: "Cédula de ciudadanía",
+  TI: "Tarjeta de identidad",
+  RC: "Registro civil de nacimiento",
+};
+
+const documentoDe = (p: PacienteParaPDF) => `${p.tipoDocumento ?? "CC"} ${p.cedula}`;
+
+/** El estudiante que lleva este caso a la ventanilla: el paciente mismo o quien reclama por él. */
+export function quienSePresenta(p: PacienteParaPDF): { nombre: string; cedula: string } {
+  return p.tipoRecogida && p.tipoRecogida !== "EL_MISMO" && p.personaRecogeNombre
+    ? { nombre: p.personaRecogeNombre, cedula: p.personaRecogeCedula ?? "-" }
+    : { nombre: p.nombre, cedula: p.cedula };
+}
+
+/** "la madre", "el padre", "el/la acudiente". */
+const conArticulo = (relacion: string) =>
+  relacion === "madre" ? "la madre" : relacion === "padre" ? "el padre" : `el/la ${relacion}`;
+
+const esMenor = (p: PacienteParaPDF) => p.situaciones?.includes("MENOR_DE_EDAD") ?? false;
+
+/** Qué debe hacer el estudiante que lleva este caso (vacío = presentarse normal, como él mismo). */
 export function indicacionesActor(p: PacienteParaPDF): string[] {
   const lineas: string[] = [];
-  if (p.tipoRecogida === "SUPLANTACION" && p.personaRecogeNombre) {
+  if (esMenor(p)) {
     lineas.push(
-      `Tú NO eres ${p.nombre}: eres ${p.personaRecogeNombre} (CC ${p.personaRecogeCedula ?? "-"}) y te haces pasar por el paciente. Muestra tu propia cédula si te la piden.`
+      `Eres ${conArticulo(p.personaRecogeRelacion ?? "acudiente")} de ${p.nombre}, de ${p.edad} ${p.edad === 1 ? "año" : "años"}, y vienes a reclamar sus medicamentos. Presenta tu cédula y su ${(NOMBRE_DOCUMENTO[p.tipoDocumento ?? "CC"] ?? "documento").toLowerCase()}.`
     );
-  } else if (p.tipoRecogida === "TERCERO_AUTORIZADO" && p.personaRecogeNombre) {
+  } else if (p.tipoRecogida === "SUPLANTACION") {
     lineas.push(
-      `Eres ${p.personaRecogeNombre} (CC ${p.personaRecogeCedula ?? "-"}), ${p.personaRecogeRelacion ?? "familiar"} de ${p.nombre}, y vienes a reclamar por el paciente.`
+      `Llevas la fórmula de tu familiar ${p.nombre}, pero no tienes su autorización. Di que tú eres ${p.nombre}. Si te piden el documento, muestra tu cédula: es la única que tienes.`
+    );
+  } else if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
+    lineas.push(
+      `Reclamas por ${p.nombre}; eres su ${p.personaRecogeRelacion ?? "familiar"}. Presenta tu cédula, la autorización firmada y la copia de su documento.`
     );
   }
   for (const c of p.situaciones ?? []) {
     const ind = definicionSituacion(c)?.indicacionActor;
-    if (ind && c !== "SUPLANTACION" && c !== "TERCERO_AUTORIZADO") lineas.push(ind);
+    if (ind) lineas.push(ind);
   }
   return lineas;
 }
@@ -132,7 +163,7 @@ export async function generarRecetasPDF(params: { nombreSimulacion: string; paci
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(...GRIS);
-    doc.text(`CC ${p.cedula}  -  ${p.edad} años${p.diagnostico ? `  -  ${p.diagnostico}` : ""}`, x0 + 4, y + 13.5);
+    doc.text(`${documentoDe(p)}  -  ${p.edad} ${p.edad === 1 ? "año" : "años"}${p.diagnostico ? `  -  ${p.diagnostico}` : ""}`, x0 + 4, y + 13.5);
     if (p.alergias.length > 0) {
       doc.setTextColor(...ROJO);
       doc.text(`Alergias: ${p.alergias.join(", ")}`, x0 + 4, y + 19);
@@ -167,12 +198,70 @@ export async function generarRecetasPDF(params: { nombreSimulacion: string; paci
       y += 24;
     }
 
+    dibujarDocumentos(p, x0, ancho, Math.max(y + 4, 140));
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...GRIS);
     doc.text("Documento de práctica — FUNCA Prácticas. No es una fórmula médica real.", x0 + ancho / 2, altoPagina - 6, {
       align: "center",
     });
+  }
+
+  /** Una tarjeta de documento: título, nombre y líneas de datos. */
+  function tarjetaDocumento(x: number, y: number, w: number, h: number, titulo: string, lineas: string[]) {
+    doc.setDrawColor(...AZUL);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, w, h, 2, 2, "S");
+    doc.setFillColor(...AZUL);
+    doc.rect(x, y, w, 6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(titulo, x + 2.5, y + 4.2);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40, 40, 40);
+    let yy = y + 11;
+    for (const l of lineas) {
+      const partes = doc.splitTextToSize(l, w - 5) as string[];
+      doc.setFontSize(7.5);
+      doc.text(partes, x + 2.5, yy);
+      yy += partes.length * 3.4 + 0.8;
+    }
+  }
+
+  /** Lo que presenta en la ventanilla quien lleva la fórmula, para recortar aparte. */
+  function dibujarDocumentos(p: PacienteParaPDF, x0: number, ancho: number, y: number) {
+    doc.setDrawColor(...GRIS_CLARO);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.line(x0, y, x0 + ancho, y);
+    doc.setLineDashPattern([], 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...GRIS);
+    doc.text("Documentos que presenta quien lleva la fórmula (recortar por la línea)", x0, y + 4);
+
+    const persona = quienSePresenta(p);
+    const alto = 38;
+    const w = (ancho - 4) / 2;
+    const yTarjeta = y + 7;
+    tarjetaDocumento(x0, yTarjeta, w, alto, "Cédula de ciudadanía (práctica)", [persona.nombre, `CC ${persona.cedula}`]);
+
+    if (esMenor(p)) {
+      const relacion = (p.personaRecogeRelacion ?? "acudiente").replace(/^./, (c) => c.toUpperCase());
+      tarjetaDocumento(x0 + w + 4, yTarjeta, w, alto, `${NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "Documento"} (práctica)`, [
+        p.nombre,
+        documentoDe(p),
+        `${p.edad} ${p.edad === 1 ? "año" : "años"}`,
+        `${relacion}: ${persona.nombre}`,
+      ]);
+    } else if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
+      tarjetaDocumento(x0 + w + 4, yTarjeta, w, alto, "Autorización", [
+        `Yo, ${p.nombre}, ${documentoDe(p)}, autorizo a ${persona.nombre}, CC ${persona.cedula}, mi ${p.personaRecogeRelacion ?? "familiar"}, a reclamar mis medicamentos.`,
+        "Firma: ________________",
+        `Adjunta copia de mi documento: ${documentoDe(p)}`,
+      ]);
+    }
   }
 
   const xIzquierda = margenExterior;
@@ -201,7 +290,7 @@ export async function generarRecetasPDF(params: { nombreSimulacion: string; paci
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(...GRIS);
-    doc.text("Recorta y entrega cada indicación en privado. No va con la fórmula: quien atiende no debe verla.", margenExterior, y + 6);
+    doc.text("Recorta y entrega cada indicación en privado al estudiante que se nombra. Quien atiende no debe verla.", margenExterior, y + 6);
     y += 14;
     const anchoCaja = anchoPagina - margenExterior * 2;
     for (const { p, lineas } of conIndicaciones) {
@@ -216,7 +305,7 @@ export async function generarRecetasPDF(params: { nombreSimulacion: string; paci
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
       doc.setTextColor(...AZUL);
-      doc.text(`${p.nombre}  (CC ${p.cedula})`, margenExterior + 4, y + 6);
+      doc.text(`Para ${quienSePresenta(p).nombre}`, margenExterior + 4, y + 6);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(40, 40, 40);

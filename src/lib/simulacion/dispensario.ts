@@ -14,9 +14,13 @@
  * como en la ventanilla real. Ver `calcularCuotaModeradora` (cuotaModeradora.ts) para el
  * cálculo puro y `RenglonCardSimulacion` (panel/dispensacion/page.tsx) para la vista previa
  * en vivo mientras el estudiante decide.
+ *
+ * Identidad: igual que con la cuota, el sistema NO dice quién está en la ventanilla. Muestra
+ * el paciente de la fórmula (con su tipo de documento) y el estudiante compara con los
+ * documentos que le presentan; registra quién reclama (`registrarRecogida`) antes de entregar.
  */
 import { prisma } from "@/lib/nucleo/prisma";
-import type { CategoriaAfiliado, TipoRecogida } from "@prisma/client";
+import type { CategoriaAfiliado, DecisionRecogida } from "@prisma/client";
 import { calcularCuotaModeradora } from "./cuotaModeradora";
 
 export type RenglonSimulacion = {
@@ -39,6 +43,7 @@ export type ResultadoBusquedaSimulacion = {
   paciente: {
     nombre: string;
     cedula: string;
+    tipoDocumento: string;
     edad: number;
     alergias: string[];
     antecedentes: string | null;
@@ -58,13 +63,9 @@ export type ResultadoBusquedaSimulacion = {
     /** si acertó: siempre null durante la jornada (evaluada); se ve en el reporte final */
     correcto: boolean | null;
   };
-  // Quién está realmente en la ventanilla (fase 5): null si es el paciente mismo.
-  personaEnVentanilla: {
-    tipo: Exclude<TipoRecogida, "EL_MISMO">;
-    nombre: string;
-    cedula: string;
-    relacion: string | null;
-  } | null;
+  // Lo que el estudiante ya registró sobre quién reclama (null = todavía no). No dice si
+  // acertó: eso se ve en el reporte final.
+  recogida: { decision: DecisionRecogida; documentoQuienReclama: string | null } | null;
   // Cuántos renglones tiene la receta — informativo (para un "1 de 3 gestionados"), sin
   // revelar cuáles son: eso el estudiante lo tiene que buscar uno por uno, igual que pide
   // el documento en vez de que el sistema le diga quién es el paciente.
@@ -82,7 +83,7 @@ function normalizar(texto: string): string {
 async function pacienteDeLaSimulacion(simulacionId: string, cedula: string) {
   return prisma.paciente.findFirst({
     where: { cedula: cedula.trim(), simulacionId },
-    include: { recetas: { include: { medicamento: true } } },
+    include: { recetas: { include: { medicamento: true } }, recogida: true },
   });
 }
 
@@ -93,7 +94,7 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
     encontrado: false,
     paciente: null,
     cuota: { cobrada: false, montoAplicado: null, altoCostoMarcado: null, correcto: null },
-    personaEnVentanilla: null,
+    recogida: null,
     totalRenglones: 0,
   };
   if (!paciente) return vacio;
@@ -108,6 +109,7 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
     paciente: {
       nombre: paciente.nombre,
       cedula: paciente.cedula,
+      tipoDocumento: paciente.tipoDocumento,
       edad: paciente.edad,
       alergias: paciente.alergias,
       antecedentes: paciente.antecedentes,
@@ -121,15 +123,9 @@ export async function buscarPacienteSimulacion(simulacionId: string, cedula: str
       altoCostoMarcado: entregaConCuota?.altoCostoMarcado ?? null,
       correcto: null,
     },
-    personaEnVentanilla:
-      paciente.tipoRecogida === "EL_MISMO"
-        ? null
-        : {
-            tipo: paciente.tipoRecogida,
-            nombre: paciente.personaRecogeNombre ?? "Sin nombre registrado",
-            cedula: paciente.personaRecogeCedula ?? "—",
-            relacion: paciente.personaRecogeRelacion,
-          },
+    recogida: paciente.recogida
+      ? { decision: paciente.recogida.decision, documentoQuienReclama: paciente.recogida.documentoQuienReclama }
+      : null,
     totalRenglones: paciente.recetas.length,
   };
 }
@@ -235,6 +231,10 @@ async function registrarEntrega(opts: {
 }) {
   const paciente = await pacienteDeLaSimulacion(opts.simulacionId, opts.cedula);
   if (!paciente) throw new Error("Paciente no encontrado en esta simulación");
+  if (!paciente.recogida) throw new Error("Primero registra quién reclama");
+  if (paciente.recogida.decision === "NO_ENTREGA" && opts.resultado === "ENTREGADO") {
+    throw new Error("Registraste que no se entrega: cambia esa decisión si de verdad corresponde entregar");
+  }
 
   // La cuota se cobra con la primera ENTREGA: si solo se rechaza, no se entregó ningún
   // servicio y no hay nada que cobrar.
@@ -284,4 +284,34 @@ export async function rechazarRenglonSimulacion(opts: {
   altoCostoMarcado: boolean;
 }) {
   await registrarEntrega({ ...opts, cantidad: 0, resultado: "RECHAZADO" });
+}
+
+/**
+ * Registra (o corrige) quién reclama los medicamentos de este paciente: él mismo, un tercero
+ * con autorización (o el padre, madre o acudiente de un menor) con el número de su
+ * documento, o que no se entrega porque los documentos no corresponden.
+ */
+export async function registrarRecogida(opts: {
+  simulacionId: string;
+  usuarioId: string;
+  cedula: string;
+  decision: DecisionRecogida;
+  documentoQuienReclama: string | null;
+}) {
+  const paciente = await pacienteDeLaSimulacion(opts.simulacionId, opts.cedula);
+  if (!paciente) throw new Error("Paciente no encontrado en esta simulación");
+  const documento = opts.decision === "TERCERO" ? opts.documentoQuienReclama?.trim() || null : null;
+  if (opts.decision === "TERCERO" && !documento) throw new Error("Escribe el número de documento de quien reclama");
+  if (opts.decision === "NO_ENTREGA") {
+    // Si ya había entregado algo y luego decide no entregar, lo entregado deja de contar.
+    await prisma.entregaSimulacion.deleteMany({
+      where: { simulacionId: opts.simulacionId, pacienteId: paciente.id, resultado: "ENTREGADO" },
+    });
+  }
+  const datos = { usuarioId: opts.usuarioId, decision: opts.decision, documentoQuienReclama: documento };
+  await prisma.recogidaSimulacion.upsert({
+    where: { pacienteId: paciente.id },
+    update: datos,
+    create: { ...datos, simulacionId: opts.simulacionId, pacienteId: paciente.id },
+  });
 }

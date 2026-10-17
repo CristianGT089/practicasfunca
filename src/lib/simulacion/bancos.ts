@@ -4,9 +4,9 @@
  * variados sin tener que escribirlos a mano cada vez. Ver docs/simulacion.md.
  */
 
-// Separados por género para poder sortear primero el género del paciente y luego un nombre
-// que le corresponda (o, si el admin da un nombre puntual sin género, se usa tal cual sin
-// tocar estos bancos). Ver `generarPacientes` en generador.ts.
+// Separados por género: el nombre de pila del familiar de un caso (el menor, o por quien se
+// reclama) se saca del banco que corresponde a su género. Los demás nombres son los de los
+// estudiantes. Ver `generarPacientes` en generador.ts.
 export const NOMBRES_FEMENINOS = [
   "María", "Luisa", "Camila", "Valentina", "Daniela", "Mariana", "Laura", "Paula",
   "Natalia", "Carolina", "Isabella", "Sofía", "Gabriela", "Ana", "Catalina",
@@ -92,13 +92,6 @@ export const ANTECEDENTES: DiagnosticoConEdad[] = [
   { texto: "Tabaquismo", minEdad: 15 },
 ];
 
-/** Cuando no se pide un género puntual, se sortea con esta distribución. */
-export const PESOS_GENERO: { categoria: "FEMENINO" | "MASCULINO" | "OTRO"; peso: number }[] = [
-  { categoria: "FEMENINO", peso: 49 },
-  { categoria: "MASCULINO", peso: 49 },
-  { categoria: "OTRO", peso: 2 },
-];
-
 /** Distribución aproximada de la afiliación en Colombia (subsidiado es el grupo más grande). */
 export const PESOS_CATEGORIA_AFILIADO: { categoria: "SUBSIDIADO" | "CONTRIBUTIVO_A" | "CONTRIBUTIVO_B" | "CONTRIBUTIVO_C"; peso: number }[] = [
   { categoria: "SUBSIDIADO", peso: 55 },
@@ -110,9 +103,4 @@ export const PESOS_CATEGORIA_AFILIADO: { categoria: "SUBSIDIADO" | "CONTRIBUTIVO
 export const MEDICOS = [
   "Dr. Óscar Rivera", "Dra. Claudia Ariza", "Dra. Marcela Ospina", "Dr. Julián González",
   "Dr. Fabián Nieto", "Dra. Liliana Parra", "Dra. Patricia León", "Dr. Andrés Cortés",
-];
-
-/** Relaciones típicas de quien recoge por otra persona — solo para el caso TERCERO_AUTORIZADO. */
-export const RELACIONES_TERCERO = [
-  "esposo(a)", "hijo(a)", "madre", "padre", "cuidador(a) a cargo", "hermano(a)", "nieto(a)",
 ];

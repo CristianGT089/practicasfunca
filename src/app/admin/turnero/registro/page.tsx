@@ -60,7 +60,7 @@ function Kiosco({
     // el caso de negocio "falta la cédula" — validamos acá antes para mostrar el mensaje
     // correcto sin ni siquiera llamar a la API.
     if (esSimulacion && !cedula.trim()) {
-      setError("Esta simulación requiere la cédula del paciente para sacar turno.");
+      setError("Esta jornada requiere el documento del paciente (el de la fórmula) para sacar turno.");
       return;
     }
     setEnviando(true);
@@ -113,11 +113,11 @@ function Kiosco({
           <input
             value={cedula}
             onChange={(e) => setCedula(e.target.value)}
-            placeholder="Cédula del paciente"
+            placeholder="Documento del paciente"
             className="w-full rounded-xl border border-blue-200 px-4 py-3 text-center text-lg"
           />
           <p className="text-xs text-slate-400 text-center mt-1">
-            Esta simulación pide la cédula para verificar la historia clínica.
+            Es el número que aparece en la fórmula (cédula, tarjeta de identidad o registro civil).
           </p>
         </div>
       )}

@@ -32,6 +32,7 @@ type Paciente = {
   id: string;
   nombre: string;
   cedula: string;
+  tipoDocumento: string;
   edad: number;
   genero: "MASCULINO" | "FEMENINO" | "OTRO" | null;
   alergias: string[];
@@ -657,9 +658,17 @@ function FilaPaciente({
     <div className="tarjeta-sm p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
+          {paciente.tipoRecogida !== "EL_MISMO" && paciente.personaRecogeNombre && (
+            <p className="text-xs text-slate-500 mb-0.5">
+              Lo lleva <span className="font-medium text-slate-700">{paciente.personaRecogeNombre}</span>
+              <span className="font-mono text-slate-400"> · CC {paciente.personaRecogeCedula}</span>
+            </p>
+          )}
           <p className="text-sm font-medium text-slate-800">
             {paciente.nombre}{" "}
-            <span className="text-xs text-slate-400 font-mono">CC {paciente.cedula}</span>
+            <span className="text-xs text-slate-400 font-mono">
+              {paciente.tipoDocumento} {paciente.cedula}
+            </span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
             {paciente.edad} años
@@ -677,9 +686,11 @@ function FilaPaciente({
                   paciente.tipoRecogida === "SUPLANTACION" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"
                 }`}
               >
-                {paciente.tipoRecogida === "SUPLANTACION" ? "Suplantación" : "Tercero autorizado"} —{" "}
-                {paciente.personaRecogeNombre}
-                {paciente.personaRecogeRelacion ? ` (${paciente.personaRecogeRelacion})` : ""}
+                {paciente.tipoRecogida === "SUPLANTACION"
+                  ? "Suplantación: dice ser el paciente"
+                  : `${paciente.situaciones.includes("MENOR_DE_EDAD") ? "Menor de edad" : "Tercero autorizado"}: reclama su ${
+                      paciente.personaRecogeRelacion ?? "familiar"
+                    }`}
               </span>
             )}
           </p>

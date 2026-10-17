@@ -34,18 +34,10 @@ export async function GET() {
   return NextResponse.json({ simulaciones, tiposPermitidos: await tiposJornadaPermitidos(gestor) });
 }
 
-const pacienteSchema = z.object({
-  nombre: z.string().trim().min(1).max(80),
-  genero: z.enum(["MASCULINO", "FEMENINO", "OTRO"]).nullable().default(null),
-});
-
 const crearSchema = z
   .object({
     nombre: z.string().trim().min(1).max(80),
     tipo: z.enum(["FARMACIA", "DISPENSARIO", "ODONTOLOGIA", "ENFERMERIA"]),
-    // Uno de los dos: nombres puntuales de los pacientes, o solo una cantidad al azar.
-    pacientes: z.array(pacienteSchema).max(60).optional(),
-    cantidadPacientes: z.number().int().min(1).max(60).optional(),
     numeroEspacios: z.number().int().min(1).max(20).default(3),
     grupoId: z.string().min(1).nullable().default(null),
     situaciones: z.array(z.string()).max(20).default([]),
@@ -66,9 +58,6 @@ const crearSchema = z
       })
       .nullable()
       .default(null),
-  })
-  .refine((d) => d.tipo === "ODONTOLOGIA" || d.tipo === "ENFERMERIA" || (d.pacientes && d.pacientes.length > 0) || (d.cantidadPacientes ?? 0) > 0, {
-    message: "Agrega nombres o una cantidad de pacientes",
   });
 
 export async function POST(req: NextRequest) {

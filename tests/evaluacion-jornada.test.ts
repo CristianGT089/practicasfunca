@@ -11,6 +11,8 @@ function paciente(extra: Partial<PacienteEvaluado> = {}): PacienteEvaluado {
     esAltoCosto: false,
     categoriaAfiliado: "CONTRIBUTIVO_A",
     tipoRecogida: "EL_MISMO",
+    personaRecogeCedula: null,
+    recogida: { decision: "PACIENTE", documentoQuienReclama: null },
     alergias: [],
     recetas: [
       { id: "r1", cantidadAutorizada: 20, cantidadRedimida: 0, fechaVigencia: futuro, medicamento: { id: "m1", nombre: "Losartán", principioActivo: "losartan" } },
@@ -58,7 +60,7 @@ test("alergia: entregar un AINE a un alérgico es error", () => {
 
 test("suplantación: todo se debe rechazar y no se evalúa la cuota", () => {
   const r = evaluarAtencionDispensario(
-    paciente({ tipoRecogida: "SUPLANTACION" }),
+    paciente({ tipoRecogida: "SUPLANTACION", recogida: { decision: "NO_ENTREGA", documentoQuienReclama: null } }),
     [entrega({ resultado: "RECHAZADO", cantidad: 0, altoCostoMarcado: null, cuotaModeradora: 0 })],
     hoy
   );
@@ -72,9 +74,9 @@ test("alto costo: cobrar cuota a un paciente exento es error", () => {
 });
 
 test("no registrar un medicamento cuenta como omisión", () => {
-  const r = evaluarAtencionDispensario(paciente(), [], hoy);
+  const r = evaluarAtencionDispensario(paciente({ recogida: null }), [], hoy);
   assert.equal(r.puntaje, 0);
-  assert.equal(r.criterios[0].clave, "NO_REGISTRADO");
+  assert.ok(r.criterios.some((c) => c.clave === "NO_REGISTRADO"));
 });
 
 test("entregar algo no autorizado es error", () => {
@@ -102,3 +104,53 @@ test("farmacia: no vender una fórmula vigente es error", () => {
   const r = evaluarAtencionDispensario(paciente(), [], hoy, "FARMACIA");
   assert.ok(r.criterios.some((c) => c.clave === "RECHAZO_INDEBIDO"));
 });
+
+test("quién reclama: no registrarlo es error", () => {
+  const r = evaluarAtencionDispensario(paciente({ recogida: null }), [entrega({})], hoy);
+  const c = r.criterios.find((x) => x.clave.startsWith("IDENTIDAD"));
+  assert.equal(c?.cumplido, false);
+  assert.ok(r.puntaje < 100);
+});
+
+test("suplantación: registrar que no se entrega rechaza toda la fórmula", () => {
+  const r = evaluarAtencionDispensario(
+    paciente({ tipoRecogida: "SUPLANTACION", personaRecogeCedula: "1012345678", recogida: { decision: "NO_ENTREGA", documentoQuienReclama: null } }),
+    [],
+    hoy
+  );
+  assert.equal(r.puntaje, 100);
+  assert.ok(r.criterios.some((c) => c.clave === "RECHAZO_CORRECTO"));
+});
+
+test("suplantación: tomarlo por el paciente es error de identidad", () => {
+  const r = evaluarAtencionDispensario(
+    paciente({ tipoRecogida: "SUPLANTACION", personaRecogeCedula: "1012345678" }),
+    [entrega({})],
+    hoy
+  );
+  assert.ok(r.criterios.some((c) => c.clave === "IDENTIDAD_INCORRECTA"));
+  assert.ok(r.criterios.some((c) => c.clave === "ENTREGO_A_SUPLANTADOR"));
+});
+
+test("tercero o acudiente: hay que registrar su cédula", () => {
+  const base = { tipoRecogida: "TERCERO_AUTORIZADO" as const, personaRecogeCedula: "1012345678" };
+  const bien = evaluarAtencionDispensario(
+    paciente({ ...base, recogida: { decision: "TERCERO", documentoQuienReclama: "1.012.345.678" } }),
+    [entrega({})],
+    hoy
+  );
+  assert.equal(bien.puntaje, 100);
+  const otraCedula = evaluarAtencionDispensario(
+    paciente({ ...base, recogida: { decision: "TERCERO", documentoQuienReclama: "1099999999" } }),
+    [entrega({})],
+    hoy
+  );
+  assert.ok(otraCedula.criterios.some((c) => c.clave === "IDENTIDAD_INCORRECTA"));
+});
+
+test("no entregar a quien sí podía recibir es rechazo indebido", () => {
+  const r = evaluarAtencionDispensario(paciente({ recogida: { decision: "NO_ENTREGA", documentoQuienReclama: null } }), [], hoy);
+  assert.ok(r.criterios.some((c) => c.clave === "RECHAZO_INDEBIDO"));
+  assert.ok(r.criterios.some((c) => c.clave === "IDENTIDAD_INCORRECTA"));
+});
+

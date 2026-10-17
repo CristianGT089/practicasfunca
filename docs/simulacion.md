@@ -231,3 +231,37 @@ reporte muestra las situaciones de cada caso, pero sin verificación automática
 **Corrección:** antes, cerrar una simulación con puestos que ya habían dispensado fallaba
 (las entregas referencian a las cuentas de los puestos y se borraban después). Ahora se
 borran primero las entregas.
+
+## Casos con el nombre de los estudiantes y "¿quién reclama?" (2026-10-16)
+
+Pedido del usuario: simplificar la creación y que los casos usen los nombres del grupo, sin
+inventar pacientes; además, la suplantación se le "regalaba" al estudiante y había niños con
+cédula.
+
+1. **Un caso por estudiante del grupo.** Las jornadas de Dispensario y Farmacia ya no piden
+   cantidad ni lista de nombres: el grupo es obligatorio y se arma un caso por cada
+   estudiante (`Paciente.estudianteId`). Cuando no está en una ventanilla, cada uno lleva su
+   fórmula. Sin situaciones elegidas, `planAlAzar` sortea por caso.
+2. **Quién se presenta es siempre el estudiante.** Normal: él es el paciente (adulto, CC).
+   Menor de edad (situación nueva `MENOR_DE_EDAD`): el paciente es su hijo(a), con registro
+   civil (0-6) o tarjeta de identidad (7-17) (`Paciente.tipoDocumento`), y el estudiante va
+   como padre, madre o acudiente. Tercero autorizado: reclama por un familiar mayor o por
+   quien cuida, con autorización escrita. Suplantación: lleva la fórmula de un familiar y
+   dice ser él, sin autorización. El familiar es la única persona inventada: nombre de pila
+   del banco y el apellido del estudiante (`apellidoDeFamilia`), para que el parentesco se
+   vea en los documentos.
+3. **Documentos impresos.** Bajo cada fórmula, para recortar: la cédula de práctica del
+   estudiante y, según el caso, el RC/TI del menor (con el nombre del padre o la madre) o
+   la autorización firmada. Las indicaciones privadas van "Para <estudiante>".
+4. **La ventanilla no revela nada.** Se busca con el documento de la fórmula; buscar con la
+   cédula de quien se presenta no encuentra a nadie. Se quitaron los avisos "la persona NO
+   es el paciente". Antes de entregar, el estudiante registra **¿Quién reclama?**
+   (`RecogidaSimulacion`): el paciente / otra persona autorizada (con su cédula) / no se
+   entrega. Sin ese registro no se puede entregar; "no se entrega" equivale a rechazar
+   toda la fórmula.
+5. **Calificación.** Criterio nuevo "Quién reclama" (`IDENTIDAD_*` en `evaluacion.ts`): el
+   paciente → PACIENTE; tercero o acudiente → TERCERO con la cédula correcta; suplantación
+   → NO_ENTREGA.
+6. Las situaciones de identidad (suplantación, tercero, menor, "no quiere mostrar la
+   cédula") quedan solo para el Dispensario: el mostrador de Farmacia no pide documento.
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PROPORCION_NORMALES_DEFAULT, situacionesDeTipo, definicionSituacion } from "@/lib/simulacion/situaciones";
 import {
@@ -19,7 +19,6 @@ import Odontograma from "@/components/modulos/odontologia/Odontograma";
 import { GrillaSi } from "@/components/modulos/odontologia/SeccionesHistoria";
 
 export type Tipo = "FARMACIA" | "DISPENSARIO" | "ODONTOLOGIA" | "ENFERMERIA";
-type Genero = "MASCULINO" | "FEMENINO" | "OTRO";
 type CasoOdonto = { id: string; titulo: string; activo: boolean; odontologia: { paciente: { nombres: string; primerApellido: string } } | null };
 type GrupoOpcion = { id: string; nombre: string; estudiantes: unknown[] };
 
@@ -37,14 +36,14 @@ const MODALIDADES: { id: Modalidad; tipo: Tipo; titulo: string; texto: string; i
     id: "TURNOS_DISPENSARIO",
     tipo: "DISPENSARIO",
     titulo: "Dispensario con turnos",
-    texto: "Turnero y ventanillas. Compañeros llegan con fórmulas generadas; se verifica y entrega.",
+    texto: "Turnero y ventanillas. Cada estudiante lleva una fórmula a su nombre, o de un familiar por quien reclama; se verifica y entrega.",
     ideal: "Practicar el proceso completo de dispensación.",
   },
   {
     id: "TURNOS_FARMACIA",
     tipo: "FARMACIA",
     titulo: "Farmacia (mostrador) con turnos",
-    texto: "Turnero y ventanillas. Se califica lo que se vende a cada paciente.",
+    texto: "Turnero y ventanillas. Cada estudiante llega con su fórmula; se califica lo que se le vende.",
     ideal: "Practicar venta y atención en mostrador.",
   },
   {
@@ -109,10 +108,6 @@ export default function AsistenteJornada({
   // Turnos
   const [situaciones, setSituaciones] = useState<string[]>([]);
   const [porcentajeNormales, setPorcentajeNormales] = useState(Math.round(PROPORCION_NORMALES_DEFAULT * 100));
-  const [modo, setModo] = useState<"nombres" | "cantidad">("cantidad");
-  const [nombresTexto, setNombresTexto] = useState("");
-  const [generos, setGeneros] = useState<Record<string, Genero | "">>({});
-  const [cantidad, setCantidad] = useState(10);
 
   // Odontología
   const [casosOdonto, setCasosOdonto] = useState<CasoOdonto[]>([]);
@@ -151,16 +146,11 @@ export default function AsistenteJornada({
   }, [esOdonto, casosOdonto.length]);
 
   const catalogo = situacionesDeTipo(tipo);
-  const nombresPacientes = useMemo(
-    () =>
-      nombresTexto
-        .split("\n")
-        .map((n) => n.trim())
-        .filter(Boolean),
-    [nombresTexto]
-  );
-  const cantidadTurnos = modo === "nombres" ? nombresPacientes.length : cantidad;
   const grupo = grupos.find((g) => g.id === grupoId);
+  // Un caso por estudiante del grupo, con su nombre (ver generador.ts).
+  const cantidadTurnos = grupo?.estudiantes.length ?? 0;
+  // Modalidades con un caso por estudiante del grupo y situaciones a elegir.
+  const porEstudiante = modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA";
 
   function elegirModalidad(m: Modalidad) {
     // Si el nombre era el sugerido para otra modalidad (o está vacío), se actualiza.
@@ -180,7 +170,10 @@ export default function AsistenteJornada({
   const faltante = (() => {
     if (!nombre.trim()) return "Ponle un nombre a la jornada";
     if (grupos.length > 0 && !grupoId) return "Elige el grupo";
-    if (modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA") return cantidadTurnos > 0 ? null : "Indica cuántos pacientes";
+    if (porEstudiante) {
+      if (!grupo) return "Elige el grupo: cada caso se arma con uno de sus estudiantes";
+      return cantidadTurnos > 0 ? null : "El grupo no tiene estudiantes";
+    }
     if (modalidad === "CASOS") return casosElegidos.length > 0 ? null : "Elige al menos un caso";
     if (modalidad === "RONDA") return casosRonda.length > 0 ? null : "Elige al menos un caso";
     if (modalidad === "DICTADO") {
@@ -194,10 +187,6 @@ export default function AsistenteJornada({
     if (!def) return;
     setEnviando(true);
     setError(null);
-    const turnos =
-      modo === "nombres"
-        ? { pacientes: nombresPacientes.map((n) => ({ nombre: n, genero: generos[n] || null })) }
-        : { cantidadPacientes: cantidad };
     const res = await fetch("/api/simulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -221,7 +210,6 @@ export default function AsistenteJornada({
                 escenarioId: fuente === "EXISTENTE" ? casoExistente : undefined,
               }
             : null,
-        ...(conCasos ? {} : turnos),
       }),
     });
     const data = await res.json();
@@ -321,7 +309,7 @@ export default function AsistenteJornada({
             </div>
           </div>
 
-          {(modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA") && (
+          {porEstudiante && (
             <>
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-1">¿Qué quieres practicar hoy?</p>
@@ -369,72 +357,17 @@ export default function AsistenteJornada({
                 )}
               </div>
 
-              <div>
-                <div className="flex gap-2 mb-3">
-                  {(["cantidad", "nombres"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setModo(m)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium border ${
-                        modo === m ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-500"
-                      }`}
-                    >
-                      {m === "cantidad" ? "Cantidad al azar" : "Nombres de los pacientes"}
-                    </button>
-                  ))}
-                </div>
-                {modo === "cantidad" ? (
+              <p className="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-sm text-blue-900">
+                {grupo ? (
                   <>
-                    <label htmlFor="cantidad" className="block text-xs font-medium text-slate-500 mb-1">
-                      Cantidad de pacientes
-                    </label>
-                    <input
-                      id="cantidad"
-                      type="number"
-                      min={1}
-                      max={60}
-                      value={cantidad}
-                      onChange={(e) => setCantidad(Number(e.target.value))}
-                      className="w-full max-w-[10rem] rounded-xl border border-blue-200 px-3 py-2 text-sm"
-                    />
+                    Se arma <b>un caso por cada estudiante</b> del grupo ({cantidadTurnos}), con su nombre. Cuando no está en una
+                    ventanilla, cada uno lleva su fórmula y sus documentos: los suyos, o los de un familiar si el caso es de un menor
+                    de edad o de alguien que reclama por otro.
                   </>
                 ) : (
-                  <>
-                    <label htmlFor="nombres" className="block text-xs text-slate-500 mb-1">
-                      Un nombre por línea — la historia clínica se arma alrededor de cada uno
-                    </label>
-                    <textarea
-                      id="nombres"
-                      value={nombresTexto}
-                      onChange={(e) => setNombresTexto(e.target.value)}
-                      rows={4}
-                      placeholder={"María Gómez\nJuan Pérez\nLaura Torres"}
-                      className="w-full rounded-xl border border-blue-200 px-2 py-1.5 text-sm font-mono"
-                    />
-                    {nombresPacientes.length > 0 && (
-                      <div className="mt-2 flex flex-col gap-1.5">
-                        {nombresPacientes.map((n) => (
-                          <div key={n} className="flex items-center gap-2">
-                            <span className="flex-1 text-sm text-slate-700 truncate">{n}</span>
-                            <select
-                              value={generos[n] ?? ""}
-                              onChange={(e) => setGeneros((g) => ({ ...g, [n]: e.target.value as Genero | "" }))}
-                              aria-label={`Género de ${n}`}
-                              className="rounded-xl border border-blue-200 px-2 py-1 text-xs text-slate-600"
-                            >
-                              <option value="">Género (opcional)</option>
-                              <option value="FEMENINO">Femenino</option>
-                              <option value="MASCULINO">Masculino</option>
-                              <option value="OTRO">Otro</option>
-                            </select>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  "Elige el grupo: se arma un caso por cada uno de sus estudiantes, con su nombre."
                 )}
-              </div>
+              </p>
             </>
           )}
 
@@ -588,10 +521,10 @@ export default function AsistenteJornada({
             <dd className="text-slate-800">{def.titulo}</dd>
             <dt className="text-slate-500">Grupo</dt>
             <dd className="text-slate-800">{grupo ? `${grupo.nombre} (${grupo.estudiantes.length} estudiantes)` : "Sin grupo"}</dd>
-            {(modalidad === "TURNOS_DISPENSARIO" || modalidad === "TURNOS_FARMACIA") && (
+            {porEstudiante && (
               <>
-                <dt className="text-slate-500">Pacientes</dt>
-                <dd className="text-slate-800">{cantidadTurnos}</dd>
+                <dt className="text-slate-500">Casos</dt>
+                <dd className="text-slate-800">{cantidadTurnos}, uno por estudiante</dd>
                 <dt className="text-slate-500">Situaciones</dt>
                 <dd className="text-slate-800">
                   {situaciones.length ? situaciones.map((c) => definicionSituacion(c)?.nombre ?? c).join(", ") : "Al azar"}

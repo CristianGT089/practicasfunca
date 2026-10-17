@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { SnapshotPractica, ResultadoBusqueda, EstadoRenglon } from "@/lib/modulos/dispensacion/practica";
 import type { ResultadoBusquedaSimulacion, RenglonSimulacion } from "@/lib/simulacion/dispensario";
 import { calcularCuotaModeradora } from "@/lib/simulacion/cuotaModeradora";
-import type { CategoriaAfiliado } from "@prisma/client";
+import type { CategoriaAfiliado, DecisionRecogida } from "@prisma/client";
 import PanelMiEspacio, { type EstadoMiEspacio } from "@/components/turnero/PanelMiEspacio";
 import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
 
@@ -376,6 +376,16 @@ function DispensarioSimulacion({
     setBuscando(false);
   }
 
+  /** Vuelve a leer al paciente sin perder los medicamentos ya encontrados (tras registrar quién reclama). */
+  async function refrescarPaciente() {
+    const res = await fetch("/api/modulos/dispensacion/simulacion/buscar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ simulacionId, cedula: documento.trim() }),
+    });
+    setResultado(await res.json());
+  }
+
   async function buscarMedicamento() {
     if (!medicamentoTexto.trim() || buscandoMed) return;
     setBuscandoMed(true);
@@ -423,18 +433,21 @@ function DispensarioSimulacion({
     );
   }
 
-  // Buscador: el estudiante pide el documento a la persona en la ventanilla y lo escribe
-  // acá — el sistema no revela quién es solo porque el turno ya está asignado.
+  // Buscador: el estudiante busca al paciente con el documento que trae la fórmula — el
+  // sistema no revela quién es solo porque el turno ya está asignado. Quién reclama (el
+  // paciente u otra persona) lo verifica después, comparando documentos.
   const buscador = (
     <div className="tarjeta-sm p-4 mb-5">
       <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar en el sistema</p>
-      <p className="text-xs text-slate-400 mb-3">Pídele el documento de identidad a la persona y búscalo.</p>
+      <p className="text-xs text-slate-400 mb-3">
+        Pide la fórmula y los documentos. Busca al paciente con el número de documento que aparece en la fórmula.
+      </p>
       <div className="flex gap-2">
         <input
           value={documento}
           onChange={(e) => setDocumento(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && buscar()}
-          placeholder="Número de documento"
+          placeholder="Documento del paciente"
           className="flex-1 rounded-xl border border-blue-200 px-3 py-2 text-sm"
         />
         <button
@@ -474,7 +487,7 @@ function DispensarioSimulacion({
           <div>
             <p className="font-heading font-semibold text-blue-900">{p.nombre}</p>
             <p className="text-xs text-slate-500">
-              CC {p.cedula} · {p.edad} años
+              {p.tipoDocumento} {p.cedula} · {p.edad} {p.edad === 1 ? "año" : "años"}
               {p.diagnostico && (
                 <>
                   {" · "}
@@ -493,6 +506,25 @@ function DispensarioSimulacion({
         {p.antecedentes && <p className="mt-1 text-xs text-slate-500">{p.antecedentes}</p>}
       </div>
 
+      <QuienReclama
+        key={p.cedula}
+        simulacionId={simulacionId}
+        cedula={documento}
+        recogida={resultado.recogida}
+        onRegistrada={refrescarPaciente}
+      />
+
+      {!resultado.recogida && (
+        <p className="mb-4 text-center text-sm text-slate-500">Registra quién reclama para seguir con la entrega.</p>
+      )}
+      {resultado.recogida?.decision === "NO_ENTREGA" && (
+        <p className="mb-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700">
+          No se entrega nada. Explícale a la persona por qué y qué necesita traer, y pasa el turno desde el panel de arriba.
+        </p>
+      )}
+
+      {resultado.recogida && resultado.recogida.decision !== "NO_ENTREGA" && (
+        <>
       <CuotaModeradoraCard
         categoriaAfiliado={p.categoriaAfiliado}
         cuota={resultado.cuota}
@@ -500,35 +532,6 @@ function DispensarioSimulacion({
         onCambiarMarca={setAltoCostoMarcado}
         esAltoCostoReal={p.esAltoCosto}
       />
-
-      {resultado.personaEnVentanilla && (
-        <div
-          className={`rounded-xl border p-4 shadow-sm mb-4 ${
-            resultado.personaEnVentanilla.tipo === "SUPLANTACION"
-              ? "bg-red-50 border-red-200"
-              : "bg-amber-50 border-amber-200"
-          }`}
-        >
-          <p
-            className={`text-xs font-semibold mb-1 ${
-              resultado.personaEnVentanilla.tipo === "SUPLANTACION" ? "text-red-700" : "text-amber-800"
-            }`}
-          >
-            {resultado.personaEnVentanilla.tipo === "SUPLANTACION"
-              ? "La persona en la ventanilla NO es el paciente"
-              : "La persona en la ventanilla no es el paciente — dice ser un tercero autorizado"}
-          </p>
-          <p className="text-sm text-slate-700">
-            {resultado.personaEnVentanilla.nombre} · CC {resultado.personaEnVentanilla.cedula}
-            {resultado.personaEnVentanilla.relacion && ` · ${resultado.personaEnVentanilla.relacion} del paciente`}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {resultado.personaEnVentanilla.tipo === "SUPLANTACION"
-              ? "El documento no coincide con el del paciente y no hay justificación. No se debe dispensar."
-              : "Verifica el parentesco/justificación antes de entregar y déjalo registrado."}
-          </p>
-        </div>
-      )}
 
       <div className="tarjeta-sm p-4 mb-4">
         <p className="text-sm font-heading font-semibold text-blue-900 mb-1">Buscar medicamento en el sistema</p>
@@ -579,7 +582,130 @@ function DispensarioSimulacion({
           Listo — pasa el turno desde el panel de arriba cuando termines.
         </p>
       )}
+        </>
+      )}
     </>
+  );
+}
+
+const OPCIONES_RECOGIDA: { valor: DecisionRecogida; titulo: string; texto: string }[] = [
+  { valor: "PACIENTE", titulo: "El paciente, en persona", texto: "Su documento coincide con el de la fórmula." },
+  {
+    valor: "TERCERO",
+    titulo: "Otra persona, autorizada",
+    texto: "Trae autorización escrita del paciente, o es el padre, la madre o el acudiente del menor.",
+  },
+  { valor: "NO_ENTREGA", titulo: "No se entrega", texto: "Los documentos no corresponden o falta la autorización." },
+];
+
+/**
+ * Quién reclama: el estudiante compara la cédula de quien está en la ventanilla (y la
+ * autorización o el documento del menor, si los trae) con la fórmula, y lo deja registrado
+ * antes de entregar. El sistema no le dice si acertó: se califica en el reporte.
+ */
+function QuienReclama({
+  simulacionId,
+  cedula,
+  recogida,
+  onRegistrada,
+}: {
+  simulacionId: string;
+  cedula: string;
+  recogida: ResultadoBusquedaSimulacion["recogida"];
+  onRegistrada: () => void;
+}) {
+  const [editando, setEditando] = useState(recogida === null);
+  const [decision, setDecision] = useState<DecisionRecogida | null>(recogida?.decision ?? null);
+  const [documentoTercero, setDocumentoTercero] = useState(recogida?.documentoQuienReclama ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar() {
+    if (!decision) return;
+    setError(null);
+    setGuardando(true);
+    const res = await fetch("/api/modulos/dispensacion/simulacion/recogida", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        simulacionId,
+        cedula,
+        decision,
+        documentoQuienReclama: decision === "TERCERO" ? documentoTercero.trim() : null,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setGuardando(false);
+    if (!res.ok) return setError(data.error ?? "No se pudo registrar");
+    setEditando(false);
+    onRegistrada();
+  }
+
+  if (recogida && !editando) {
+    const opcion = OPCIONES_RECOGIDA.find((o) => o.valor === recogida.decision);
+    return (
+      <div className="tarjeta-sm p-4 mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs text-slate-400">Quién reclama</p>
+          <p className="text-sm font-medium text-slate-800">
+            {opcion?.titulo}
+            {recogida.documentoQuienReclama && <span className="font-normal text-slate-500"> · CC {recogida.documentoQuienReclama}</span>}
+          </p>
+        </div>
+        <button onClick={() => setEditando(true)} className="text-xs text-blue-700 hover:underline">
+          Cambiar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tarjeta-sm p-4 mb-4">
+      <p className="text-sm font-heading font-semibold text-blue-900 mb-1">¿Quién reclama?</p>
+      <p className="text-xs text-slate-400 mb-3">Compara los documentos que te presentan con los datos de la fórmula.</p>
+      <div className="flex flex-col gap-2">
+        {OPCIONES_RECOGIDA.map((o) => (
+          <label
+            key={o.valor}
+            className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${
+              decision === o.valor ? "border-blue-600 bg-blue-50" : "border-slate-200"
+            }`}
+          >
+            <input type="radio" name="recogida" checked={decision === o.valor} onChange={() => setDecision(o.valor)} className="mt-1" />
+            <span>
+              <span className="font-medium text-slate-800">{o.titulo}</span>
+              <span className="block text-xs text-slate-500">{o.texto}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {decision === "TERCERO" && (
+        <label className="mt-3 block text-xs font-medium text-slate-600">
+          Cédula de quien reclama
+          <input
+            value={documentoTercero}
+            onChange={(e) => setDocumentoTercero(e.target.value)}
+            placeholder="Número de documento"
+            className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2 text-sm"
+          />
+        </label>
+      )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          onClick={guardar}
+          disabled={!decision || guardando || (decision === "TERCERO" && !documentoTercero.trim())}
+          className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900 disabled:opacity-40"
+        >
+          {guardando ? "Guardando..." : "Registrar"}
+        </button>
+        {recogida && (
+          <button onClick={() => setEditando(false)} className="text-xs text-slate-500 hover:underline">
+            Cancelar
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

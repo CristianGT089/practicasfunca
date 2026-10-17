@@ -12,19 +12,19 @@ import {
   DIAGNOSTICOS_ALTO_COSTO,
   DIAGNOSTICOS_COMUNES,
   MEDICOS,
-  NOMBRES,
   NOMBRES_FEMENINOS,
   NOMBRES_MASCULINOS,
   PESOS_CATEGORIA_AFILIADO,
-  PESOS_GENERO,
-  RELACIONES_TERCERO,
   familiaAlergenica,
   type DiagnosticoConEdad,
 } from "./bancos";
 import type { CodigoSituacion } from "./situaciones";
 
-/** Un nombre puntual que el admin le da al generador — ver `generarPacientes`. */
-export type NombreSolicitado = { nombre: string; genero?: Genero | null };
+/**
+ * El estudiante del grupo que lleva un caso a la ventanilla. Cada caso se arma alrededor
+ * de él: es el paciente, o quien reclama por un familiar (ver `generarPacientes`).
+ */
+export type Interprete = { estudianteId: string | null; nombre: string; genero: Genero | null };
 
 export type RenglonGenerado = {
   medicamentoId: string;
@@ -38,7 +38,10 @@ export type RenglonGenerado = {
 export type PacienteGenerado = {
   nombre: string;
   cedula: string;
+  /** CC | TI | RC, según la edad (ver `tipoDocumentoPorEdad`). */
+  tipoDocumento: string;
   edad: number;
+  estudianteId: string | null;
   genero: Genero | null;
   alergias: string[];
   antecedentes: string;
@@ -90,97 +93,144 @@ function elegirPesado<T extends string>(opciones: { categoria: T; peso: number }
   return opciones[opciones.length - 1].categoria;
 }
 
-async function cedulaDisponible(): Promise<string> {
+/** Número de documento de 10 dígitos que no use ningún paciente ni otro caso de esta tanda. */
+async function cedulaDisponible(usadas: Set<string>): Promise<string> {
   for (let intento = 0; intento < 20; intento++) {
     const candidata = String(entero(1_000_000_000, 1_099_999_999));
+    if (usadas.has(candidata)) continue;
     const existe = await prisma.paciente.findUnique({ where: { cedula: candidata } });
-    if (!existe) return candidata;
+    if (!existe) {
+      usadas.add(candidata);
+      return candidata;
+    }
   }
   // Extremadamente improbable, pero sin bucle infinito: cae a un sufijo con timestamp.
-  return `11${Date.now()}`.slice(0, 10);
+  const respaldo = `11${Date.now()}`.slice(0, 10);
+  usadas.add(respaldo);
+  return respaldo;
+}
+
+/** Documento de identidad colombiano según la edad: registro civil, tarjeta de identidad o cédula. */
+export function tipoDocumentoPorEdad(edad: number): "RC" | "TI" | "CC" {
+  if (edad < 7) return "RC";
+  if (edad < 18) return "TI";
+  return "CC";
 }
 
 /**
- * Genera pacientes nuevos, de dos formas:
- * - Con `nombres`: uno por cada nombre dado (y su género, si se sabe) — para armar la
- *   historia clínica alrededor de un nombre puntual que pida el admin.
- * - Con `cantidad`: nombres al azar (género sorteado primero, luego un nombre que le
- *   corresponda) — para cuando no hace falta un nombre en concreto.
- *
- * `probabilidadAltoCosto` es la fracción (0-1) que sale con un diagnóstico de alto costo —
- * más alto que en la vida real a propósito, para que los estudiantes sí se topen con el
- * caso de exención en una tanda normal de práctica.
+ * El apellido que el estudiante comparte con su familiar del caso. El nombre viene en un
+ * solo campo, así que se adivina: con 4 palabras o más ("María Fernanda Gómez Ruiz") el
+ * primer apellido es la penúltima; con menos ("Laura Torres", "Juan Pérez Gómez"), la última.
  */
-export async function generarPacientes(
-  cantidadONombres: number | NombreSolicitado[],
-  {
-    probabilidadAltoCosto = 0.15,
-    probabilidadRecetaVencida = 0.15,
-    probabilidadTercero = 0.2,
-    probabilidadSuplantacionSiTercero = 0.3,
-    plan,
-  }: {
-    /**
-     * Situaciones exactas por paciente (ver `planDeSituaciones`). Con plan, nada se sortea:
-     * cada paciente trae justo sus situaciones y ninguna otra, para que la "respuesta" del
-     * caso sea la que eligió el docente. Sin plan, se usan las probabilidades (modo libre).
-     */
-    plan?: CodigoSituacion[][];
-    probabilidadAltoCosto?: number;
-    probabilidadRecetaVencida?: number;
-    /** fracción que trae a alguien distinto del paciente a recoger (tercero o suplantador) */
-    probabilidadTercero?: number;
-    /** de esos, la fracción que es una suplantación en vez de un tercero autorizado */
-    probabilidadSuplantacionSiTercero?: number;
-  } = {}
-): Promise<PacienteGenerado[]> {
+export function apellidoDeFamilia(nombreCompleto: string): string {
+  const palabras = nombreCompleto.trim().split(/\s+/);
+  if (palabras.length < 2) return elegir(APELLIDOS);
+  return palabras.length >= 4 ? palabras[palabras.length - 2] : palabras[palabras.length - 1];
+}
+
+/** "hijo"/"hija" según el género del estudiante; sin género conocido, la forma neutra "hijo(a)". */
+function enGenero(base: { m: string; f: string; n: string }, genero: Genero | null) {
+  return genero === "FEMENINO" ? base.f : genero === "MASCULINO" ? base.m : base.n;
+}
+
+const PARENTESCOS_TERCERO = [
+  { m: "hijo", f: "hija", n: "hijo(a)", edad: [55, 90] as const },
+  { m: "nieto", f: "nieta", n: "nieto(a)", edad: [70, 95] as const },
+  { m: "cuidador", f: "cuidadora", n: "cuidador(a)", edad: [60, 95] as const },
+];
+
+/**
+ * Genera un caso por cada estudiante del grupo, siempre con su nombre: él es quien va a la
+ * ventanilla. Según las situaciones del caso:
+ * - Normal: el estudiante es el paciente (adulto, con cédula).
+ * - Menor de edad: el paciente es su hijo(a) (registro civil o tarjeta de identidad) y el
+ *   estudiante va como su padre, madre o acudiente.
+ * - Tercero autorizado: reclama por un familiar mayor (o por quien cuida), con autorización.
+ * - Suplantación: lleva la fórmula de un familiar y dice ser él, sin autorización.
+ * El familiar es la única persona que no es un estudiante: lleva un nombre del banco y el
+ * apellido del estudiante, para que el parentesco se vea en los documentos.
+ *
+ * `plan[i]` son las situaciones exactas del caso i (ver `planDeSituaciones` / `planAlAzar`):
+ * cada caso trae justo esas y ninguna otra, porque son la "respuesta" con la que se califica.
+ */
+export async function generarPacientes(interpretes: Interprete[], plan: CodigoSituacion[][]): Promise<PacienteGenerado[]> {
   const catalogo = await prisma.medicamento.findMany({
     where: { origen: "CATALOGO_REAL", stock: { gt: 0 } },
     select: { id: true, nombre: true, principioActivo: true, stock: true },
   });
-  // Con plan, los medicamentos de los casos sin alergia se toman de los que no pertenecen a
-  // ninguna familia alergénica, y el de alergia de los que sí (para que el caso funcione).
+  // Los medicamentos de los casos sin alergia se toman de los que no pertenecen a ninguna
+  // familia alergénica, y el de alergia de los que sí (para que el caso funcione).
   const conFamilia = catalogo.filter((m) => familiaAlergenica(m.principioActivo) !== null);
   const sinFamilia = catalogo.filter((m) => familiaAlergenica(m.principioActivo) === null);
   if (catalogo.length === 0) {
     throw new Error("No hay medicamentos del catálogo real con stock disponible para generar recetas.");
   }
 
-  const solicitados: (NombreSolicitado | null)[] = Array.isArray(cantidadONombres)
-    ? cantidadONombres
-    : Array.from({ length: cantidadONombres }, () => null);
-
   const pacientes: PacienteGenerado[] = [];
+  const usadas = new Set<string>();
 
-  for (const [indice, solicitado] of solicitados.entries()) {
-    const situaciones = plan ? [...(plan[indice] ?? [])] : null;
-    const tiene = (c: CodigoSituacion) => situaciones?.includes(c) ?? false;
-    // Sin nombre puntual: sortea género primero y saca un nombre del banco que corresponda.
-    const genero: Genero | null = solicitado?.genero ?? (solicitado ? null : (elegirPesado(PESOS_GENERO) as Genero));
-    const bancoNombres = genero === "FEMENINO" ? NOMBRES_FEMENINOS : genero === "MASCULINO" ? NOMBRES_MASCULINOS : NOMBRES;
-    const nombre = solicitado?.nombre.trim() || `${elegir(bancoNombres)} ${elegir(APELLIDOS)} ${elegir(APELLIDOS)}`;
-    const cedula = await cedulaDisponible();
-    const edad = entero(1, 90);
+  for (const [indice, interprete] of interpretes.entries()) {
+    const situaciones = [...(plan[indice] ?? [])];
+    const tiene = (c: CodigoSituacion) => situaciones.includes(c);
+    // Cédula (ficticia) del estudiante: la del paciente si es él mismo, o la que presenta.
+    const cedulaEstudiante = await cedulaDisponible(usadas);
 
-    const esAltoCosto = situaciones ? tiene("ALTO_COSTO") : Math.random() < probabilidadAltoCosto;
+    let nombre = interprete.nombre;
+    let cedula = cedulaEstudiante;
+    let genero = interprete.genero;
+    let edad = entero(18, 80);
+    let tipoRecogida: TipoRecogida = "EL_MISMO";
+    let personaRecogeNombre: string | null = null;
+    let personaRecogeCedula: string | null = null;
+    let personaRecogeRelacion: string | null = null;
+
+    if (tiene("MENOR_DE_EDAD") || tiene("TERCERO_AUTORIZADO") || tiene("SUPLANTACION")) {
+      // El paciente es un familiar; el estudiante es quien se presenta.
+      genero = Math.random() < 0.5 ? "FEMENINO" : "MASCULINO";
+      const apellido = apellidoDeFamilia(interprete.nombre);
+      const nombrePila = elegir(genero === "FEMENINO" ? NOMBRES_FEMENINOS : NOMBRES_MASCULINOS);
+      cedula = await cedulaDisponible(usadas);
+      personaRecogeNombre = interprete.nombre;
+      personaRecogeCedula = cedulaEstudiante;
+
+      if (tiene("MENOR_DE_EDAD")) {
+        edad = entero(0, 17);
+        tipoRecogida = "TERCERO_AUTORIZADO";
+        personaRecogeRelacion = enGenero({ m: "padre", f: "madre", n: "acudiente" }, interprete.genero);
+        // Primer apellido del padre, primero de la madre: el del estudiante va donde le toca.
+        nombre =
+          interprete.genero === "FEMENINO"
+            ? `${nombrePila} ${elegir(APELLIDOS)} ${apellido}`
+            : `${nombrePila} ${apellido} ${elegir(APELLIDOS)}`;
+      } else if (tiene("TERCERO_AUTORIZADO")) {
+        const parentesco = elegir(PARENTESCOS_TERCERO);
+        edad = entero(parentesco.edad[0], parentesco.edad[1]);
+        tipoRecogida = "TERCERO_AUTORIZADO";
+        personaRecogeRelacion = enGenero(parentesco, interprete.genero);
+        nombre =
+          parentesco.m === "cuidador"
+            ? `${nombrePila} ${elegir(APELLIDOS)} ${elegir(APELLIDOS)}`
+            : `${nombrePila} ${apellido} ${elegir(APELLIDOS)}`;
+      } else {
+        edad = entero(25, 85);
+        tipoRecogida = "SUPLANTACION";
+        nombre = `${nombrePila} ${apellido} ${elegir(APELLIDOS)}`;
+      }
+    }
+
+    const esAltoCosto = tiene("ALTO_COSTO");
     const diagnostico = elegirPorEdad(esAltoCosto ? DIAGNOSTICOS_ALTO_COSTO : DIAGNOSTICOS_COMUNES, edad, genero);
     const categoriaAfiliado = elegirPesado(PESOS_CATEGORIA_AFILIADO) as CategoriaAfiliado;
 
-    // 1-3 renglones, del catálogo real; si alguno cae en una familia alergénica conocida,
-    // ese paciente queda alérgico a esa familia (para que el aviso de alergia sí dispare).
+    // 1-3 renglones, del catálogo real. Si el caso es de alergia, el primero es de una familia
+    // alergénica y el paciente queda alérgico a ella; los demás, de ninguna familia.
     const numRenglones = entero(1, 3);
     const renglones: RenglonGenerado[] = [];
     const alergias = new Set<string>();
 
     for (let r = 0; r < numRenglones; r++) {
       let medicamento: (typeof catalogo)[number];
-      if (!situaciones) {
-        medicamento = elegir(catalogo);
-        const familia = familiaAlergenica(medicamento.principioActivo);
-        // ~30% de las veces que el renglón toca una familia conocida, se marca alérgico a
-        // propósito — es el caso de práctica, no todos los pacientes deben serlo.
-        if (familia && Math.random() < 0.3) alergias.add(familia);
-      } else if (r === 0 && tiene("ALERGIA") && conFamilia.length > 0) {
+      if (r === 0 && tiene("ALERGIA") && conFamilia.length > 0) {
         medicamento = elegir(conFamilia);
         alergias.add(familiaAlergenica(medicamento.principioActivo)!);
       } else {
@@ -188,11 +238,9 @@ export async function generarPacientes(
       }
 
       const fechaEmision = new Date(Date.now() - entero(0, 20) * 86_400_000);
-      // Con plan: si el caso es de fórmula vencida, se vence el último renglón (así, con
-      // alergia en el primero, cada renglón enseña una sola cosa).
-      const vencida = situaciones
-        ? tiene("FORMULA_VENCIDA") && r === numRenglones - 1
-        : Math.random() < probabilidadRecetaVencida;
+      // Si el caso es de fórmula vencida, se vence el último renglón (así, con alergia en el
+      // primero, cada renglón enseña una sola cosa).
+      const vencida = tiene("FORMULA_VENCIDA") && r === numRenglones - 1;
       const diasVigencia = vencida ? -entero(1, 15) : entero(20, 35);
       const fechaVigencia = new Date(fechaEmision.getTime() + diasVigencia * 86_400_000);
 
@@ -207,28 +255,12 @@ export async function generarPacientes(
       });
     }
 
-    // Quién se presenta en la ventanilla: la mayoría de las veces es el paciente mismo; a
-    // veces llega un tercero (autorizado o suplantando), para que el estudiante practique
-    // verificar identidad además del checklist de la fórmula.
-    let tipoRecogida: TipoRecogida = "EL_MISMO";
-    let personaRecogeNombre: string | null = null;
-    let personaRecogeCedula: string | null = null;
-    let personaRecogeRelacion: string | null = null;
-    const llegaOtro = situaciones
-      ? tiene("SUPLANTACION") || tiene("TERCERO_AUTORIZADO")
-      : Math.random() < probabilidadTercero;
-    if (llegaOtro) {
-      const esSuplantacion = situaciones ? tiene("SUPLANTACION") : Math.random() < probabilidadSuplantacionSiTercero;
-      tipoRecogida = esSuplantacion ? "SUPLANTACION" : "TERCERO_AUTORIZADO";
-      personaRecogeNombre = `${elegir(NOMBRES)} ${elegir(APELLIDOS)} ${elegir(APELLIDOS)}`;
-      personaRecogeCedula = String(entero(1_000_000_000, 1_099_999_999));
-      personaRecogeRelacion = esSuplantacion ? null : elegir(RELACIONES_TERCERO);
-    }
-
     pacientes.push({
       nombre,
       cedula,
+      tipoDocumento: tipoDocumentoPorEdad(edad),
       edad,
+      estudianteId: interprete.estudianteId,
       genero,
       alergias: [...alergias],
       antecedentes: elegirPorEdad(ANTECEDENTES, edad, genero),
@@ -240,27 +272,10 @@ export async function generarPacientes(
       personaRecogeNombre,
       personaRecogeCedula,
       personaRecogeRelacion,
-      situaciones:
-        situaciones?.filter((c) => c !== "ALERGIA" || alergias.size > 0) ??
-        situacionesDetectadas({ esAltoCosto, tipoRecogida, alergias: [...alergias], renglones }),
+      // Sin medicamento de familia alergénica en el catálogo, el caso no puede ser de alergia.
+      situaciones: situaciones.filter((c) => c !== "ALERGIA" || alergias.size > 0),
     });
   }
 
   return pacientes;
-}
-
-/** En modo libre (sin plan), deduce las situaciones que salieron al azar. */
-function situacionesDetectadas(p: {
-  esAltoCosto: boolean;
-  tipoRecogida: TipoRecogida;
-  alergias: string[];
-  renglones: RenglonGenerado[];
-}): CodigoSituacion[] {
-  const s: CodigoSituacion[] = [];
-  if (p.renglones.some((r) => r.fechaVigencia.getTime() < Date.now())) s.push("FORMULA_VENCIDA");
-  if (p.tipoRecogida === "SUPLANTACION") s.push("SUPLANTACION");
-  if (p.tipoRecogida === "TERCERO_AUTORIZADO") s.push("TERCERO_AUTORIZADO");
-  if (p.alergias.length > 0) s.push("ALERGIA");
-  if (p.esAltoCosto) s.push("ALTO_COSTO");
-  return s;
 }
