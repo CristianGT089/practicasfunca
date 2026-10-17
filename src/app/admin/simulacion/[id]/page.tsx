@@ -84,6 +84,8 @@ type CasoOdontologiaJornada = {
       documento: string;
       fechaNacimiento: string;
       ocupacion: string | null;
+      contactoEmergencia: string | null;
+      parentescoContacto: string | null;
     };
   };
 };
@@ -326,8 +328,11 @@ export default function SimulacionDetallePage() {
 
       {simulacion.estado === "BORRADOR" && !simulacion.dictado && simulacion.tipo !== "ENFERMERIA" && (
         <p className="text-xs text-slate-400 mb-4">
-          Antes de iniciar: revisa cada caso (puedes regenerar los que no sirvan), descarga el PDF para repartir las fórmulas e
-          indicaciones, entra en cada computador con su cuenta y elige quién empieza en cada ventanilla.
+          {simulacion.tipo === "ODONTOLOGIA"
+            ? simulacion.pacientesReales
+              ? "Antes de iniciar: entra en cada computador con su cuenta y elige quién empieza en cada unidad."
+              : "Antes de iniciar: descarga las tarjetas y entrégale una a cada compañero que interpreta un paciente, entra en cada computador con su cuenta y elige quién empieza en cada unidad."
+            : "Antes de iniciar: revisa cada caso (puedes regenerar los que no sirvan), descarga el PDF para repartir las fórmulas e indicaciones, entra en cada computador con su cuenta y elige quién empieza en cada ventanilla."}
         </p>
       )}
 

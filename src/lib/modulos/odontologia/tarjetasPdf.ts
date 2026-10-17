@@ -4,6 +4,11 @@
  * separados lo que "se ve" al examinarlo, al aplicar revelador y en la radiografía: cada
  * bloque solo se muestra cuando el estudiante hace lo que corresponde.
  *
+ * La tarjeta no le da la respuesta a quien atiende: no lleva el título del caso (delata la
+ * alerta o la remisión) y los hallazgos nombran el diente por su anatomía, no por su número
+ * FDI: ubicarlo y anotarlo en el odontograma es parte del examen. Si el paciente es menor,
+ * quien interpreta es el adulto que lo trae (no se atiende solo).
+ *
  * Material de práctica: los pacientes son ficticios.
  */
 import { jsPDF } from "jspdf";
@@ -20,6 +25,8 @@ export type CasoParaTarjeta = {
     documento: string;
     fechaNacimiento: string;
     ocupacion: string | null;
+    contactoEmergencia?: string | null;
+    parentescoContacto?: string | null;
   };
   motivoConsulta: string;
   relatoAnamnesis: string;
@@ -83,9 +90,20 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
       "normal",
       GRIS
     );
-    escribir(`Jornada: ${nombreJornada} · Caso: ${c.titulo}`, 8, "normal", GRIS);
+    escribir(`Jornada: ${nombreJornada} · Tarjeta ${i + 1}`, 8, "normal", GRIS);
     y += 2;
-    escribir("Muestra tu documento cuando te lo pidan: es con lo que te buscan en el sistema.", 9, "italic", GRIS);
+    if (edad(p.fechaNacimiento) < 18) {
+      const quien = p.contactoEmergencia ? `${p.contactoEmergencia}${p.parentescoContacto ? ` (${p.parentescoContacto.toLowerCase()})` : ""}` : "el adulto responsable";
+      escribir(
+        `Es menor de edad y no viene solo: interpretas a ${quien}, que lo trae a consulta. Respondes tú las preguntas, ` +
+          `muestras su ${p.tipoDocumento === "RC" ? "registro civil" : "tarjeta de identidad"} y tu cédula, y das el consentimiento.`,
+        9,
+        "italic",
+        GRIS
+      );
+    } else {
+      escribir("Muestra tu documento cuando te lo pidan: es con lo que te buscan en el sistema.", 9, "italic", GRIS);
+    }
 
     y += 2;
     escribir("Por qué vienes (dilo con tus palabras)", 11, "bold", AZUL);
@@ -96,7 +114,7 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
     const esperado = normalizarEsperado(c.esperado);
     bloque("Al examinarte", "Muéstrale esta parte al estudiante solo cuando te examine la boca. Léela o déjasela ver.");
     if (c.relatoExamen) escribir(c.relatoExamen, 10);
-    const hallazgos = relatoOdontograma(esperado.odontograma, "CLINICO", true);
+    const hallazgos = relatoOdontograma(esperado.odontograma, "CLINICO", false);
     if (hallazgos.length) hallazgos.forEach((l) => escribir(`• ${l}`, 9.5));
     else escribir("Sin hallazgos dentales.", 10);
 
@@ -112,7 +130,7 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
         );
     }
 
-    const rx = relatoOdontograma(esperado.odontograma, "RADIOGRAFICO", true);
+    const rx = relatoOdontograma(esperado.odontograma, "RADIOGRAFICO", false);
     if (rx.length || c.relatoRadiografia) {
       bloque("Si piden una radiografía", "Solo si el estudiante la pide. Si no la pide, no la muestres.");
       if (c.relatoRadiografia) escribir(c.relatoRadiografia, 10);
