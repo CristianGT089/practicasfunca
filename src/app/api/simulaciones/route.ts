@@ -52,7 +52,7 @@ const crearSchema = z
       .object({
         secciones: z.enum(["ODONTOGRAMA", "COMPLETA"]),
         fuente: z.enum(["ALEATORIO", "PROPIO", "EXISTENTE"]),
-        denticion: z.enum(["PERMANENTE", "TEMPORAL"]).default("PERMANENTE"),
+        denticion: z.enum(["PERMANENTE", "TEMPORAL", "MIXTA"]).default("PERMANENTE"),
         esperado: z.unknown().optional(),
         escenarioId: z.string().min(1).optional(),
       })

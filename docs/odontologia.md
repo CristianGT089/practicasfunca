@@ -262,3 +262,21 @@ extranjería vale a cualquier edad. Se valida al guardar un caso y en la admisi�
 reales (con el motivo: "Con 15 años el documento es tarjeta de identidad (TI)"), los
 formularios lo precargan al escribir la fecha de nacimiento, y lo que se muestra o imprime usa
 el tipo vigente según la edad de hoy (el número no cambia).
+
+## Casos de la jornada: intérpretes y cambios en el borrador (2026-10-17)
+
+- Cada caso de la jornada queda a cargo de un **estudiante del grupo que lo interpreta**
+  (`CasoJornadaOdontologia.interpreteNombre`), repartidos al azar; su nombre va en la tarjeta.
+  Los casos son historias armadas a mano (edad, sexo y relato fijos), así que el paciente
+  conserva su nombre; pero si es **menor**, el estudiante es su acudiente con su propio nombre,
+  y así se registra y se califica.
+- En el **borrador**, *Cambiar casos* permite quitar o agregar casos; los intérpretes se
+  reparten de nuevo. Después de iniciar ya no se cambian.
+
+## Dictado con dentición mixta (2026-10-17)
+
+El dictado al azar admite **mixta** (niño de 7 a 11 años): primeros molares e incisivos
+permanentes, caninos y molares temporales; sellantes pendientes en los primeros molares,
+caries en molares temporales, sin pares temporal–permanente contradictorios. El documento
+de los pacientes del dictado se calcula con su fecha de nacimiento real (antes, si el
+cumpleaños del año aún no llegaba, un "adulto de 18" podía tener 17 y salir con CC).

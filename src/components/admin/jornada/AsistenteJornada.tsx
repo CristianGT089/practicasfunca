@@ -127,7 +127,7 @@ export default function AsistenteJornada({
   // Dictado
   const [secciones, setSecciones] = useState<SeccionesDictado>("ODONTOGRAMA");
   const [fuente, setFuente] = useState<"ALEATORIO" | "PROPIO" | "EXISTENTE">("ALEATORIO");
-  const [denticion, setDenticion] = useState<"PERMANENTE" | "TEMPORAL">("PERMANENTE");
+  const [denticion, setDenticion] = useState<"PERMANENTE" | "TEMPORAL" | "MIXTA">("PERMANENTE");
   const [esperado, setEsperado] = useState<EsperadoOdontologia>(() =>
     modalidadInicial === "DICTADO" ? generarCasoAleatorio("PERMANENTE", false).esperado : esperadoVacio()
   );
@@ -170,7 +170,7 @@ export default function AsistenteJornada({
     setPaso(1);
   }
 
-  function sortear(s: SeccionesDictado, d: "PERMANENTE" | "TEMPORAL") {
+  function sortear(s: SeccionesDictado, d: "PERMANENTE" | "TEMPORAL" | "MIXTA") {
     setEsperado(generarCasoAleatorio(d, s === "COMPLETA").esperado);
   }
 
@@ -624,8 +624,8 @@ function ConfigDictado(p: {
   setSecciones: (s: SeccionesDictado) => void;
   fuente: "ALEATORIO" | "PROPIO" | "EXISTENTE";
   setFuente: (f: "ALEATORIO" | "PROPIO" | "EXISTENTE") => void;
-  denticion: "PERMANENTE" | "TEMPORAL";
-  setDenticion: (d: "PERMANENTE" | "TEMPORAL") => void;
+  denticion: "PERMANENTE" | "TEMPORAL" | "MIXTA";
+  setDenticion: (d: "PERMANENTE" | "TEMPORAL" | "MIXTA") => void;
   esperado: EsperadoOdontologia;
   setEsperado: (f: (e: EsperadoOdontologia) => EsperadoOdontologia) => void;
   otroAlAzar: () => void;
@@ -701,7 +701,7 @@ function ConfigDictado(p: {
         <>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex gap-1.5" role="radiogroup" aria-label="Dentición">
-              {(["PERMANENTE", "TEMPORAL"] as const).map((d) => (
+              {(["PERMANENTE", "MIXTA", "TEMPORAL"] as const).map((d) => (
                 <button
                   key={d}
                   type="button"
@@ -712,7 +712,7 @@ function ConfigDictado(p: {
                     p.denticion === d ? "border-blue-700 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-500"
                   }`}
                 >
-                  {d === "PERMANENTE" ? "Adulto (permanente)" : "Niño (temporal)"}
+                  {d === "PERMANENTE" ? "Adulto (permanente)" : d === "MIXTA" ? "Niño de 6 a 11 (mixta)" : "Niño pequeño (temporal)"}
                 </button>
               ))}
             </div>

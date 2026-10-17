@@ -15,7 +15,7 @@ export type OpcionesDictado = {
   secciones: SeccionesDictado;
   /** ALEATORIO: lo arma el sistema. PROPIO: el docente marcó el odontograma (y la historia). EXISTENTE: un caso ya creado. */
   fuente: "ALEATORIO" | "PROPIO" | "EXISTENTE";
-  denticion: "PERMANENTE" | "TEMPORAL";
+  denticion: "PERMANENTE" | "TEMPORAL" | "MIXTA";
   /** PROPIO: lo que marcó el docente. */
   esperado?: unknown;
   /** EXISTENTE: id del Escenario. */

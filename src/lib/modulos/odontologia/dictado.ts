@@ -27,6 +27,8 @@ import {
   type Superficie,
 } from "./odontograma";
 import { APELLIDOS, NOMBRES_FEMENINOS, NOMBRES_MASCULINOS } from "../../simulacion/bancos";
+import { edadEn } from "./acudiente";
+import { tipoDocumentoSegunEdad } from "./documento";
 
 export type SeccionesDictado = "ODONTOGRAMA" | "COMPLETA";
 
@@ -54,20 +56,25 @@ const MOTIVOS = [
   "Me sangran las encías al cepillarme.",
 ];
 
-/** Genera un caso de dictado al azar (dentición permanente o temporal). */
-export function generarCasoAleatorio(denticion: "PERMANENTE" | "TEMPORAL", completa: boolean, azar: () => number = Math.random): CasoGenerado {
+/** Genera un caso de dictado al azar (dentición permanente, mixta o temporal). */
+export function generarCasoAleatorio(
+  denticion: "PERMANENTE" | "TEMPORAL" | "MIXTA",
+  completa: boolean,
+  azar: () => number = Math.random
+): CasoGenerado {
   const entero = (min: number, max: number) => min + Math.floor(azar() * (max - min + 1));
   const elegir = <T,>(l: readonly T[]) => l[Math.floor(azar() * l.length)];
 
   const sexo: "M" | "F" = azar() < 0.5 ? "F" : "M";
-  const edad = denticion === "TEMPORAL" ? entero(3, 6) : entero(18, 70);
+  const edad = denticion === "TEMPORAL" ? entero(3, 5) : denticion === "MIXTA" ? entero(7, 11) : entero(18, 70);
   const hoy = new Date();
   const nacimiento = new Date(Date.UTC(hoy.getUTCFullYear() - edad, entero(0, 11), entero(1, 28)));
   const paciente: PacienteDictado = {
     nombres: elegir(sexo === "F" ? NOMBRES_FEMENINOS : NOMBRES_MASCULINOS),
     primerApellido: elegir(APELLIDOS),
     segundoApellido: elegir(APELLIDOS),
-    tipoDocumento: denticion === "TEMPORAL" ? "RC" : "CC",
+    // Según la edad que de verdad tiene con esa fecha (el cumpleaños puede no haber llegado).
+    tipoDocumento: tipoDocumentoSegunEdad(edadEn(nacimiento)),
     documento: String(entero(1_000_000_000, 1_099_999_999)),
     sexo,
     fechaNacimiento: nacimiento.toISOString(),
@@ -118,6 +125,17 @@ export function generarCasoAleatorio(denticion: "PERMANENTE" | "TEMPORAL", compl
     if (azar() < 0.3) deDiente("SELLANTE_POR_HACER", libre(molares));
     if (azar() < 0.25) deDiente("RESTO_RADICULAR", libre([...molares, ...premolares]));
     if (azar() < 0.2) deDiente("ROTACION", libre(anteriores));
+  } else if (denticion === "MIXTA") {
+    // 7 a 11 años: ya salieron los primeros molares y los incisivos permanentes; siguen en
+    // boca caninos y molares temporales. Sin pares contradictorios (un temporal y su
+    // permanente marcados los dos como presentes).
+    const primerosMolares = [16, 26, 36, 46];
+    const molaresT = [54, 55, 64, 65, 74, 75, 84, 85];
+    for (let i = 0; i < entero(1, 2); i++) deDiente("SELLANTE_POR_HACER", libre(primerosMolares));
+    if (azar() < 0.5) porCara("CARIES", libre(primerosMolares), 1);
+    for (let i = 0; i < entero(2, 3); i++) porCara("CARIES", libre(molaresT));
+    if (azar() < 0.5) porCara("RESINA", libre(molaresT));
+    if (azar() < 0.35) deDiente("EXODONCIA_SIMPLE_INDICADA", libre(molaresT));
   } else {
     const molaresT = [54, 55, 64, 65, 74, 75, 84, 85];
     const anterioresT = [51, 52, 53, 61, 62, 63, 71, 72, 73, 81, 82, 83];
