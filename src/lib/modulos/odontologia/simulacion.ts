@@ -4,6 +4,7 @@ import { escenarioBaseSeguro } from "../contrato";
 import { PESOS, ponderar, revisarHistoria } from "./calificacion";
 import { denticionDe } from "./consultorio";
 import { historiaVacia, normalizarEsperado, normalizarHistoria } from "./historia";
+import { acudienteEsperadoDeCaso } from "./acudiente";
 import { estaFueraDeChecklist, evaluarPeligrosHistoria, ultimaHistoria } from "./reglas";
 
 export const simulacionOdontologia: ModuloSimulacion = {
@@ -49,7 +50,14 @@ export const simulacionOdontologia: ModuloSimulacion = {
     const esperado = normalizarEsperado(o.esperado);
     const historia = ultimaHistoria(acciones) ?? historiaVacia();
     const denticion = denticionDe(o.denticion);
-    const revision = revisarHistoria(esperado, historia, denticion, escenario.resultadoEsperado, resultadoObtenido);
+    const revision = revisarHistoria(
+      esperado,
+      historia,
+      denticion,
+      escenario.resultadoEsperado,
+      resultadoObtenido,
+      acudienteEsperadoDeCaso(o.paciente)
+    );
     const puntajes = { ...revision.puntajes, proceso: base.puntajeProceso };
     const { proceso, ...contenido } = puntajes;
     void proceso;

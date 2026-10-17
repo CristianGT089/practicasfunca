@@ -21,6 +21,7 @@ import { mapaCalor } from "@/lib/modulos/odontologia/dictado";
 import { hojaVacia, normalizarHoja, notaHoja, revisarHoja } from "@/lib/modulos/enfermeria/hoja";
 import { casoRonda, esperadoDeCaso } from "@/lib/modulos/enfermeria/ronda";
 import { evaluarRecepcion, type MotivoRecepcion, type RegistroItem } from "./recepcion";
+import { acudienteEsperadoDeCaso } from "@/lib/modulos/odontologia/acudiente";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -331,6 +332,7 @@ function claveDeLinea(descripcion: string, cumplido: boolean): ClaveCriterio {
   if (descripcion.startsWith("Antecedentes")) return "ANTECEDENTES";
   if (descripcion.startsWith("Examen")) return "EXAMENES";
   if (descripcion.startsWith("Índice")) return "INDICE_PLACA";
+  if (descripcion.startsWith("Acudiente")) return "ACUDIENTE";
   return "REMISION";
 }
 
@@ -345,7 +347,7 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
     where: { id: atencionId },
     include: {
       simulacion: { select: { dictado: true, dictadoSecciones: true } },
-      casoOdontologia: { include: { escenarioOdontologia: { include: { escenario: true } } } },
+      casoOdontologia: { include: { escenarioOdontologia: { include: { escenario: true, paciente: true } } } },
     },
   });
   const caso = atencion?.casoOdontologia?.escenarioOdontologia;
@@ -356,7 +358,9 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
   const historia = atencion.historia ? normalizarHistoria(atencion.historia) : historiaVacia();
   const denticion = denticionDe(caso.denticion);
   const resultadoEsperado = caso.escenario.resultadoEsperado;
-  const revision = revisarHistoria(esperado, historia, denticion, resultadoEsperado, atencion.remision);
+  // El acudiente se califica con la edad que tenía el paciente el día de la atención.
+  const acudiente = acudienteEsperadoDeCaso(caso.paciente, atencion.llamadoEn ?? ahora);
+  const revision = revisarHistoria(esperado, historia, denticion, resultadoEsperado, atencion.remision, acudiente);
   const etiquetaRemision = (c: string | null) => REMISIONES.find((r) => r.codigo === c)?.etiqueta ?? "sin elegir";
 
   const criterios: Criterio[] = [

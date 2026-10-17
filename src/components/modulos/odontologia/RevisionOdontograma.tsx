@@ -29,6 +29,7 @@ const NOMBRES_COMPONENTE: Record<string, string> = {
   examenes: "Exámenes estomatológico y dental",
   placa: "Índice de placa",
   remision: "Remisión",
+  acudiente: "Acudiente (menor de edad)",
 };
 
 const etiquetaRemision = (c: string | null) => REMISIONES.find((r) => r.codigo === c)?.etiqueta ?? "—";

@@ -13,11 +13,13 @@ import {
   SeccionEvolucion,
   SeccionExamenes,
   SeccionIdentificacion,
+  SeccionAcudiente,
   SeccionOdontograma,
   SeccionPlacaHigiene,
   type PacienteOdontologia,
 } from "@/components/modulos/odontologia/SeccionesHistoria";
 import RevisionOdontograma, { type RevisionOdontologia } from "@/components/modulos/odontologia/RevisionOdontograma";
+import { enumerar, esMenorDeEdad, faltantesAcudiente } from "@/lib/modulos/odontologia/acudiente";
 
 type Intento = {
   id: string;
@@ -69,6 +71,7 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
   const [cerrando, setCerrando] = useState(false);
   const [alertaError, setAlertaError] = useState<string[] | null>(null);
   const [peligrosCierre, setPeligrosCierre] = useState<string[]>([]);
+  const [faltaAcudiente, setFaltaAcudiente] = useState<string | null>(null);
   const [resultadoFinal, setResultadoFinal] = useState<Resultado | null>(null);
   const [avanzando, setAvanzando] = useState(false);
   const [turnoTerminado, setTurnoTerminado] = useState<{ puntajeFinal: number } | null>(null);
@@ -373,6 +376,16 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Lo que cuenta el paciente</h3>
                   <p className="italic text-cyan-900 mb-2">“{info.anamnesis.motivoConsulta}”</p>
                   <p className="whitespace-pre-line">{info.anamnesis.relato}</p>
+                  {info.anamnesis.acompanante && (
+                    <p className="mt-2 rounded-lg bg-white/70 px-2 py-1.5 text-xs text-cyan-900">
+                      Lo acompaña{" "}
+                      <b>
+                        {info.anamnesis.acompanante.nombre || "un adulto"}
+                        {info.anamnesis.acompanante.parentesco ? ` (${info.anamnesis.acompanante.parentesco.toLowerCase()})` : ""}
+                      </b>
+                      , que presenta su cédula: <b className="font-mono">CC {info.anamnesis.acompanante.documento}</b>.
+                    </p>
+                  )}
                 </div>
               )}
               {info.examen && (
@@ -449,15 +462,25 @@ export default function OdontologiaSoftware({ intentoId }: { intentoId: string }
                   >
                     {guardando ? "Guardando..." : "Guardar"}
                   </button>
-                  <button onClick={() => setCerrando(true)} className="rounded-lg bg-cyan-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-cyan-800">
+                  <button
+                    onClick={() => {
+                      // Un menor no se atiende sin acudiente: igual que en la jornada.
+                      const faltan = esMenorDeEdad(odonto.paciente.fechaNacimiento) ? faltantesAcudiente(historia.acudiente) : [];
+                      setFaltaAcudiente(faltan.length ? `El paciente es menor de edad: falta ${enumerar(faltan)}.` : null);
+                      if (!faltan.length) setCerrando(true);
+                    }}
+                    className="rounded-lg bg-cyan-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-cyan-800"
+                  >
                     Cerrar historia
                   </button>
                 </div>
+                {faltaAcudiente && <p className="mt-2 text-sm text-amber-800">{faltaAcudiente}</p>}
               </div>
 
               {pestana === "paciente" && (
                 <>
                   <SeccionIdentificacion paciente={odonto.paciente} />
+                  <SeccionAcudiente h={historia} set={cambiar} fechaNacimiento={odonto.paciente.fechaNacimiento} />
                   <SeccionAlerta h={historia} set={cambiar} />
                 </>
               )}

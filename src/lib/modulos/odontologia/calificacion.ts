@@ -20,6 +20,7 @@ import {
   type ItemCatalogo,
 } from "./historia";
 import type { Denticion } from "./odontograma";
+import { revisarAcudiente, type AcudienteEsperado } from "./acudiente";
 
 export const PESOS = {
   proceso: 10, // interrogar, examinar, revelador, radiografía (checklist genérico)
@@ -29,6 +30,7 @@ export const PESOS = {
   examenes: 5,
   placa: 10,
   remision: 10,
+  acudiente: 5, // solo pacientes menores de edad
 } as const;
 
 export type ComparacionOdontograma = {
@@ -123,7 +125,9 @@ export function revisarHistoria(
   historia: HistoriaOdontologica,
   denticion: Denticion,
   remisionEsperada: string,
-  remisionObtenida: string | null
+  remisionObtenida: string | null,
+  /** Paciente menor: el acudiente que debía quedar registrado (null = adulto, no aplica). */
+  acudienteEsperado: AcudienteEsperado = null
 ): RevisionHistoria {
   const odontograma = compararOdontogramas(esperado.odontograma, historia.odontograma);
   const alerta = compararConjuntos(esperado.alertaMedica, historia.alertaMedica);
@@ -186,6 +190,8 @@ export function revisarHistoria(
   );
   lineas.push(...lineasConjunto("Examen pulpar, dental y periodontal", EXAMEN_DENTAL.flatMap((g) => g.items), esperado.examenDental, historia.examenDental));
   lineas.push(...lineasPlaca);
+  const acudiente = acudienteEsperado ? revisarAcudiente(acudienteEsperado, historia.acudiente) : null;
+  if (acudiente) lineas.push(...acudiente.lineas.map((l) => ({ ...l, obligatorio: true })));
 
   return {
     puntajes: {
@@ -196,6 +202,7 @@ export function revisarHistoria(
       examenes: examenes.puntaje,
       placa: puntajePlaca,
       remision: remisionBien ? 100 : 0,
+      acudiente: acudiente?.puntaje ?? null,
     },
     odontograma,
     lineas,

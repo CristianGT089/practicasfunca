@@ -13,6 +13,7 @@ import {
   type SiNo,
 } from "@/lib/modulos/odontologia/historia";
 import type { Denticion } from "@/lib/modulos/odontologia/odontograma";
+import { esMenorDeEdad, faltantesAcudiente, PARENTESCOS_ACUDIENTE, type AcudienteHistoria } from "@/lib/modulos/odontologia/acudiente";
 import {
   FUENTE_TARIFARIO,
   TARIFARIO_ODONTOLOGIA,
@@ -186,6 +187,74 @@ export function SeccionIdentificacion({ paciente }: { paciente: PacienteOdontolo
           </div>
         ))}
       </dl>
+    </Recuadro>
+  );
+}
+
+/**
+ * Acudiente del paciente menor de edad: quién lo acompaña, su documento, parentesco y el
+ * consentimiento informado. Solo aparece si el paciente es menor; sin esto no se cierra.
+ */
+export function SeccionAcudiente({ h, set, fechaNacimiento }: PropsSeccion & { fechaNacimiento: string }) {
+  if (!esMenorDeEdad(fechaNacimiento)) return null;
+  const a = h.acudiente;
+  const cambiar = set && ((c: Partial<AcudienteHistoria>) => set({ acudiente: { ...a, ...c } }));
+  const faltan = faltantesAcudiente(a);
+  return (
+    <Recuadro
+      titulo="Acudiente (paciente menor de edad)"
+      extra={
+        <span className={`text-[11px] font-semibold ${faltan.length ? "text-amber-700" : "text-emerald-700"}`}>
+          {faltan.length ? "Obligatorio para cerrar" : "Completo"}
+        </span>
+      }
+    >
+      <p className="text-xs text-slate-500 mb-3">
+        Un menor no se atiende solo. Registra a quien lo acompaña con su documento y confirma que dio el consentimiento informado.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Texto etiqueta="Nombre del acudiente" valor={a.nombre} onChange={cambiar && ((v) => cambiar({ nombre: v }))} filas={1} />
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+          Documento
+          <div className="flex gap-2">
+            <select
+              value={a.tipoDocumento}
+              disabled={!cambiar}
+              onChange={(e) => cambiar?.({ tipoDocumento: e.target.value })}
+              className={`${claseInput} w-20 shrink-0`}
+              aria-label="Tipo de documento del acudiente"
+            >
+              {["CC", "CE", "PA", "PPT"].map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+            <input
+              value={a.documento}
+              disabled={!cambiar}
+              inputMode="numeric"
+              onChange={(e) => cambiar?.({ documento: e.target.value })}
+              className={claseInput}
+              aria-label="Número de documento del acudiente"
+            />
+          </div>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+          Parentesco
+          <select value={a.parentesco} disabled={!cambiar} onChange={(e) => cambiar?.({ parentesco: e.target.value })} className={claseInput}>
+            <option value="">Elige</option>
+            {PARENTESCOS_ACUDIENTE.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        <Texto etiqueta="Teléfono del acudiente" valor={a.telefono} onChange={cambiar && ((v) => cambiar({ telefono: v }))} filas={1} />
+      </div>
+      <label className="mt-3 flex items-start gap-2 rounded-xl border border-cyan-100 bg-cyan-50/50 px-3 py-2 text-sm text-slate-700">
+        <input type="checkbox" checked={a.consentimiento} disabled={!cambiar} onChange={(e) => cambiar?.({ consentimiento: e.target.checked })} className="mt-1" />
+        <span>
+          El acudiente leyó y firmó el <b>consentimiento informado</b> para la valoración y el tratamiento del menor.
+        </span>
+      </label>
     </Recuadro>
   );
 }

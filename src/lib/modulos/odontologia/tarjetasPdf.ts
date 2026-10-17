@@ -14,6 +14,7 @@
 import { jsPDF } from "jspdf";
 import { normalizarEsperado, SUPERFICIES_PLACA } from "./historia";
 import { nombreSuperficie, relatoOdontograma } from "./odontograma";
+import { documentoAcudienteDeCaso } from "./acudiente";
 
 export type CasoParaTarjeta = {
   titulo: string;
@@ -96,7 +97,8 @@ export function generarTarjetasOdontologiaPDF(nombreJornada: string, casos: Caso
       const quien = p.contactoEmergencia ? `${p.contactoEmergencia}${p.parentescoContacto ? ` (${p.parentescoContacto.toLowerCase()})` : ""}` : "el adulto responsable";
       escribir(
         `Es menor de edad y no viene solo: interpretas a ${quien}, que lo trae a consulta. Respondes tú las preguntas, ` +
-          `muestras su ${p.tipoDocumento === "RC" ? "registro civil" : "tarjeta de identidad"} y tu cédula, y das el consentimiento.`,
+          `muestras su ${p.tipoDocumento === "RC" ? "registro civil" : "tarjeta de identidad"} y tu cédula ` +
+          `(CC ${documentoAcudienteDeCaso(p.documento)}), y das el consentimiento informado si te lo explican.`,
         9,
         "italic",
         GRIS

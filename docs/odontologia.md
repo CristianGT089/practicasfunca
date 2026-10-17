@@ -201,3 +201,21 @@ datos), `/api/modulos/odontologia/dictado` (estudiante), `/api/simulaciones/[id]
   núcleos en mal estado; siempre el examen de primera vez). *+ Del tarifario* busca por código
   o palabra. Es una sugerencia editable: no se califica.
 - Consulta para docentes: Contenido → Odontología → Tarifario oficial.
+
+## Acudiente del paciente menor de edad (2026-10-17)
+
+Un menor no se atiende solo: lo acompaña su padre, madre o representante legal, que da el
+consentimiento informado (Ley 1098 de 2006; Res. 1995 de 1999 sobre historia clínica).
+
+- **Historia**: si el paciente es menor (por su fecha de nacimiento, el día de la atención),
+  aparece el recuadro *Acudiente* debajo de la identificación: nombre, documento,
+  parentesco, teléfono y la casilla del consentimiento informado. Vale en la práctica
+  virtual, en la jornada con casos y con pacientes reales (un compañero de 16 o 17 años).
+- **Cierre**: sin nombre, documento, parentesco y consentimiento no se cierra la historia
+  (en la jornada lo rechaza el servidor; en la práctica virtual, la pantalla).
+- **De dónde sale el dato**: en la práctica virtual, al interrogar a un menor se revela quién
+  lo acompaña y la cédula que presenta; en la jornada, la tarjeta le da esa cédula al
+  compañero que interpreta al acudiente. La cédula de cada caso sale siempre igual del
+  documento del paciente (`acudiente.ts#documentoAcudienteDeCaso`), sin guardarla.
+- **Calificación**: componente *Acudiente* (peso 5, solo menores): nombre, cédula correcta,
+  parentesco y consentimiento, una cuarta parte cada uno.

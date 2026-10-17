@@ -12,6 +12,7 @@ import {
   SeccionEvolucion,
   SeccionExamenes,
   SeccionIdentificacion,
+  SeccionAcudiente,
   SeccionPlacaHigiene,
   type PacienteOdontologia,
 } from "@/components/modulos/odontologia/SeccionesHistoria";
@@ -82,6 +83,7 @@ export default function HistoriaDetallePage({ params }: { params: Promise<{ id: 
 
       <h2 className="font-heading text-lg font-semibold text-blue-900 mt-2">Historia tal como la diligenció</h2>
       <SeccionIdentificacion paciente={d.paciente} />
+      <SeccionAcudiente h={h} fechaNacimiento={d.paciente.fechaNacimiento} />
       <SeccionAlerta h={h} />
       <SeccionAnamnesis h={h} />
       <SeccionExamenes h={h} />

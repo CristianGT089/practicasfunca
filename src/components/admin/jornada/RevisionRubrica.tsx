@@ -11,6 +11,7 @@ import {
   SeccionEvolucion,
   SeccionExamenes,
   SeccionIdentificacion,
+  SeccionAcudiente,
   SeccionOdontograma,
   SeccionPlacaHigiene,
   type PacienteOdontologia,
@@ -112,6 +113,7 @@ export default function RevisionRubrica({
       {verHistoria && (
         <div className="flex flex-col gap-3 rounded-lg bg-slate-50 p-2">
           <SeccionIdentificacion paciente={paciente} />
+          <SeccionAcudiente h={h} fechaNacimiento={paciente.fechaNacimiento} />
           <SeccionAlerta h={h} />
           <SeccionAnamnesis h={h} />
           <SeccionExamenes h={h} />

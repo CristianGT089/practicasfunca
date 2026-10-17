@@ -7,6 +7,7 @@ import type { Usuario } from "@prisma/client";
 import { prisma } from "@/lib/nucleo/prisma";
 import { normalizarHistoria } from "./historia";
 import { denticionDe } from "./consultorio";
+import { enumerar, esMenorDeEdad, faltantesAcudiente } from "./acudiente";
 
 /** La jornada de Odontología abierta que le corresponde a esta cuenta (puesto, participante o grupo). */
 export async function jornadaActiva(usuario: Usuario) {
@@ -151,9 +152,29 @@ export async function guardarHistoria(usuario: Usuario, atencionId: string, hist
 }
 
 export async function cerrarHistoria(usuario: Usuario, atencionId: string, historia: unknown, remision: string) {
-  await atencionEditable(usuario, atencionId);
+  const atencion = await atencionEditable(usuario, atencionId);
+  const h = normalizarHistoria(historia);
+  // Un menor no se atiende sin acudiente: sin sus datos y su consentimiento no se cierra.
+  const nacimiento = await fechaNacimientoDe(atencion);
+  if (nacimiento && esMenorDeEdad(nacimiento)) {
+    const faltan = faltantesAcudiente(h.acudiente);
+    if (faltan.length) throw new Error(`El paciente es menor de edad: falta ${enumerar(faltan)}`);
+  }
   return prisma.atencionJornada.update({
     where: { id: atencionId },
-    data: { historia: normalizarHistoria(historia), remision, actualizadaEn: new Date(), cerradaEn: new Date() },
+    data: { historia: h, remision, actualizadaEn: new Date(), cerradaEn: new Date() },
   });
+}
+
+/** Fecha de nacimiento del paciente de una atención: la del caso o la del compañero registrado. */
+async function fechaNacimientoDe(atencion: { casoOdontologiaId: string | null; pacienteReal: unknown }) {
+  if (atencion.casoOdontologiaId) {
+    const caso = await prisma.casoJornadaOdontologia.findUnique({
+      where: { id: atencion.casoOdontologiaId },
+      include: { escenarioOdontologia: { include: { paciente: { select: { fechaNacimiento: true } } } } },
+    });
+    return caso?.escenarioOdontologia.paciente.fechaNacimiento ?? null;
+  }
+  const real = atencion.pacienteReal as { fechaNacimiento?: string } | null;
+  return real?.fechaNacimiento ?? null;
 }

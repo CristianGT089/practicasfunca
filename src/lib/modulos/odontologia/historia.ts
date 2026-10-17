@@ -5,6 +5,7 @@
  * Puro: se usa en el cliente (formulario) y en el servidor (calificación, reglas).
  */
 import { normalizarMarcas, type Denticion, type Marca, dientesPresentes, esDienteValido } from "./odontograma";
+import { acudienteVacio, type AcudienteHistoria } from "./acudiente";
 
 export type ItemCatalogo = { codigo: string; etiqueta: string };
 
@@ -184,6 +185,8 @@ export type RenglonTratamiento = { tratamiento: string; valorUnitario: number; c
 export type RenglonEvolucion = { fecha: string; horaEntrada: string; horaSalida: string; descripcion: string };
 
 export type HistoriaOdontologica = {
+  /** Solo pacientes menores de edad: quién lo acompaña y da el consentimiento (ver acudiente.ts). */
+  acudiente: AcudienteHistoria;
   alertaMedica: string[];
   alertaMedicaNota: string;
   motivoConsulta: string;
@@ -223,6 +226,7 @@ export type HistoriaOdontologica = {
 
 export function historiaVacia(): HistoriaOdontologica {
   return {
+    acudiente: acudienteVacio(),
     alertaMedica: [],
     alertaMedicaNota: "",
     motivoConsulta: "",
@@ -276,7 +280,16 @@ export function normalizarHistoria(raw: unknown): HistoriaOdontologica {
   const higiene = obj(h.higiene);
   const diagnostico = obj(h.diagnostico);
   const pronostico = obj(h.pronostico);
+  const acudiente = obj(h.acudiente);
   return {
+    acudiente: {
+      nombre: texto(acudiente.nombre, 120),
+      tipoDocumento: ["CC", "CE", "PA", "PPT"].includes(acudiente.tipoDocumento as string) ? (acudiente.tipoDocumento as string) : "CC",
+      documento: texto(acudiente.documento, 20),
+      parentesco: texto(acudiente.parentesco, 60),
+      telefono: texto(acudiente.telefono, 30),
+      consentimiento: acudiente.consentimiento === true,
+    },
     alertaMedica: codigos(h.alertaMedica, ALERTAS_MEDICAS),
     alertaMedicaNota: texto(h.alertaMedicaNota, 500),
     motivoConsulta: texto(h.motivoConsulta),

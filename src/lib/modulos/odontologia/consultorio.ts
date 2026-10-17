@@ -2,9 +2,15 @@ import type { Accion, ModoJuego } from "@prisma/client";
 import type { EscenarioConExtensiones } from "../contrato";
 import { normalizarEsperado, SUPERFICIES_PLACA } from "./historia";
 import { nombreSuperficie, relatoOdontograma, type Denticion } from "./odontograma";
+import { acudienteEsperadoDeCaso } from "./acudiente";
 
 export type InformacionConsultorio = {
-  anamnesis: { motivoConsulta: string; relato: string } | null;
+  anamnesis: {
+    motivoConsulta: string;
+    relato: string;
+    /** Paciente menor: quién lo acompaña y la cédula que presenta. */
+    acompanante: { nombre: string; parentesco: string; documento: string } | null;
+  } | null;
   examen: { relato: string | null; hallazgosDentales: string[] } | null;
   placa: { tenidas: string[] } | null;
   radiografia: { tipos: string[]; relato: string | null; hallazgos: string[] } | null;
@@ -41,7 +47,9 @@ export function informacionRevelada(
   }
 
   return {
-    anamnesis: hizo("INTERROGAR_PACIENTE") ? { motivoConsulta: o.motivoConsulta, relato: o.relatoAnamnesis } : null,
+    anamnesis: hizo("INTERROGAR_PACIENTE")
+      ? { motivoConsulta: o.motivoConsulta, relato: o.relatoAnamnesis, acompanante: acudienteEsperadoDeCaso(o.paciente) }
+      : null,
     examen: hizo("EXAMINAR_PACIENTE")
       ? { relato: o.relatoExamen, hallazgosDentales: relatoOdontograma(esperado.odontograma, "CLINICO", conNumero) }
       : null,

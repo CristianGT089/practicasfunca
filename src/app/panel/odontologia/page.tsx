@@ -11,6 +11,7 @@ import {
   SeccionEvolucion,
   SeccionExamenes,
   SeccionIdentificacion,
+  SeccionAcudiente,
   SeccionOdontograma,
   SeccionPlacaHigiene,
   type PacienteOdontologia,
@@ -377,6 +378,7 @@ export default function ConsultorioOdontologiaPage() {
           <main className="min-w-0 flex flex-col gap-6">
             <section id="sec-paciente" className="scroll-mt-24 flex flex-col gap-4">
               <SeccionIdentificacion paciente={p} />
+              <SeccionAcudiente h={historia} set={cambiar} fechaNacimiento={p.fechaNacimiento} />
               <SeccionAlerta h={historia} set={cambiar} />
             </section>
             <section id="sec-anamnesis" className="scroll-mt-24">
