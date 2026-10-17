@@ -19,6 +19,7 @@ import {
   type DiagnosticoConEdad,
 } from "./bancos";
 import type { CodigoSituacion } from "./situaciones";
+import { filtroMedicamentosDispensables } from "./catalogo";
 
 /**
  * El estudiante del grupo que lleva un caso a la ventanilla. Cada caso se arma alrededor
@@ -147,15 +148,22 @@ const PARENTESCOS_TERCERO = [
  *   estudiante va como su padre, madre o acudiente.
  * - Tercero autorizado: reclama por un familiar mayor (o por quien cuida), con autorización.
  * - Suplantación: lleva la fórmula de un familiar y dice ser él, sin autorización.
- * El familiar es la única persona que no es un estudiante: lleva un nombre del banco y el
- * apellido del estudiante, para que el parentesco se vea en los documentos.
+ * El familiar (el niño, o por quien se reclama) lleva el nombre de pila de otro compañero
+ * del grupo y el apellido del estudiante, para que el parentesco se vea en los documentos.
+ * Solo si el grupo tiene un único estudiante se toma un nombre del banco.
  *
  * `plan[i]` son las situaciones exactas del caso i (ver `planDeSituaciones` / `planAlAzar`):
  * cada caso trae justo esas y ninguna otra, porque son la "respuesta" con la que se califica.
  */
-export async function generarPacientes(interpretes: Interprete[], plan: CodigoSituacion[][]): Promise<PacienteGenerado[]> {
+export async function generarPacientes(
+  interpretes: Interprete[],
+  plan: CodigoSituacion[][],
+  /** De dónde sale el nombre del familiar. Por defecto, los mismos estudiantes de la tanda. */
+  grupo: Interprete[] = interpretes
+): Promise<PacienteGenerado[]> {
   const catalogo = await prisma.medicamento.findMany({
-    where: { origen: "CATALOGO_REAL", stock: { gt: 0 } },
+    // Solo medicamentos: los dispositivos e insumos (equipos, sondas, caretas...) no van en una fórmula.
+    where: { origen: "CATALOGO_REAL", stock: { gt: 0 }, ...filtroMedicamentosDispensables },
     select: { id: true, nombre: true, principioActivo: true, stock: true },
   });
   // Los medicamentos de los casos sin alergia se toman de los que no pertenecen a ninguna
@@ -186,9 +194,18 @@ export async function generarPacientes(interpretes: Interprete[], plan: CodigoSi
 
     if (tiene("MENOR_DE_EDAD") || tiene("TERCERO_AUTORIZADO") || tiene("SUPLANTACION")) {
       // El paciente es un familiar; el estudiante es quien se presenta.
-      genero = Math.random() < 0.5 ? "FEMENINO" : "MASCULINO";
       const apellido = apellidoDeFamilia(interprete.nombre);
-      const nombrePila = elegir(genero === "FEMENINO" ? NOMBRES_FEMENINOS : NOMBRES_MASCULINOS);
+      const companeros = grupo.filter((o) => o.nombre.trim() && o.nombre !== interprete.nombre);
+      const companero = companeros.length > 0 ? elegir(companeros) : null;
+      genero =
+        companero?.genero === "FEMENINO" || companero?.genero === "MASCULINO"
+          ? companero.genero
+          : Math.random() < 0.5
+            ? "FEMENINO"
+            : "MASCULINO";
+      const nombrePila = companero
+        ? companero.nombre.trim().split(/\s+/)[0]
+        : elegir(genero === "FEMENINO" ? NOMBRES_FEMENINOS : NOMBRES_MASCULINOS);
       cedula = await cedulaDisponible(usadas);
       personaRecogeNombre = interprete.nombre;
       personaRecogeCedula = cedulaEstudiante;
@@ -225,6 +242,7 @@ export async function generarPacientes(interpretes: Interprete[], plan: CodigoSi
     // 1-3 renglones, del catálogo real. Si el caso es de alergia, el primero es de una familia
     // alergénica y el paciente queda alérgico a ella; los demás, de ninguna familia.
     const numRenglones = entero(1, 3);
+    const medico = elegir(MEDICOS); // una fórmula la firma un solo médico
     const renglones: RenglonGenerado[] = [];
     const alergias = new Set<string>();
 
@@ -249,7 +267,7 @@ export async function generarPacientes(interpretes: Interprete[], plan: CodigoSi
         medicamentoNombre: medicamento.nombre,
         // Nunca más de lo que hay en inventario: si no, el caso sería imposible de atender.
         cantidadAutorizada: Math.min(entero(5, 30), medicamento.stock),
-        medico: elegir(MEDICOS),
+        medico,
         fechaEmision,
         fechaVigencia,
       });

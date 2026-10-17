@@ -250,9 +250,15 @@ cédula.
    dice ser él, sin autorización. El familiar es la única persona inventada: nombre de pila
    del banco y el apellido del estudiante (`apellidoDeFamilia`), para que el parentesco se
    vea en los documentos.
-3. **Documentos impresos.** Bajo cada fórmula, para recortar: la cédula de práctica del
-   estudiante y, según el caso, el RC/TI del menor (con el nombre del padre o la madre) o
-   la autorización firmada. Las indicaciones privadas van "Para <estudiante>".
+3. **PDF de fórmulas** (`recetaPdf.ts`). Cada mitad de página es el material de un
+   estudiante y se recorta en tres: la fórmula (encabezado con el logo blanco, paciente,
+   tabla "Rp/" y firma de un solo médico), los documentos que presenta (su cédula de
+   práctica y el RC/TI del menor o la autorización firmada) y **"Tu papel"**, al pie: cómo
+   actuar (normal, acudiente, tercero, suplantación y las situaciones de actuación). Ya no
+   hay hoja aparte de indicaciones. Las filas se compactan según los medicamentos; si no
+   caben con los documentos, la fórmula va sola (o en varias hojas) y los documentos y el
+   papel pasan a la mitad siguiente, sin montarse nunca. En el caso de menor, el estudiante
+   es el adulto y el niño lleva el nombre de pila de otro compañero del grupo.
 4. **La ventanilla no revela nada.** Se busca con el documento de la fórmula; buscar con la
    cédula de quien se presenta no encuentra a nadie. Se quitaron los avisos "la persona NO
    es el paciente". Antes de entregar, el estudiante registra **¿Quién reclama?**
@@ -289,4 +295,11 @@ jornada", no configurar cosas en medio de la clase.
   práctica que rotan. Al iniciar, cuenta regresiva 3-2-1 y pasa solo al tablero normal. Las
   animaciones usan `motion-safe:` (se apagan si el sistema pide reducir movimiento). El
   registro de turnos muestra "la jornada todavía no empieza" y también se activa solo.
+
+## Solo medicamentos en las fórmulas (2026-10-17)
+
+El catálogo importado mezcla medicamentos con dispositivos e insumos (equipos, sondas,
+caretas, antisépticos en frasco). `lib/simulacion/catalogo.ts` reconoce el medicamento por su
+forma farmacéutica (tabletas, cápsulas, jarabe, inyectable, inhalador...); el generador de
+fórmulas solo usa esos.
 

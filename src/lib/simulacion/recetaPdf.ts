@@ -1,24 +1,150 @@
 /**
- * PDF imprimible de las recetas generadas de una Simulación, para que el profesor las
- * reparta como "fórmula física" que cada estudiante-paciente lleva a la ventanilla. No
- * representa un documento médico real — es material de práctica.
+ * PDF imprimible de las fórmulas de una jornada (Dispensario o Farmacia), para que el
+ * docente las reparta. No representa un documento médico real: es material de práctica.
  *
- * Carta horizontal, dos fórmulas por página (una a cada lado, con una línea punteada para
- * recortar) — ahorra papel. Cada mitad lleva su propio encabezado porque, una vez recortada,
- * queda como un papel independiente. Si el número de pacientes es impar, la última página
- * solo llena el lado izquierdo — no hay problema, se recorta igual.
+ * Carta horizontal, dos mitades por página con una línea de corte al centro. Cada mitad es
+ * el material de UN estudiante y se recorta en tres partes:
+ *  1. La fórmula: la que se entrega en la ventanilla.
+ *  2. Los documentos que presenta quien la lleva: su cédula de práctica y, según el caso,
+ *     el documento del menor o la autorización escrita.
+ *  3. "Tu papel": cómo debe actuar (normal, acudiente, tercero, suplantación y las
+ *     situaciones del caso). Es solo para él; quien atiende no debe verlo.
  *
- * Debajo de cada fórmula van los documentos que presenta el estudiante que la lleva (su
- * cédula de práctica y, según el caso, el documento del menor o la autorización escrita).
+ * La fórmula se adapta a la cantidad de medicamentos: las filas se compactan y, si aun así
+ * no caben con los documentos debajo, la fórmula ocupa su mitad entera (o varias, "hoja 1
+ * de 2", si es muy larga) y los documentos y el papel pasan a la mitad siguiente: nunca se
+ * monta un texto sobre otro.
  * Las páginas salen en el orden de los estudiantes, para repartirlas por nombre.
  */
 import { jsPDF } from "jspdf";
 import { definicionSituacion } from "./situaciones";
 
-const AZUL: [number, number, number] = [27, 58, 107];
-const GRIS: [number, number, number] = [100, 116, 139];
-const GRIS_CLARO: [number, number, number] = [226, 232, 240];
-const ROJO: [number, number, number] = [200, 60, 60];
+type RGB = [number, number, number];
+const NAVY: RGB = [30, 46, 85]; // blue-900
+const AZUL: RGB = [38, 62, 128]; // blue-800
+const ORO: RGB = [251, 186, 0]; // gold-500
+const FONDO: RGB = [238, 242, 251];
+const FONDO_ORO: RGB = [255, 248, 224];
+const TEXTO: RGB = [33, 41, 54];
+const GRIS: RGB = [100, 116, 139];
+const GRIS_SUAVE: RGB = [203, 213, 225];
+const ROJO: RGB = [190, 40, 40];
+const FONDO_ROJO: RGB = [254, 226, 226];
+
+export type PacienteParaPDF = {
+  nombre: string;
+  cedula: string;
+  /** CC | TI | RC (ver generador.ts). */
+  tipoDocumento?: string;
+  edad: number;
+  genero?: "MASCULINO" | "FEMENINO" | "OTRO" | null;
+  categoriaAfiliado?: string | null;
+  diagnostico: string | null;
+  alergias: string[];
+  antecedentes: string | null;
+  recetas: {
+    medico: string;
+    fechaEmision: string;
+    fechaVigencia: string;
+    cantidadAutorizada: number;
+    medicamento: { nombre: string; presentacion: string };
+  }[];
+  situaciones?: string[];
+  tipoRecogida?: "EL_MISMO" | "TERCERO_AUTORIZADO" | "SUPLANTACION";
+  personaRecogeNombre?: string | null;
+  personaRecogeCedula?: string | null;
+  personaRecogeRelacion?: string | null;
+};
+
+const NOMBRE_DOCUMENTO: Record<string, string> = {
+  CC: "Cédula de ciudadanía",
+  TI: "Tarjeta de identidad",
+  RC: "Registro civil de nacimiento",
+};
+
+const REGIMEN: Record<string, string> = {
+  SUBSIDIADO: "Régimen subsidiado",
+  CONTRIBUTIVO_A: "Contributivo, categoría A",
+  CONTRIBUTIVO_B: "Contributivo, categoría B",
+  CONTRIBUTIVO_C: "Contributivo, categoría C",
+};
+
+const documentoDe = (p: PacienteParaPDF) => `${p.tipoDocumento ?? "CC"} ${p.cedula}`;
+const anios = (n: number) => `${n} ${n === 1 ? "año" : "años"}`;
+const esMenor = (p: PacienteParaPDF) => p.situaciones?.includes("MENOR_DE_EDAD") ?? false;
+
+function fechaCorta(iso: string) {
+  return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/** El estudiante que lleva este caso a la ventanilla: el paciente mismo o quien reclama por él. */
+export function quienSePresenta(p: PacienteParaPDF): { nombre: string; cedula: string } {
+  return p.tipoRecogida && p.tipoRecogida !== "EL_MISMO" && p.personaRecogeNombre
+    ? { nombre: p.personaRecogeNombre, cedula: p.personaRecogeCedula ?? "-" }
+    : { nombre: p.nombre, cedula: p.cedula };
+}
+
+/** "la madre", "el padre", "el acudiente". */
+const conArticulo = (relacion: string) => (relacion === "madre" ? "la madre" : relacion === "padre" ? "el padre" : `el ${relacion}`);
+
+/**
+ * Cómo debe actuar el estudiante que lleva este caso: un título corto y los pasos. Va
+ * impreso al pie de su fórmula, en la parte que recorta y guarda para sí.
+ */
+export function papelDelEstudiante(p: PacienteParaPDF): { titulo: string; pasos: string[] } {
+  const el = p.genero === "FEMENINO" ? "ella" : p.genero === "MASCULINO" ? "él" : "él o ella";
+  const papel = (() => {
+    if (esMenor(p)) {
+      const doc = (NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "documento").toLowerCase();
+      return {
+        titulo: `Eres ${conArticulo(p.personaRecogeRelacion ?? "acudiente")} de ${p.nombre} (${anios(p.edad)}).`,
+        pasos: [
+          `Un menor no reclama solo: vienes tú por ${el}. Pide el turno con el documento de la fórmula.`,
+          `En la ventanilla entrega la fórmula, muestra tu cédula y su ${doc}, y responde tú las preguntas.`,
+        ],
+      };
+    }
+    if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
+      return {
+        titulo: `Reclamas por ${p.nombre}, de quien eres ${p.personaRecogeRelacion ?? "familiar"}.`,
+        pasos: [
+          `${p.nombre} no puede venir. Pide el turno con su documento (el de la fórmula).`,
+          "En la ventanilla entrega la fórmula y la autorización firmada, y muestra tu cédula. Si te preguntan, explica tu parentesco.",
+        ],
+      };
+    }
+    if (p.tipoRecogida === "SUPLANTACION") {
+      return {
+        titulo: `Vas a hacerte pasar por ${p.nombre}.`,
+        pasos: [
+          "Tienes su fórmula, pero NO su autorización. Pide el turno con su documento (el de la fórmula).",
+          `En la ventanilla di que tú eres ${p.nombre}. Si te piden la cédula, muestra la tuya: es la única que tienes. Si no te entregan, acéptalo.`,
+        ],
+      };
+    }
+    return {
+      titulo: "Vas por tus propios medicamentos.",
+      pasos: ["Pide el turno con el documento de la fórmula. En la ventanilla entrega la fórmula y muestra tu cédula cuando te la pidan."],
+    };
+  })();
+  for (const c of p.situaciones ?? []) {
+    const ind = definicionSituacion(c)?.indicacionActor;
+    if (ind) papel.pasos.push(ind);
+  }
+  return papel;
+}
+
+/**
+ * Una mitad de página. `recetas` vacío = mitad solo con documentos y papel (la fórmula no
+ * cupo con ellos). `conDocumentos` = lleva documentos y papel al pie.
+ */
+type Hoja = {
+  p: PacienteParaPDF;
+  recetas: PacienteParaPDF["recetas"];
+  numero: number;
+  total: number;
+  conDocumentos: boolean;
+};
 
 function cargarImagenComoDataURL(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -38,282 +164,370 @@ function cargarImagenComoDataURL(url: string): Promise<string> {
   });
 }
 
-function fechaCorta(iso: string) {
-  return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-export type PacienteParaPDF = {
-  nombre: string;
-  cedula: string;
-  /** CC | TI | RC (ver generador.ts). */
-  tipoDocumento?: string;
-  edad: number;
-  diagnostico: string | null;
-  alergias: string[];
-  antecedentes: string | null;
-  recetas: {
-    medico: string;
-    fechaEmision: string;
-    fechaVigencia: string;
-    cantidadAutorizada: number;
-    medicamento: { nombre: string; presentacion: string };
-  }[];
-  // Para la hoja de indicaciones de quien interpreta al paciente (jornada presencial).
-  situaciones?: string[];
-  tipoRecogida?: "EL_MISMO" | "TERCERO_AUTORIZADO" | "SUPLANTACION";
-  personaRecogeNombre?: string | null;
-  personaRecogeCedula?: string | null;
-  personaRecogeRelacion?: string | null;
-};
-
-const NOMBRE_DOCUMENTO: Record<string, string> = {
-  CC: "Cédula de ciudadanía",
-  TI: "Tarjeta de identidad",
-  RC: "Registro civil de nacimiento",
-};
-
-const documentoDe = (p: PacienteParaPDF) => `${p.tipoDocumento ?? "CC"} ${p.cedula}`;
-
-/** El estudiante que lleva este caso a la ventanilla: el paciente mismo o quien reclama por él. */
-export function quienSePresenta(p: PacienteParaPDF): { nombre: string; cedula: string } {
-  return p.tipoRecogida && p.tipoRecogida !== "EL_MISMO" && p.personaRecogeNombre
-    ? { nombre: p.personaRecogeNombre, cedula: p.personaRecogeCedula ?? "-" }
-    : { nombre: p.nombre, cedula: p.cedula };
-}
-
-/** "la madre", "el padre", "el/la acudiente". */
-const conArticulo = (relacion: string) =>
-  relacion === "madre" ? "la madre" : relacion === "padre" ? "el padre" : `el/la ${relacion}`;
-
-const esMenor = (p: PacienteParaPDF) => p.situaciones?.includes("MENOR_DE_EDAD") ?? false;
-
-/** Qué debe hacer el estudiante que lleva este caso (vacío = presentarse normal, como él mismo). */
-export function indicacionesActor(p: PacienteParaPDF): string[] {
-  const lineas: string[] = [];
-  if (esMenor(p)) {
-    lineas.push(
-      `Eres ${conArticulo(p.personaRecogeRelacion ?? "acudiente")} de ${p.nombre}, de ${p.edad} ${p.edad === 1 ? "año" : "años"}, y vienes a reclamar sus medicamentos. Presenta tu cédula y su ${(NOMBRE_DOCUMENTO[p.tipoDocumento ?? "CC"] ?? "documento").toLowerCase()}.`
-    );
-  } else if (p.tipoRecogida === "SUPLANTACION") {
-    lineas.push(
-      `Llevas la fórmula de tu familiar ${p.nombre}, pero no tienes su autorización. Di que tú eres ${p.nombre}. Si te piden el documento, muestra tu cédula: es la única que tienes.`
-    );
-  } else if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
-    lineas.push(
-      `Reclamas por ${p.nombre}; eres su ${p.personaRecogeRelacion ?? "familiar"}. Presenta tu cédula, la autorización firmada y la copia de su documento.`
-    );
-  }
-  for (const c of p.situaciones ?? []) {
-    const ind = definicionSituacion(c)?.indicacionActor;
-    if (ind) lineas.push(ind);
-  }
-  return lineas;
-}
-
-export async function generarRecetasPDF(params: { nombreSimulacion: string; pacientes: PacienteParaPDF[] }) {
+export async function generarRecetasPDF(params: {
+  nombreSimulacion: string;
+  pacientes: PacienteParaPDF[];
+  /** Solo para pruebas fuera del navegador: el logo ya leído (data URL). */
+  logoDataUrl?: string | null;
+  /** Solo para pruebas: devuelve el PDF en vez de descargarlo. */
+  devolver?: boolean;
+}) {
   const { nombreSimulacion, pacientes } = params;
   const doc = new jsPDF({ unit: "mm", format: "letter", orientation: "landscape" });
-  const anchoPagina = doc.internal.pageSize.getWidth();
-  const altoPagina = doc.internal.pageSize.getHeight();
+  const ANCHO_PAG = doc.internal.pageSize.getWidth();
+  const ALTO = doc.internal.pageSize.getHeight();
+  const MARGEN = 10;
+  const CENTRO = 10; // hueco de la línea de corte
+  const W = (ANCHO_PAG - MARGEN * 2 - CENTRO) / 2;
+  const ARRIBA = 8;
+  const PIE = ALTO - 5; // línea del texto legal
 
-  const margenExterior = 12;
-  const separacion = 8; // hueco central donde va la línea de corte
-  const anchoColumna = (anchoPagina - margenExterior * 2 - separacion) / 2;
-  const margenSuperior = 10;
-
-  let logoDataUrl: string | null = null;
-  try {
-    logoDataUrl = await cargarImagenComoDataURL("/funca-logo.png");
-  } catch {
-    // sin logo, seguimos igual
+  let logo = params.logoDataUrl ?? null;
+  if (logo === null && params.logoDataUrl === undefined) {
+    try {
+      logo = await cargarImagenComoDataURL("/funca-logo-blanco.png");
+    } catch {
+      // sin logo, el encabezado lleva el nombre en texto
+    }
   }
 
-  function lineaDeCorte() {
-    doc.setDrawColor(...GRIS_CLARO);
-    doc.setLineDashPattern([2, 2], 0);
-    doc.line(anchoPagina / 2, 4, anchoPagina / 2, altoPagina - 4);
-    doc.setLineDashPattern([], 0);
-  }
+  // ---------- utilidades de dibujo ----------
 
-  function dibujarFormula(p: PacienteParaPDF, x0: number) {
-    const ancho = anchoColumna;
-    let y = margenSuperior;
+  const fuente = (tam: number, estilo: "normal" | "bold" | "italic" | "bolditalic" = "normal", color: RGB = TEXTO) => {
+    doc.setFont("helvetica", estilo);
+    doc.setFontSize(tam);
+    doc.setTextColor(...color);
+  };
 
-    // Encabezado — cada mitad lo lleva propio: al recortar, queda un papel completo.
-    doc.setFillColor(...AZUL);
-    doc.rect(x0, y, ancho, 18, "F");
-    if (logoDataUrl) doc.addImage(logoDataUrl, "PNG", x0 + 4, y + 3, 22, 11);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10.5);
-    doc.text("Fórmula médica — material de práctica", x0 + ancho - 4, y + 7, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`Simulación: ${nombreSimulacion}`, x0 + ancho - 4, y + 13, { align: "right" });
+  /** Recorta el texto con "…" para que quepa en `ancho` mm con la fuente actual. */
+  const ajustar = (texto: string, ancho: number) => {
+    if (doc.getTextWidth(texto) <= ancho) return texto;
+    let t = texto;
+    while (t.length > 1 && doc.getTextWidth(`${t}…`) > ancho) t = t.slice(0, -1);
+    return `${t.trimEnd()}…`;
+  };
 
-    y += 25;
-
-    // Datos del paciente
-    doc.setDrawColor(...GRIS_CLARO);
-    doc.roundedRect(x0, y, ancho, 22, 2, 2, "D");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11.5);
-    doc.setTextColor(...AZUL);
-    doc.text(p.nombre, x0 + 4, y + 7.5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...GRIS);
-    doc.text(`${documentoDe(p)}  -  ${p.edad} ${p.edad === 1 ? "año" : "años"}${p.diagnostico ? `  -  ${p.diagnostico}` : ""}`, x0 + 4, y + 13.5);
-    if (p.alergias.length > 0) {
-      doc.setTextColor(...ROJO);
-      doc.text(`Alergias: ${p.alergias.join(", ")}`, x0 + 4, y + 19);
-    } else if (p.antecedentes) {
-      doc.setTextColor(...GRIS);
-      doc.text(p.antecedentes, x0 + 4, y + 19);
-    }
-
-    y += 28;
-
-    for (const r of p.recetas) {
-      if (y > altoPagina - 18) break; // no debería pasar con 1-3 renglones, pero por si acaso no se sale de la página
-
-      doc.setDrawColor(...GRIS_CLARO);
-      doc.setFillColor(250, 250, 252);
-      doc.roundedRect(x0, y, ancho, 20, 2, 2, "FD");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(...AZUL);
-      doc.text(r.medicamento.nombre, x0 + 4, y + 6.5);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(...GRIS);
-      doc.text(r.medicamento.presentacion, x0 + 4, y + 11.5);
-      doc.text(`Autorizado: ${r.cantidadAutorizada}`, x0 + 4, y + 16.5);
-
-      doc.text(`${r.medico}`, x0 + ancho - 4, y + 6.5, { align: "right" });
-      doc.text(`Emitida: ${fechaCorta(r.fechaEmision)}`, x0 + ancho - 4, y + 11.5, { align: "right" });
-      doc.text(`Vigente: ${fechaCorta(r.fechaVigencia)}`, x0 + ancho - 4, y + 16.5, { align: "right" });
-
-      y += 24;
-    }
-
-    dibujarDocumentos(p, x0, ancho, Math.max(y + 4, 140));
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...GRIS);
-    doc.text("Documento de práctica — FUNCA Prácticas. No es una fórmula médica real.", x0 + ancho / 2, altoPagina - 6, {
-      align: "center",
+  /** Segmentos en una línea separados por un punto pequeño (el "·" de helvetica sale roto). */
+  const conPuntos = (segmentos: string[], x: number, y: number) => {
+    let xx = x;
+    segmentos.forEach((s, i) => {
+      if (i > 0) {
+        doc.setFillColor(...GRIS_SUAVE);
+        doc.circle(xx + 2, y - 1.1, 0.55, "F");
+        xx += 4;
+      }
+      doc.text(s, xx, y);
+      xx += doc.getTextWidth(s);
     });
+  };
+
+  const lineaPunteada = (x1: number, y1: number, x2: number, y2: number) => {
+    doc.setDrawColor(...GRIS_SUAVE);
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([1.6, 1.4], 0);
+    doc.line(x1, y1, x2, y2);
+    doc.setLineDashPattern([], 0);
+  };
+
+  /** Etiqueta de corte centrada sobre una línea punteada horizontal. */
+  const corte = (x: number, y: number, texto: string) => {
+    lineaPunteada(x, y, x + W, y);
+    fuente(6.3, "normal", GRIS);
+    const t = ` ${texto} `;
+    const ancho = doc.getTextWidth(t);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(x + W / 2 - ancho / 2, y - 2, ancho, 3.6, "F");
+    doc.text(t, x + W / 2, y + 0.9, { align: "center" });
+  };
+
+  // ---------- partes de la mitad ----------
+
+  function encabezado(x: number, hoja: Hoja) {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(x, ARRIBA, W, 19, 2.5, 2.5, "F");
+    doc.setFillColor(...ORO);
+    doc.rect(x, ARRIBA + 19, W, 1.1, "F");
+    if (logo) {
+      doc.addImage(logo, "PNG", x + 5, ARRIBA + 5.6, 36, 36 * (157 / 800));
+    } else {
+      fuente(14, "bold", [255, 255, 255]);
+      doc.text("FUNCA", x + 5, ARRIBA + 11.5);
+    }
+    fuente(12.5, "bold", [255, 255, 255]);
+    doc.text("FÓRMULA MÉDICA", x + W - 5, ARRIBA + 9, { align: "right" });
+    fuente(7, "normal", [254, 215, 120]);
+    const sub = hoja.total > 1 ? `${nombreSimulacion}  —  hoja ${hoja.numero} de ${hoja.total}` : nombreSimulacion;
+    doc.text(ajustar(sub, W - 52), x + W - 5, ARRIBA + 14.5, { align: "right" });
   }
 
-  /** Una tarjeta de documento: título, nombre y líneas de datos. */
-  function tarjetaDocumento(x: number, y: number, w: number, h: number, titulo: string, lineas: string[]) {
-    doc.setDrawColor(...AZUL);
+  /** Datos del paciente; devuelve dónde termina. */
+  function paciente(x: number, y: number, p: PacienteParaPDF) {
+    const alto = 25;
+    doc.setFillColor(...FONDO);
+    doc.roundedRect(x, y, W, alto, 2.5, 2.5, "F");
+    const xi = x + 5;
+    const anchoUtil = W - 10;
+
+    let anchoPildora = 0;
+    if (p.alergias.length > 0) {
+      fuente(6.5, "bold", ROJO);
+      const t = ajustar(`ALERGIA: ${p.alergias.join(", ").toUpperCase()}`, 48);
+      anchoPildora = doc.getTextWidth(t) + 5;
+      doc.setFillColor(...FONDO_ROJO);
+      doc.roundedRect(x + W - 5 - anchoPildora, y + 3.2, anchoPildora, 4.6, 2.3, 2.3, "F");
+      doc.text(t, x + W - 5 - anchoPildora / 2, y + 6.3, { align: "center" });
+    }
+
+    fuente(6.3, "bold", GRIS);
+    doc.text("PACIENTE", xi, y + 6);
+    fuente(12.5, "bold", NAVY);
+    doc.text(ajustar(p.nombre, anchoUtil - anchoPildora - 2), xi, y + 12);
+
+    fuente(8, "normal", GRIS);
+    const datos = [documentoDe(p), anios(p.edad)];
+    if (p.categoriaAfiliado && REGIMEN[p.categoriaAfiliado]) datos.push(REGIMEN[p.categoriaAfiliado]);
+    conPuntos(datos, xi, y + 17);
+
+    const etiqueta = (t: string, valor: string, yy: number, color: RGB = TEXTO) => {
+      fuente(7.6, "bold", GRIS);
+      doc.text(t, xi, yy);
+      const w = doc.getTextWidth(t) + 1.5;
+      fuente(7.6, "normal", color);
+      doc.text(ajustar(valor, anchoUtil - w), xi + w, yy);
+    };
+    if (p.diagnostico) etiqueta("Diagnóstico:", p.diagnostico, y + 22);
+    else if (p.antecedentes) etiqueta("Antecedentes:", p.antecedentes, y + 22);
+    return y + alto;
+  }
+
+  const FILA_NORMAL = 11;
+  const FILA_MINIMA = 8.6;
+  const ENCABEZADO_TABLA = 11;
+  const FIRMA = 13;
+
+  /** Tabla de medicamentos con su firma; las filas se compactan hasta FILA_MINIMA. */
+  function medicamentos(x: number, y: number, limite: number, hoja: Hoja) {
+    // "Rp/" y títulos de columna
+    fuente(13, "bolditalic", AZUL);
+    doc.text("Rp/", x + 3, y + 5);
+    fuente(6.3, "bold", GRIS);
+    const xCant = x + W - 40;
+    doc.text("MEDICAMENTO", x + 15, y + 5);
+    doc.text("CANT.", xCant, y + 5, { align: "center" });
+    doc.text("VIGENTE HASTA", x + W - 3, y + 5, { align: "right" });
+    doc.setDrawColor(...GRIS_SUAVE);
+    doc.setLineWidth(0.25);
+    doc.line(x, y + 7.5, x + W, y + 7.5);
+
+    let yy = y + ENCABEZADO_TABLA - 2;
+    const disponible = limite - yy - (hoja.numero === hoja.total ? FIRMA : 6);
+    const fila = Math.max(FILA_MINIMA, Math.min(FILA_NORMAL, disponible / Math.max(1, hoja.recetas.length)));
+
+    const primero = hoja.p.recetas.indexOf(hoja.recetas[0]); // numeración seguida entre hojas
+    hoja.recetas.forEach((r, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 253);
+        doc.rect(x, yy, W, fila, "F");
+      }
+      const base = yy + fila / 2;
+      fuente(6.5, "bold", GRIS_SUAVE);
+      doc.text(String(primero + i + 1), x + 5, base + 1, { align: "center" });
+      fuente(8.6, "bold", NAVY);
+      doc.text(ajustar(r.medicamento.nombre, xCant - x - 26), x + 15, base - 0.6);
+      fuente(6.6, "normal", GRIS);
+      doc.text(ajustar(r.medicamento.presentacion, xCant - x - 26), x + 15, base + 3.1);
+      fuente(11, "bold", NAVY);
+      doc.text(String(r.cantidadAutorizada), xCant, base + 1.4, { align: "center" });
+      fuente(8, "bold", TEXTO);
+      doc.text(fechaCorta(r.fechaVigencia), x + W - 3, base - 0.6, { align: "right" });
+      fuente(6.3, "normal", GRIS);
+      doc.text(`emitida ${fechaCorta(r.fechaEmision)}`, x + W - 3, base + 3.1, { align: "right" });
+      yy += fila;
+    });
+    doc.setDrawColor(...GRIS_SUAVE);
+    doc.line(x, yy, x + W, yy);
+
+    if (hoja.numero < hoja.total) {
+      fuente(7, "italic", GRIS);
+      doc.text("Continúa en la hoja siguiente.", x + W - 3, yy + 4.5, { align: "right" });
+      return;
+    }
+    // Firma del médico (uno por fórmula)
+    const medico = hoja.p.recetas[0]?.medico ?? "";
+    const xf = x + W - 52;
+    const yf = Math.min(yy + FIRMA - 3, limite - 1.5);
+    doc.setDrawColor(...GRIS);
+    doc.setLineWidth(0.2);
+    doc.line(xf, yf - 3.6, x + W - 3, yf - 3.6);
+    fuente(7.2, "bold", TEXTO);
+    doc.text(medico, x + W - 3, yf - 0.6, { align: "right" });
+    fuente(6, "normal", GRIS);
+    doc.text("Firma y sello del médico", x + W - 3, yf + 2.2, { align: "right" });
+  }
+
+  /** Tarjeta tipo documento de identidad. */
+  function tarjeta(x: number, y: number, w: number, h: number, titulo: string, nombre: string, lineas: string[]) {
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...GRIS_SUAVE);
     doc.setLineWidth(0.3);
-    doc.roundedRect(x, y, w, h, 2, 2, "S");
+    doc.roundedRect(x, y, w, h, 2.2, 2.2, "FD");
     doc.setFillColor(...AZUL);
-    doc.rect(x, y, w, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text(titulo, x + 2.5, y + 4.2);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(40, 40, 40);
-    let yy = y + 11;
+    doc.roundedRect(x, y, w, 6.5, 2.2, 2.2, "F");
+    doc.rect(x, y + 3.5, w, 3, "F"); // esquinas de abajo rectas
+    fuente(6.6, "bold", [255, 255, 255]);
+    doc.text(ajustar(titulo.toUpperCase(), w - 5), x + 2.8, y + 4.4);
+    fuente(6, "normal", GRIS);
+    doc.text("REPÚBLICA DE COLOMBIA  —  PRÁCTICA", x + 2.8, y + 10.2);
+    fuente(8.6, "bold", NAVY);
+    const lineasNombre = (doc.splitTextToSize(nombre, w - 5.6) as string[]).slice(0, 2);
+    doc.text(lineasNombre, x + 2.8, y + 15);
+    let yy = y + 15 + lineasNombre.length * 3.6 + 1;
     for (const l of lineas) {
-      const partes = doc.splitTextToSize(l, w - 5) as string[];
-      doc.setFontSize(7.5);
-      doc.text(partes, x + 2.5, yy);
-      yy += partes.length * 3.4 + 0.8;
+      fuente(7.2, "normal", TEXTO);
+      const partes = doc.splitTextToSize(l, w - 5.6) as string[];
+      doc.text(partes, x + 2.8, yy);
+      yy += partes.length * 3.1 + 0.6;
     }
   }
 
-  /** Lo que presenta en la ventanilla quien lleva la fórmula, para recortar aparte. */
-  function dibujarDocumentos(p: PacienteParaPDF, x0: number, ancho: number, y: number) {
-    doc.setDrawColor(...GRIS_CLARO);
-    doc.setLineDashPattern([2, 2], 0);
-    doc.line(x0, y, x0 + ancho, y);
-    doc.setLineDashPattern([], 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...GRIS);
-    doc.text("Documentos que presenta quien lleva la fórmula (recortar por la línea)", x0, y + 4);
+  const ALTO_DOCUMENTOS = 38;
 
+  function documentos(x: number, y: number, p: PacienteParaPDF) {
+    corte(x, y, "recorta: documentos de quien se presenta");
     const persona = quienSePresenta(p);
-    const alto = 38;
-    const w = (ancho - 4) / 2;
-    const yTarjeta = y + 7;
-    tarjetaDocumento(x0, yTarjeta, w, alto, "Cédula de ciudadanía (práctica)", [persona.nombre, `CC ${persona.cedula}`]);
+    const ty = y + 4;
+    const h = ALTO_DOCUMENTOS - 5;
+    const w = (W - 4) / 2;
+    tarjeta(x, ty, w, h, "Cédula de ciudadanía", persona.nombre, [`CC ${persona.cedula}`]);
 
     if (esMenor(p)) {
       const relacion = (p.personaRecogeRelacion ?? "acudiente").replace(/^./, (c) => c.toUpperCase());
-      tarjetaDocumento(x0 + w + 4, yTarjeta, w, alto, `${NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "Documento"} (práctica)`, [
-        p.nombre,
-        documentoDe(p),
-        `${p.edad} ${p.edad === 1 ? "año" : "años"}`,
+      tarjeta(x + w + 4, ty, w, h, NOMBRE_DOCUMENTO[p.tipoDocumento ?? "RC"] ?? "Documento", p.nombre, [
+        `${documentoDe(p)}   (${anios(p.edad)})`,
         `${relacion}: ${persona.nombre}`,
       ]);
     } else if (p.tipoRecogida === "TERCERO_AUTORIZADO") {
-      tarjetaDocumento(x0 + w + 4, yTarjeta, w, alto, "Autorización", [
-        `Yo, ${p.nombre}, ${documentoDe(p)}, autorizo a ${persona.nombre}, CC ${persona.cedula}, mi ${p.personaRecogeRelacion ?? "familiar"}, a reclamar mis medicamentos.`,
-        "Firma: ________________",
-        `Adjunta copia de mi documento: ${documentoDe(p)}`,
-      ]);
+      // Autorización escrita, con la copia del documento del paciente.
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(...GRIS_SUAVE);
+      doc.roundedRect(x + w + 4, ty, w, h, 2.2, 2.2, "FD");
+      const xa = x + w + 4 + 2.8;
+      fuente(6.6, "bold", AZUL);
+      doc.text("AUTORIZACIÓN", xa, ty + 4.6);
+      fuente(6.7, "normal", TEXTO);
+      const texto = `Yo, ${p.nombre}, ${documentoDe(p)}, autorizo a ${persona.nombre}, CC ${persona.cedula}, mi ${p.personaRecogeRelacion ?? "familiar"}, a reclamar mis medicamentos. Adjunto copia de mi documento.`;
+      const lineas = (doc.splitTextToSize(texto, w - 5.6) as string[]).slice(0, 6);
+      doc.text(lineas, xa, ty + 8.8);
+      doc.setDrawColor(...GRIS);
+      doc.setLineWidth(0.2);
+      doc.line(xa, ty + h - 4.2, xa + 30, ty + h - 4.2);
+      fuente(6.5, "italic", GRIS);
+      doc.text(`Firma: ${p.nombre.split(" ")[0]}`, xa, ty + h - 1.6);
     }
   }
 
-  const xIzquierda = margenExterior;
-  const xDerecha = margenExterior + anchoColumna + separacion;
+  const ANCHO_TEXTO_PAPEL = W - 12;
 
-  for (let i = 0; i < pacientes.length; i += 2) {
-    if (i > 0) doc.addPage();
-    dibujarFormula(pacientes[i], xIzquierda);
-    const segundo = pacientes[i + 1];
-    if (segundo) {
-      dibujarFormula(segundo, xDerecha);
-      lineaDeCorte(); // solo si de verdad hay dos — con una sola no hace falta recortar
+  function altoPapel(p: PacienteParaPDF) {
+    const { pasos } = papelDelEstudiante(p);
+    fuente(7.3);
+    const lineas = pasos.reduce((n, s) => n + (doc.splitTextToSize(s, ANCHO_TEXTO_PAPEL - 3) as string[]).length, 0);
+    return 15.5 + lineas * 3.25 + pasos.length * 0.6;
+  }
+
+  /** `alto`: el del papel más alto de la página, para que las dos mitades terminen parejas. */
+  function tuPapel(x: number, y: number, p: PacienteParaPDF, alto = altoPapel(p)) {
+    corte(x, y, "recorta: tu papel (solo para ti, no lo muestres)");
+    const { titulo, pasos } = papelDelEstudiante(p);
+    const h = alto - 4;
+    const top = y + 3.5;
+    doc.setFillColor(...FONDO_ORO);
+    doc.roundedRect(x, top, W, h, 2.2, 2.2, "F");
+    doc.setFillColor(...ORO);
+    doc.rect(x, top, 1.8, h, "F");
+    fuente(6.3, "bold", [160, 110, 0]);
+    doc.text(`TU PAPEL  —  ${quienSePresenta(p).nombre.toUpperCase()}`, x + 5, top + 4.6);
+    fuente(9, "bold", NAVY);
+    doc.text(ajustar(titulo, ANCHO_TEXTO_PAPEL), x + 5, top + 9.4);
+    let yy = top + 13.6;
+    for (const paso of pasos) {
+      fuente(7.3, "normal", TEXTO);
+      const lineas = doc.splitTextToSize(paso, ANCHO_TEXTO_PAPEL - 3) as string[];
+      doc.setFillColor(...ORO);
+      doc.circle(x + 6, yy - 1, 0.7, "F");
+      doc.text(lineas, x + 8, yy);
+      yy += lineas.length * 3.25 + 0.6;
     }
   }
 
-  // Hoja aparte, para entregar en privado a quienes interpretan a los pacientes: no va con la
-  // fórmula, porque el estudiante que atiende no debe verla.
-  const conIndicaciones = pacientes.map((p) => ({ p, lineas: indicacionesActor(p) })).filter((x) => x.lineas.length > 0);
-  if (conIndicaciones.length > 0) {
-    doc.addPage();
-    let y = margenExterior + 4;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...AZUL);
-    doc.text("Indicaciones para quienes interpretan a los pacientes", margenExterior, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...GRIS);
-    doc.text("Recorta y entrega cada indicación en privado al estudiante que se nombra. Quien atiende no debe verla.", margenExterior, y + 6);
-    y += 14;
-    const anchoCaja = anchoPagina - margenExterior * 2;
-    for (const { p, lineas } of conIndicaciones) {
-      const texto = lineas.flatMap((l) => doc.splitTextToSize(`- ${l}`, anchoCaja - 8) as string[]);
-      const alto = 9 + texto.length * 4.2;
-      if (y + alto > altoPagina - 12) {
-        doc.addPage();
-        y = margenExterior + 4;
+  // ---------- reparto en mitades ----------
+
+  /** Dónde empiezan las filas, y cuántas caben hasta `limite` con la altura mínima. */
+  const INICIO_TABLA = ARRIBA + 24 + 25 + 4 + ENCABEZADO_TABLA - 2;
+  const capacidad = (limite: number, conFirma: boolean) =>
+    Math.max(1, Math.floor((limite - INICIO_TABLA - (conFirma ? FIRMA : 6)) / FILA_MINIMA));
+  /** Altura que ocupan documentos + papel al pie, para un papel de alto dado. */
+  const altoPie = (alto: number) => 2 + ALTO_DOCUMENTOS + 2 + alto + 3;
+
+  const hojas: Hoja[] = [];
+  for (const p of pacientes) {
+    if (p.recetas.length <= capacidad(PIE - altoPie(altoPapel(p)), true)) {
+      hojas.push({ p, recetas: p.recetas, numero: 1, total: 1, conDocumentos: true });
+      continue;
+    }
+    // No cabe con los documentos debajo: la fórmula va sola (en una o varias mitades) y los
+    // documentos y el papel, en la mitad siguiente.
+    const porHoja = capacidad(PIE - 4, true);
+    const partes: PacienteParaPDF["recetas"][] = [];
+    for (let k = 0; k < p.recetas.length; k += porHoja) partes.push(p.recetas.slice(k, k + porHoja));
+    partes.forEach((recetas, n) => hojas.push({ p, recetas, numero: n + 1, total: partes.length, conDocumentos: false }));
+    hojas.push({ p, recetas: [], numero: partes.length, total: partes.length, conDocumentos: true });
+  }
+
+  /** Mitad con solo documentos y papel: encabezado corto y todo arriba. */
+  function hojaDocumentos(h: Hoja, x: number) {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(x, ARRIBA, W, 13, 2.5, 2.5, "F");
+    if (logo) doc.addImage(logo, "PNG", x + 5, ARRIBA + 3.4, 31, 31 * (157 / 800));
+    fuente(9.5, "bold", [255, 255, 255]);
+    doc.text("DOCUMENTOS Y PAPEL", x + W - 5, ARRIBA + 6.4, { align: "right" });
+    fuente(6.6, "normal", [254, 215, 120]);
+    doc.text(ajustar(`Van con la fórmula de ${h.p.nombre}`, W - 46), x + W - 5, ARRIBA + 10.4, { align: "right" });
+    documentos(x, ARRIBA + 19, h.p);
+    tuPapel(x, ARRIBA + 19 + ALTO_DOCUMENTOS + 2, h.p);
+  }
+
+  /** `altoPapelPagina`: el papel más alto de la página, para alinear las dos mitades. */
+  function dibujarHoja(h: Hoja, x: number, altoPapelPagina: number) {
+    if (h.recetas.length === 0) hojaDocumentos(h, x);
+    else {
+      encabezado(x, h);
+      const finPaciente = paciente(x, ARRIBA + 24, h.p);
+      const tope = h.conDocumentos ? PIE - altoPie(altoPapelPagina) : PIE - 4;
+      medicamentos(x, finPaciente + 4, tope, { ...h, numero: h.numero, total: h.total });
+      if (h.conDocumentos) {
+        const yDocs = tope + 2;
+        documentos(x, yDocs, h.p);
+        tuPapel(x, yDocs + ALTO_DOCUMENTOS + 2, h.p, altoPapelPagina);
       }
-      doc.setDrawColor(...GRIS_CLARO);
-      doc.roundedRect(margenExterior, y, anchoCaja, alto, 2, 2, "S");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(...AZUL);
-      doc.text(`Para ${quienSePresenta(p).nombre}`, margenExterior + 4, y + 6);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(40, 40, 40);
-      doc.text(texto, margenExterior + 4, y + 11);
-      y += alto + 4;
     }
+    fuente(6, "normal", GRIS);
+    doc.text("Material de práctica — FUNCA Prácticas. No es una fórmula médica real.", x + W / 2, PIE, { align: "center" });
   }
 
-  const nombreArchivo = `recetas-${nombreSimulacion.trim().toLowerCase().replace(/\s+/g, "-")}.pdf`;
-  doc.save(nombreArchivo);
+  for (let i = 0; i < hojas.length; i += 2) {
+    if (i > 0) doc.addPage();
+    const par = hojas.slice(i, i + 2);
+    // Alinea documentos y papel entre las dos mitades, si con eso la fórmula sigue cabiendo.
+    const comun = Math.max(...par.filter((h) => h.conDocumentos && h.recetas.length > 0).map((h) => altoPapel(h.p)), 0);
+    par.forEach((h, k) => {
+      const propio = altoPapel(h.p);
+      const alineado = h.recetas.length <= capacidad(PIE - altoPie(comun), true) ? Math.max(comun, propio) : propio;
+      dibujarHoja(h, MARGEN + k * (W + CENTRO), alineado);
+    });
+    if (par.length === 2) lineaPunteada(ANCHO_PAG / 2, 4, ANCHO_PAG / 2, ALTO - 4);
+  }
+
+  if (params.devolver) return doc;
+  doc.save(`recetas-${nombreSimulacion.trim().toLowerCase().replace(/\s+/g, "-")}.pdf`);
 }

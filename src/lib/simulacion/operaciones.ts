@@ -151,7 +151,17 @@ export async function regenerarPaciente(simulacionId: string, pacienteId: string
   const interprete = estudiante
     ? { estudianteId: estudiante.id, nombre: estudiante.nombre, genero: estudiante.genero }
     : { estudianteId: null, nombre: paciente.personaRecogeNombre ?? paciente.nombre, genero: paciente.genero };
-  const [generado] = await generarPacientes([interprete], [paciente.situaciones as CodigoSituacion[]]);
+  const grupo = simulacion.grupoId
+    ? await prisma.usuario.findMany({
+        where: { gruposComoEstudiante: { some: { id: simulacion.grupoId } }, activo: true, temporal: false },
+        select: { id: true, nombre: true, genero: true },
+      })
+    : [];
+  const [generado] = await generarPacientes(
+    [interprete],
+    [paciente.situaciones as CodigoSituacion[]],
+    grupo.map((e) => ({ estudianteId: e.id, nombre: e.nombre, genero: e.genero }))
+  );
 
   await prisma.recetaElectronica.deleteMany({ where: { pacienteId } });
   await prisma.paciente.update({ where: { id: pacienteId }, data: aDatosPaciente(generado) });
