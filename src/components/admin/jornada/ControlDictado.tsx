@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { avanceEstudiante, type LineaGuion } from "@/lib/modulos/odontologia/dictado";
 import type { Denticion, Marca } from "@/lib/modulos/odontologia/odontograma";
 import Odontograma from "@/components/modulos/odontologia/Odontograma";
+import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
 
 type Estado = {
   secciones: "ODONTOGRAMA" | "COMPLETA";
@@ -168,7 +169,7 @@ export default function ControlDictado({
             {estado.secciones === "COMPLETA" ? "Historia completa." : "Solo odontograma."}
           </p>
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 mb-3">
-            <b>Paciente:</b> {p.nombres} {p.primerApellido} {p.segundoApellido ?? ""} · {p.tipoDocumento} {p.documento} · {edad(p.fechaNacimiento)} años ·{" "}
+            <b>Paciente:</b> {p.nombres} {p.primerApellido} {p.segundoApellido ?? ""} · {tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} {p.documento} · {edad(p.fechaNacimiento)} años ·{" "}
             {p.sexo === "F" ? "femenino" : "masculino"}
             <span className="block text-xs text-slate-500">Los estudiantes ya lo tienen cargado: no hace falta dictarlo.</span>
           </div>

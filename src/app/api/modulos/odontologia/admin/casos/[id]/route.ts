@@ -10,7 +10,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const parsed = casoOdontologiaSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Datos inválidos", detalle: parsed.error.issues }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(
+      { error: parsed.error.issues.find((i) => i.code === "custom")?.message ?? "Datos inválidos", detalle: parsed.error.issues },
+      { status: 400 }
+    );
 
   const actualizado = await actualizarCaso(prisma, id, parsed.data);
   if (!actualizado) return NextResponse.json({ error: "No encontrado" }, { status: 404 });

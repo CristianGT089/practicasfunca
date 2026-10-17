@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/nucleo/auth";
 import { abrirAtencionReal, jornadaActiva } from "@/lib/modulos/odontologia/jornada";
+import { problemaDocumento } from "@/lib/modulos/odontologia/documento";
 
 /**
  * Jornada con pacientes reales: el estudiante registra al compañero que va a examinar y abre
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
     );
   }
   const d = parsed.data;
+  const problema = problemaDocumento(d.paciente.tipoDocumento, d.paciente.fechaNacimiento);
+  if (problema) return NextResponse.json({ error: problema }, { status: 400 });
   try {
     const a = await abrirAtencionReal(usuario, jornada.id, d.paciente, d.denticion, d.unidad);
     return NextResponse.json({ atencion: { id: a.id, historia: a.historia, denticion: a.denticion, paciente: a.pacienteReal } });

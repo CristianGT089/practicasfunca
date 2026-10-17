@@ -24,6 +24,7 @@ import {
 } from "@/lib/modulos/odontologia/tarifario";
 import Odontograma from "./Odontograma";
 import IndicePlaca from "./IndicePlaca";
+import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
 
 export type PacienteOdontologia = {
   nombres: string;
@@ -163,7 +164,7 @@ export function SeccionIdentificacion({ paciente }: { paciente: PacienteOdontolo
     ["Nombres", paciente.nombres],
     ["Primer apellido", paciente.primerApellido],
     ["Segundo apellido", paciente.segundoApellido],
-    ["Identificación", `${paciente.tipoDocumento} ${paciente.documento}`],
+    ["Identificación", `${tipoDocumentoVigente(paciente.tipoDocumento, paciente.fechaNacimiento)} ${paciente.documento}`],
     ["Sexo", paciente.sexo === "F" ? "Femenino" : "Masculino"],
     ["Fecha de nacimiento", nacimiento.toLocaleDateString("es-CO", { timeZone: "UTC" })],
     ["Edad", `${edad} años`],

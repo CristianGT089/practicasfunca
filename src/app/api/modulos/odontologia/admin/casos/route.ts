@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const parsed = casoOdontologiaSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Datos inválidos", detalle: parsed.error.issues }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(
+      { error: parsed.error.issues.find((i) => i.code === "custom")?.message ?? "Datos inválidos", detalle: parsed.error.issues },
+      { status: 400 }
+    );
 
   const escenario = await crearCaso(prisma, parsed.data);
   return NextResponse.json({ id: escenario.id });

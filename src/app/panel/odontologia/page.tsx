@@ -18,6 +18,7 @@ import {
 } from "@/components/modulos/odontologia/SeccionesHistoria";
 import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
 import AgendaCitas, { type PacienteParaCita } from "@/components/modulos/odontologia/AgendaCitas";
+import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
 
 type Jornada = { id: string; nombre: string; unidades: number; pacientesReales: boolean };
 
@@ -360,7 +361,7 @@ export default function ConsultorioOdontologiaPage() {
                 {p.nombres} {p.primerApellido} {p.segundoApellido ?? ""}
               </p>
               <p className="text-xs text-slate-500">
-                {p.tipoDocumento} {p.documento} · Historia clínica odontológica
+                {tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} {p.documento} · Historia clínica odontológica
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -524,7 +525,17 @@ export default function ConsultorioOdontologiaPage() {
                 <input
                   type="date"
                   value={admision.fechaNacimiento}
-                  onChange={(e) => setAdmision({ ...admision, fechaNacimiento: e.target.value })}
+                  onChange={(e) =>
+                    // El tipo de documento sigue a la edad (RC, TI, CC), salvo cédula de extranjería.
+                    setAdmision({
+                      ...admision,
+                      fechaNacimiento: e.target.value,
+                      tipoDocumento:
+                        e.target.value && admision.tipoDocumento !== "CE"
+                          ? (tipoDocumentoVigente("CC", e.target.value) as Admision["tipoDocumento"])
+                          : admision.tipoDocumento,
+                    })
+                  }
                   className={`${claseCampo} mt-1`}
                 />
               </label>

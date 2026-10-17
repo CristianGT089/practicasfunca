@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { problemaDocumento } from "./documento";
 
 const opcional = (max: number) => z.string().trim().max(max).nullable().default(null);
 
@@ -19,6 +20,10 @@ export const pacienteSchema = z.object({
   contactoEmergencia: opcional(80),
   parentescoContacto: opcional(40),
   telefonoContacto: opcional(30),
+}).superRefine((p, ctx) => {
+  // El documento debe corresponder a la edad (RC, TI o CC), como en la vida real.
+  const problema = problemaDocumento(p.tipoDocumento, p.fechaNacimiento);
+  if (problema) ctx.addIssue({ code: "custom", path: ["tipoDocumento"], message: problema });
 });
 
 /**

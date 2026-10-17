@@ -20,6 +20,7 @@ import CuentasPuestos, { type CuentaPuesto } from "@/components/admin/jornada/Cu
 import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjetasPdf";
 import type { Participante } from "@/components/admin/jornada/tipos";
 import { definicionSituacion } from "@/lib/simulacion/situaciones";
+import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
 
 type Receta = {
   id: string;
@@ -483,7 +484,7 @@ export default function SimulacionDetallePage() {
               <div key={c.id} className="tarjeta-sm p-4 text-sm">
                 <p className="font-medium text-slate-800">{c.escenarioOdontologia.escenario.titulo}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {p.nombres} {p.primerApellido} · {p.tipoDocumento} {p.documento} · dentición{" "}
+                  {p.nombres} {p.primerApellido} · {tipoDocumentoVigente(p.tipoDocumento, p.fechaNacimiento)} {p.documento} · dentición{" "}
                   {c.escenarioOdontologia.denticion.toLowerCase()}
                 </p>
                 <p className="text-xs text-slate-600 mt-1 italic">“{c.escenarioOdontologia.motivoConsulta}”</p>

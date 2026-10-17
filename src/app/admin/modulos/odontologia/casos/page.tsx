@@ -19,6 +19,7 @@ import { requiereRadiografia } from "@/lib/modulos/odontologia/pasos";
 import Odontograma from "@/components/modulos/odontologia/Odontograma";
 import IndicePlaca from "@/components/modulos/odontologia/IndicePlaca";
 import { GrillaSi } from "@/components/modulos/odontologia/SeccionesHistoria";
+import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
 
 type Paciente = {
   nombres: string;
@@ -211,7 +212,8 @@ export default function CasosOdontologiaPage() {
       body: JSON.stringify(aPayload(c)),
     });
     if (!res.ok) {
-      setError("No se pudo guardar. Revisa los campos.");
+      const data = await res.json().catch(() => ({}));
+      setError(data.error && data.error !== "Datos inválidos" ? data.error : "No se pudo guardar. Revisa los campos.");
       return;
     }
     setError(null);
@@ -396,7 +398,20 @@ function Editor({
             </select>
           </Campo>
           <Campo etiqueta="Fecha de nacimiento">
-            <input type="date" value={caso.paciente.fechaNacimiento} onChange={(ev) => setP({ fechaNacimiento: ev.target.value })} className={claseInput} />
+            <input
+              type="date"
+              value={caso.paciente.fechaNacimiento}
+              onChange={(ev) =>
+                // El tipo de documento sigue a la edad (RC, TI, CC), salvo cédula de extranjería.
+                setP({
+                  fechaNacimiento: ev.target.value,
+                  ...(ev.target.value && caso.paciente.tipoDocumento !== "CE"
+                    ? { tipoDocumento: tipoDocumentoVigente("CC", ev.target.value) as Paciente["tipoDocumento"] }
+                    : {}),
+                })
+              }
+              className={claseInput}
+            />
           </Campo>
           {texto("EPS", caso.paciente.eps, (v) => setP({ eps: v }))}
           {texto("Estado civil", caso.paciente.estadoCivil, (v) => setP({ estadoCivil: v }))}

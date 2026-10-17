@@ -22,6 +22,10 @@ Digitaliza el formato en papel *Historia Salud Oral* de FUNCA; el foco es el **o
 
 ## Odontograma
 
+- **Siempre las cuatro filas** (permanentes y temporales), sea el paciente adulto o niño,
+  como en el formato en papel (pedido de las docentes, oct. 2026). La dentición del caso solo
+  decide qué dientes cuentan en el índice de placa, qué marca "el resto como sano" y los
+  avisos de la mixta; marcar en un diente que el paciente no tiene cuenta como marca de más.
 - Numeración FDI, 5 caras por diente (V, L/P, M, D, O/I). La mesial siempre mira a la línea
   media; en superiores la vestibular va arriba, en inferiores abajo (igual que el papel).
 - 22 convenciones (`HALLAZGOS` en `src/lib/modulos/odontologia/odontograma.ts`). Las de cara
@@ -244,3 +248,17 @@ atenderlo en la consulta, se califica el componente *Próxima cita* (peso 5): ci
 tratamiento, dentro de los 3 días hábiles, con teléfono y, si es menor, a nombre del
 acudiente. El docente ve la agenda de la jornada en su panel. Al cerrar la jornada se borran
 sus citas.
+
+## Descripciones del examen sin la conducta (2026-10-17)
+
+Lo que "se ve" al examinar (tarjetas y práctica virtual) describe solo signos observables. Se
+quitaron las frases que daban la respuesta: "se indica extraerlo", "su extracción requiere
+técnica quirúrgica", "necesita tratamiento de conductos" y "se recomienda sellarlas".
+
+## Documento según la edad (2026-10-17)
+
+`documento.ts`: registro civil (0-6), tarjeta de identidad (7-17), cédula (18+); la cédula de
+extranjería vale a cualquier edad. Se valida al guardar un caso y en la admisión de pacientes
+reales (con el motivo: "Con 15 años el documento es tarjeta de identidad (TI)"), los
+formularios lo precargan al escribir la fecha de nacimiento, y lo que se muestra o imprime usa
+el tipo vigente según la edad de hoy (el número no cambia).
