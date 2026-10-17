@@ -12,10 +12,11 @@ import { requireGestor, slugsGestionados, type Gestor } from "@/lib/nucleo/permi
  */
 export const MODULOS_DE_TIPO_JORNADA = {
   FARMACIA: ["farmacia"],
-  DISPENSARIO: ["dispensacion"],
+  // El dispensario y la recepción técnica son de todo el servicio farmacéutico: los ven los
+  // docentes de Farmacia y de Dispensación.
+  DISPENSARIO: ["dispensacion", "farmacia"],
   ODONTOLOGIA: ["odontologia"],
   ENFERMERIA: ["enfermeria"],
-  // La recepción técnica es de todo el servicio farmacéutico: Farmacia y Dispensación.
   RECEPCION: ["farmacia", "dispensacion"],
 } as const satisfies Record<string, readonly string[]>;
 
