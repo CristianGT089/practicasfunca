@@ -135,6 +135,7 @@ export default function Confirmacion({
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={calificar}
+          data-guia="calificar"
           disabled={calificando}
           className="rounded-full font-heading bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:opacity-40"
         >

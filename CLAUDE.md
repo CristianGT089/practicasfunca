@@ -25,11 +25,15 @@
   estudiante en ≤ 3 clics. Navegación del docente por tareas: Inicio · Jornadas ·
   Calificaciones · Estudiantes ▾ · Contenido ▾ · Configuración ▾ (solo coordinación).
 
-## Guía de inicio de docentes
+## Recorridos guiados (onboarding de docentes)
 
-- `src/app/admin/guia/page.tsx`: los pasos de una práctica (grupo → jornada → dejarla lista →
-  acompañarla → calificar → contenido → cuenta), con consejos filtrados por los módulos del
-  docente (`/api/auth/me`). El Inicio la ofrece mientras `Usuario.guiaVistaEn` sea null;
-  terminarla u omitirla llama `POST /api/auth/guia`. Queda en el menú de la cuenta.
-- Describe flujos y nombres de botones reales: si cambias uno (asistente, «Iniciar jornada»,
-  «Finalizar», «Calificar», PDF, cuentas de computadores, tablero), actualiza la guía.
+- Son sobre la interfaz real, no una página aparte: `src/components/nucleo/Recorrido.tsx`
+  oscurece la pantalla, resalta el elemento con `data-guia="…"` y explica qué hace. Cada
+  pantalla declara el suyo con `<Recorrido id pasos listo />`; los pasos cuyo elemento no está
+  en pantalla se omiten solos.
+- Hoy: `inicio` (Inicio y menú) y uno por estado de la jornada (`jornada-preparar`,
+  `jornada-curso`, `jornada-calificar`, `jornada-reporte`, en
+  `src/components/admin/jornada/recorrido.tsx`).
+- Cada uno arranca solo la primera vez (`Usuario.guiasVistas`, `POST /api/auth/guia`) y se
+  repite con «Guía de esta pantalla» en el menú de la cuenta.
+- Si cambias un flujo o un botón marcado con `data-guia`, actualiza el texto del paso.

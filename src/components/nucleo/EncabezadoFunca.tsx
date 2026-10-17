@@ -9,6 +9,8 @@ export type ItemNav = {
   href: string;
   label: string;
   activo?: boolean;
+  /** Marca para los recorridos guiados (`data-guia`). */
+  guia?: string;
   /** Si trae subsecciones se muestra como menú desplegable. */
   secciones?: { titulo?: string; items: { href: string; label: string; activo?: boolean }[] }[];
 };
@@ -35,8 +37,8 @@ export default function EncabezadoFunca({
   nombre?: string;
   rol?: string;
   onSalir: () => void;
-  /** Enlaces del menú de la cuenta (ej. "Vista estudiante"). */
-  enlacesCuenta?: { href: string; label: string }[];
+  /** Enlaces del menú de la cuenta (ej. "Vista estudiante"); con `onClick` es una acción. */
+  enlacesCuenta?: EnlaceCuenta[];
 }) {
   return (
     <header className="sticky top-0 z-40 bg-blue-900 border-b border-blue-950 shadow-[0_8px_24px_-14px_rgba(19,28,55,0.6)]">
@@ -77,6 +79,8 @@ export default function EncabezadoFunca({
   );
 }
 
+type EnlaceCuenta = { href?: string; label: string; onClick?: () => void };
+
 const clasePildora = (activo?: boolean) =>
   `inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium font-heading transition-colors ${
     activo ? "bg-white text-blue-900" : "text-blue-100 hover:bg-white/10 hover:text-white"
@@ -109,7 +113,7 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
 
   if (!item.secciones) {
     return (
-      <Link href={item.href} className={clasePildora(item.activo)} aria-current={item.activo ? "page" : undefined}>
+      <Link href={item.href} data-guia={item.guia} className={clasePildora(item.activo)} aria-current={item.activo ? "page" : undefined}>
         {item.label}
       </Link>
     );
@@ -119,6 +123,7 @@ function ItemNavegacion({ item, compacto = false }: { item: ItemNav; compacto?: 
     <div ref={ref} className={compacto ? "shrink-0" : "relative"} onMouseLeave={compacto ? undefined : () => setAbierto(false)}>
       <button
         type="button"
+        data-guia={item.guia}
         className={clasePildora(item.activo)}
         aria-expanded={abierto}
         aria-haspopup="true"
@@ -186,7 +191,7 @@ function Cuenta({
   nombre?: string;
   rol?: string;
   onSalir: () => void;
-  enlaces: { href: string; label: string }[];
+  enlaces: EnlaceCuenta[];
 }) {
   const [abierto, setAbierto] = useState(false);
   const [cambiandoPassword, setCambiandoPassword] = useState(false);
@@ -215,6 +220,7 @@ function Cuenta({
         aria-expanded={abierto}
         aria-haspopup="true"
         aria-label={`Cuenta de ${nombre ?? "usuario"}`}
+        data-guia="cuenta"
         className="flex items-center gap-1.5 rounded-full p-0.5 pr-2 text-blue-100 hover:bg-white/10 hover:text-white"
       >
         <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full bg-gold-500 font-heading text-sm font-bold text-blue-900">
@@ -232,11 +238,25 @@ function Cuenta({
               {rol && <p className="text-xs text-slate-500">{rol}</p>}
             </div>
           )}
-          {enlaces.map((e) => (
-            <Link key={e.href} href={e.href} onClick={() => setAbierto(false)} className="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800">
-              {e.label}
-            </Link>
-          ))}
+          {enlaces.map((e) =>
+            e.href ? (
+              <Link key={e.label} href={e.href} onClick={() => setAbierto(false)} className="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800">
+                {e.label}
+              </Link>
+            ) : (
+              <button
+                key={e.label}
+                type="button"
+                onClick={() => {
+                  setAbierto(false);
+                  e.onClick?.();
+                }}
+                className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800"
+              >
+                {e.label}
+              </button>
+            ),
+          )}
           <button
             type="button"
             onClick={() => {

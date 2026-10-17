@@ -115,7 +115,7 @@ export default function Reporte({ simulacionId }: { simulacionId: string }) {
             {dictado ? "Mostrar nombres" : "Mostrar quién atendió"}
           </label>
         )}
-        <button onClick={exportar} className={`${vista === "notas" ? "ml-auto" : ""} text-sm text-blue-700 hover:underline`}>
+        <button onClick={exportar} data-guia="csv" className={`${vista === "notas" ? "ml-auto" : ""} text-sm text-blue-700 hover:underline`}>
           Descargar (Excel/CSV)
         </button>
       </div>

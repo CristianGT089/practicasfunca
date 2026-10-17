@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { gruposAdminModulos } from "@/lib/modulos/registro";
 import EncabezadoFunca, { type ItemNav } from "@/components/nucleo/EncabezadoFunca";
+import { hayRecorridoEnPantalla, pedirGuia, ProveedorGuias } from "@/components/nucleo/Recorrido";
 
 type Rol = "ADMIN" | "DOCENTE";
 
@@ -38,7 +39,7 @@ const RUTAS_SIN_CHROME = ["/admin/turnero/registro", "/admin/turnero/tablero"];
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sesion, setSesion] = useState<{ rol: Rol; nombre: string; slugs: string[] } | null>(null);
+  const [sesion, setSesion] = useState<{ rol: Rol; nombre: string; slugs: string[]; guiasVistas: string[] } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -53,6 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           rol,
           nombre: data.usuario.nombre,
           slugs: (data.modulos ?? []).map((m: { slug: string }) => m.slug),
+          guiasVistas: data.usuario.guiasVistas ?? [],
         });
       });
   }, [router]);
@@ -92,16 +94,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const nav: ItemNav[] = [
     marcar({ href: "/admin", label: "Inicio" }),
-    ...(visible(JORNADAS) ? [marcar({ href: JORNADAS.href, label: JORNADAS.label })] : []),
-    marcar({ href: "/admin/calificaciones", label: "Calificaciones" }),
+    ...(visible(JORNADAS) ? [marcar({ href: JORNADAS.href, label: JORNADAS.label, guia: "nav-jornadas" })] : []),
+    marcar({ href: "/admin/calificaciones", label: "Calificaciones", guia: "nav-calificaciones" }),
     {
       href: "#personas",
+      guia: "nav-estudiantes",
       label: "Estudiantes",
       activo: PERSONAS.some((e) => e.href === hrefActivo),
       secciones: [seccion(undefined, PERSONAS.filter(visible))],
     },
     {
       href: "#contenido",
+      guia: "nav-contenido",
       label: "Contenido",
       activo: contenido.some((s) => s.items.some((i) => i.href === hrefActivo)),
       secciones: contenido.map((s) => seccion(s.titulo, s.items)),
@@ -133,10 +137,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onSalir={cerrarSesion}
         enlacesCuenta={[
           { href: "/panel", label: "Vista estudiante" },
-          { href: "/admin/guia", label: "Guía de inicio" },
+          {
+            label: "Guía de esta pantalla",
+            // Si esta pantalla no tiene recorrido, el del Inicio es el general.
+            onClick: () => (hayRecorridoEnPantalla() ? pedirGuia() : router.push("/admin?guia=1")),
+          },
         ]}
       />
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</main>
+      <ProveedorGuias vistas={sesion.guiasVistas} slugs={sesion.slugs}>
+        <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</main>
+      </ProveedorGuias>
     </div>
   );
 }

@@ -21,6 +21,8 @@ import { generarTarjetasOdontologiaPDF } from "@/lib/modulos/odontologia/tarjeta
 import type { Participante } from "@/components/admin/jornada/tipos";
 import { definicionSituacion } from "@/lib/simulacion/situaciones";
 import { tipoDocumentoVigente } from "@/lib/modulos/odontologia/documento";
+import { Recorrido } from "@/components/nucleo/Recorrido";
+import { recorridoJornada } from "@/components/admin/jornada/recorrido";
 
 type Receta = {
   id: string;
@@ -254,6 +256,7 @@ export default function SimulacionDetallePage() {
 
   return (
     <div className="mx-auto max-w-4xl">
+      <Recorrido key={simulacion.estado} {...recorridoJornada(simulacion)} />
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Link href="/admin/simulacion" className="text-sm text-slate-400 hover:text-blue-800">
@@ -292,6 +295,7 @@ export default function SimulacionDetallePage() {
             (simulacion.casosOdontologia.length > 0 && simulacion.estado !== "CERRADA" && !simulacion.dictado)) && (
             <button
               onClick={descargarPdf}
+              data-guia="pdf"
               disabled={generandoPdf}
               className="text-sm text-blue-700 hover:underline disabled:opacity-40"
             >
@@ -306,6 +310,7 @@ export default function SimulacionDetallePage() {
           {simulacion.estado === "BORRADOR" && (
             <button
               onClick={abrir}
+              data-guia="iniciar"
               className="rounded-full font-heading bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
             >
               {simulacion.dictado ? "Iniciar dictado" : "Iniciar jornada"}
@@ -319,6 +324,7 @@ export default function SimulacionDetallePage() {
               {!simulacion.dictado && (
                 <button
                   onClick={() => setConfirmandoFin(true)}
+                  data-guia="finalizar"
                   className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
                 >
                   Finalizar jornada
@@ -361,7 +367,7 @@ export default function SimulacionDetallePage() {
       )}
 
       {simulacion.estado === "BORRADOR" && (
-        <div className="mb-6">
+        <div className="mb-6" data-guia="participantes">
           <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
         </div>
       )}
@@ -376,7 +382,12 @@ export default function SimulacionDetallePage() {
               conTurnero={simulacion.tipo === "DISPENSARIO" || simulacion.tipo === "FARMACIA"}
             />
           )}
-          {simulacion.sesionTurneroId && <CuentasPuestos simulacionId={simulacion.id} iniciales={null} />}
+          {simulacion.sesionTurneroId && (
+            <div data-guia="cuentas">
+              <CuentasPuestos simulacionId={simulacion.id} iniciales={null} />
+            </div>
+          )}
+          <div data-guia="espacios">
           <Ventanillas
             simulacionId={simulacion.id}
             espacios={Array.from({ length: simulacion.turnero.numeroEspacios }, (_, i) => ({
@@ -389,83 +400,98 @@ export default function SimulacionDetallePage() {
             onCambio={setVentanillas}
             etiqueta={etiquetaEspacio(simulacion.tipo)}
           />
+          </div>
         </div>
       )}
 
       {simulacion.dictado && (simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
-        <div className="mb-6">
+        <div className="mb-6" data-guia="control">
           <ControlDictado simulacionId={simulacion.id} enCurso={simulacion.estado === "ABIERTA"} onTerminado={cargar} />
         </div>
       )}
 
       {simulacion.estado === "ABIERTA" && !simulacion.dictado && (
-        <div className="mb-6">
+        <div className="mb-6" data-guia="cuentas">
           <CuentasPuestos simulacionId={simulacion.id} iniciales={cuentasNuevas} />
         </div>
       )}
 
       {simulacion.estado === "ABIERTA" && simulacion.tipo === "ENFERMERIA" && (
-        <ControlOdontologia
-          simulacionId={simulacion.id}
-          sesionTurneroId={simulacion.sesionTurneroId}
-          unidades={simulacion.turnero.numeroEspacios}
-          participantes={simulacion.participantes}
-          ventanillas={ventanillas}
-          onVentanillas={setVentanillas}
-          etiqueta="Estación"
-          ruta="/panel/enfermeria"
-          pantalla="la estación de enfermería"
-          registro="hoja"
-        />
+        <div data-guia="control">
+          <ControlOdontologia
+            simulacionId={simulacion.id}
+            sesionTurneroId={simulacion.sesionTurneroId}
+            unidades={simulacion.turnero.numeroEspacios}
+            participantes={simulacion.participantes}
+            ventanillas={ventanillas}
+            onVentanillas={setVentanillas}
+            etiqueta="Estación"
+            ruta="/panel/enfermeria"
+            pantalla="la estación de enfermería"
+            registro="hoja"
+          />
+        </div>
       )}
 
       {simulacion.tipo === "RECEPCION" && (simulacion.estado === "BORRADOR" || simulacion.estado === "ABIERTA") && (
-        <PedidosRecepcion
-          simulacion={simulacion}
-          ventanillas={ventanillas}
-          onVentanillas={setVentanillas}
-          onRecargar={cargar}
-        />
+        <div data-guia="control">
+          <PedidosRecepcion
+            simulacion={simulacion}
+            ventanillas={ventanillas}
+            onVentanillas={setVentanillas}
+            onRecargar={cargar}
+          />
+        </div>
       )}
 
       {simulacion.estado === "ABIERTA" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.dictado && (
-        <ControlOdontologia
-          simulacionId={simulacion.id}
-          sesionTurneroId={simulacion.sesionTurneroId}
-          unidades={simulacion.turnero.numeroEspacios}
-          participantes={simulacion.participantes}
-          ventanillas={ventanillas}
-          onVentanillas={setVentanillas}
-        />
+        <div data-guia="control">
+          <ControlOdontologia
+            simulacionId={simulacion.id}
+            sesionTurneroId={simulacion.sesionTurneroId}
+            unidades={simulacion.turnero.numeroEspacios}
+            participantes={simulacion.participantes}
+            ventanillas={ventanillas}
+            onVentanillas={setVentanillas}
+          />
+        </div>
       )}
 
       {simulacion.estado === "ABIERTA" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.tipo !== "ENFERMERIA" && simulacion.sesionTurneroId && (
-        <ControlTurnero
-          sesionId={simulacion.sesionTurneroId}
-          simulacionId={simulacion.id}
-          participantes={simulacion.participantes}
-          ventanillas={ventanillas}
-          onVentanillas={setVentanillas}
-        />
+        <div data-guia="control">
+          <ControlTurnero
+            sesionId={simulacion.sesionTurneroId}
+            simulacionId={simulacion.id}
+            participantes={simulacion.participantes}
+            ventanillas={ventanillas}
+            onVentanillas={setVentanillas}
+          />
+        </div>
       )}
 
       {/* En curso, lo principal es el control de arriba; la lista de participantes va al final. */}
       {simulacion.estado === "ABIERTA" && (
-        <div className="mt-6">
+        <div className="mt-6" data-guia="participantes">
           <Participantes simulacionId={simulacion.id} participantes={simulacion.participantes} onCambio={cargar} editable />
         </div>
       )}
 
       {simulacion.estado === "EN_REVISION" && (
-        <Confirmacion
-          simulacionId={simulacion.id}
-          participantes={simulacion.participantes}
-          onCalificar={calificar}
-          conRubrica={simulacion.tipo === "ODONTOLOGIA" && simulacion.pacientesReales}
-        />
+        <div data-guia="confirmacion">
+          <Confirmacion
+            simulacionId={simulacion.id}
+            participantes={simulacion.participantes}
+            onCalificar={calificar}
+            conRubrica={simulacion.tipo === "ODONTOLOGIA" && simulacion.pacientesReales}
+          />
+        </div>
       )}
 
-      {simulacion.estado === "CERRADA" && <Reporte simulacionId={simulacion.id} />}
+      {simulacion.estado === "CERRADA" && (
+        <div data-guia="reporte">
+          <Reporte simulacionId={simulacion.id} />
+        </div>
+      )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && simulacion.pacientesReales && (
         <div className="rounded-xl bg-cyan-50 border border-cyan-200 p-4 text-sm text-cyan-900">
@@ -479,11 +505,13 @@ export default function SimulacionDetallePage() {
       )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo === "ODONTOLOGIA" && !simulacion.pacientesReales && !simulacion.dictado && (
-        <CasosOdontologiaBorrador simulacion={simulacion} onCambio={cargar} />
+        <div data-guia="casos">
+          <CasosOdontologiaBorrador simulacion={simulacion} onCambio={cargar} />
+        </div>
       )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo === "ENFERMERIA" && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-guia="casos">
           <h2 className="text-sm font-heading font-semibold text-blue-900">Pacientes de la ronda</h2>
           <p className="text-xs text-slate-500">
             Descarga el PDF: trae la manilla (para recortar) y la tarjeta de cada paciente. Entrega cada una a un compañero y que se ponga la
@@ -509,7 +537,7 @@ export default function SimulacionDetallePage() {
       )}
 
       {simulacion.estado === "BORRADOR" && simulacion.tipo !== "ODONTOLOGIA" && simulacion.tipo !== "ENFERMERIA" && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-guia="casos">
           {simulacion.pacientes.map((p) => (
             <FilaPaciente
               key={p.id}
@@ -724,7 +752,7 @@ function ComputadoresListos({ sesionId, conTurnero }: { sesionId: string; conTur
   if (!snapshot) return null;
   const listos = snapshot.espacios.filter((e) => e.listo).length;
   return (
-    <section className="tarjeta-sm p-4">
+    <section className="tarjeta-sm p-4" data-guia="computadores">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-heading font-semibold text-blue-900">
           Computadores listos: {listos} de {snapshot.espacios.length}
