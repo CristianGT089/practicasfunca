@@ -219,3 +219,28 @@ consentimiento informado (Ley 1098 de 2006; Res. 1995 de 1999 sobre historia cl�
   documento del paciente (`acudiente.ts#documentoAcudienteDeCaso`), sin guardarla.
 - **Calificación**: componente *Acudiente* (peso 5, solo menores): nombre, cédula correcta,
   parentesco y consentimiento, una cuarta parte cada uno.
+
+## Agenda de citas (2026-10-17)
+
+Un solo modelo de cita (`CitaOdontologia`) para dos agendas:
+
+- **Agenda real del consultorio** (Contenido → Odontología → *Agenda de citas*): una agenda
+  por unidad (`UNIDADES_CONSULTORIO` = 3), para docentes de Odontología y coordinación.
+- **Agenda de práctica de cada jornada** de Odontología (con casos o pacientes reales): una
+  por unidad de la jornada. Nace con ~40-75 % de los espacios ocupados por otros pacientes
+  (más llena los primeros días) para que encontrar un espacio dentro del plazo cueste.
+
+Reglas (`agenda.ts`, puras): lunes a viernes hábiles de 7:00 a 17:00, en bloques de 20
+minutos, en hora de Colombia; los **festivos de Colombia** se calculan (fijos, Ley Emiliani
+y los que dependen de la Pascua); sin cruces en la misma unidad (las canceladas no ocupan).
+**Oportunidad** (Res. 1552 de 2013, art. 1 par. 3): la cita de odontología general en máximo
+3 días hábiles desde la solicitud, salvo que el paciente pida otra fecha (casilla en la
+agenda real). Tipos: valoración, tratamiento, control y urgencia, con duración sugerida.
+Estados: programada, confirmada, atendida, no asistió y cancelada.
+
+**En la jornada**: al cerrar la historia, el consultorio muestra la agenda con el paciente ya
+cargado (y su acudiente si es menor) y el plazo de oportunidad. Si la conducta correcta era
+atenderlo en la consulta, se califica el componente *Próxima cita* (peso 5): cita de
+tratamiento, dentro de los 3 días hábiles, con teléfono y, si es menor, a nombre del
+acudiente. El docente ve la agenda de la jornada en su panel. Al cerrar la jornada se borran
+sus citas.

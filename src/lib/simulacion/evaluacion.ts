@@ -40,6 +40,7 @@ export type ClaveCriterio =
   | "INDICE_PLACA"
   | "REMISION"
   | "ACUDIENTE"
+  | "AGENDA"
   | "HISTORIA_CORRECTA"
   | "RUBRICA"
   // Enfermería (ronda de medicamentos con hoja de enfermería)
@@ -80,6 +81,7 @@ export const ETIQUETA_ERROR: Partial<Record<ClaveCriterio, string>> = {
   INDICE_PLACA: "Índice de placa mal pintado o mal calculado",
   REMISION: "Eligió mal la conducta (remisión)",
   ACUDIENTE: "No registró bien al acudiente del menor (documento, parentesco o consentimiento)",
+  AGENDA: "No agendó bien la próxima cita (tipo, plazo de 3 días hábiles o teléfono)",
   RUBRICA: "No cumplió del todo un criterio de la rúbrica del docente",
 };
 

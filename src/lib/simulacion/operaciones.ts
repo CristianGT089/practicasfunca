@@ -10,6 +10,7 @@ import { MODULO_DE_TIPO_JORNADA } from "./permisos";
 import { generarPacientes, type PacienteGenerado } from "./generador";
 import { reconstruirInventario } from "./pendientes";
 import { generarEntregasRecepcion } from "./recepcionJornada";
+import { rellenarAgendaJornada } from "@/lib/modulos/odontologia/agendaServidor";
 import { crearCasoDictado, type OpcionesDictado } from "@/lib/modulos/odontologia/dictadoJornada";
 import { casoRonda } from "@/lib/modulos/enfermeria/ronda";
 import { planAlAzar, planDeSituaciones, PROPORCION_NORMALES_DEFAULT, type CodigoSituacion } from "./situaciones";
@@ -325,6 +326,7 @@ export async function cerrarSimulacion(simulacionId: string) {
   await prisma.pendienteSimulacion.deleteMany({ where: { simulacionId } });
   await prisma.existenciaSimulacion.deleteMany({ where: { simulacionId } });
   await prisma.entregaProveedor.deleteMany({ where: { simulacionId } });
+  await prisma.citaOdontologia.deleteMany({ where: { simulacionId } });
 
   if (simulacion.sesionTurneroId) {
     const sesion = await prisma.sesionTurnero.findUnique({ where: { id: simulacion.sesionTurneroId } });
@@ -402,7 +404,7 @@ async function crearJornadaOdontologia(opts: {
         select: { id: true, nombre: true },
       })
     : [];
-  return prisma.simulacion.create({
+  const simulacion = await prisma.simulacion.create({
     data: {
       nombre: opts.nombre,
       tipo: "ODONTOLOGIA",
@@ -422,6 +424,9 @@ async function crearJornadaOdontologia(opts: {
     },
     include: incluirPacientes,
   });
+  // La agenda de práctica de la jornada empieza con otros pacientes ya citados.
+  await rellenarAgendaJornada(simulacion.id, opts.numeroEspacios ?? 3);
+  return simulacion;
 }
 
 /**

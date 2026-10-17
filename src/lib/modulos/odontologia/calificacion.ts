@@ -31,6 +31,7 @@ export const PESOS = {
   placa: 10,
   remision: 10,
   acudiente: 5, // solo pacientes menores de edad
+  agenda: 5, // solo en la jornada: la próxima cita del paciente (ver agenda.ts)
 } as const;
 
 export type ComparacionOdontograma = {
@@ -203,6 +204,7 @@ export function revisarHistoria(
       placa: puntajePlaca,
       remision: remisionBien ? 100 : 0,
       acudiente: acudiente?.puntaje ?? null,
+      agenda: null,
     },
     odontograma,
     lineas,

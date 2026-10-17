@@ -17,6 +17,7 @@ import {
   type PacienteOdontologia,
 } from "@/components/modulos/odontologia/SeccionesHistoria";
 import { BarraTrabajo, claseAccionBarra } from "@/components/nucleo/EncabezadoFunca";
+import AgendaCitas, { type PacienteParaCita } from "@/components/modulos/odontologia/AgendaCitas";
 
 type Jornada = { id: string; nombre: string; unidades: number; pacientesReales: boolean };
 
@@ -79,6 +80,9 @@ export default function ConsultorioOdontologiaPage() {
   const [estadoGuardado, setEstadoGuardado] = useState<"guardado" | "pendiente" | "guardando" | "error">("guardado");
   const [cerrando, setCerrando] = useState(false);
   const [cerrada, setCerrada] = useState<string | null>(null);
+  // Al cerrar la historia: el paciente y la atención para agendar su próxima cita.
+  const [paraAgendar, setParaAgendar] = useState<{ atencionId: string; paciente: PacienteParaCita; cerradaEn: string } | null>(null);
+  const [citaAgendada, setCitaAgendada] = useState(false);
   // Pacientes reales: admisión del compañero que se va a examinar.
   const [admision, setAdmision] = useState<Admision>(ADMISION_VACIA);
   const [denticionReal, setDenticionReal] = useState<Denticion>("PERMANENTE");
@@ -253,6 +257,17 @@ export default function ConsultorioOdontologiaPage() {
       return;
     }
     setCerrada(`${encontrado.paciente.nombres} ${encontrado.paciente.primerApellido}`);
+    setParaAgendar({
+      atencionId,
+      paciente: {
+        nombre: [encontrado.paciente.nombres, encontrado.paciente.primerApellido, encontrado.paciente.segundoApellido].filter(Boolean).join(" "),
+        documento: encontrado.paciente.documento,
+        telefono: encontrado.paciente.telefono ?? null,
+        acudiente: ultimaHistoria.current.acudiente.nombre || null,
+      },
+      cerradaEn: new Date().toISOString(),
+    });
+    setCitaAgendada(false);
     setAtencionId(null);
     setEncontrado(null);
     setDocumento("");
@@ -440,7 +455,26 @@ export default function ConsultorioOdontologiaPage() {
       <div className="mx-auto max-w-3xl px-4 py-8 flex flex-col gap-4">
         {cerrada && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-900">
-            Historia de <b>{cerrada}</b> cerrada y firmada. Llama al siguiente paciente.
+            Historia de <b>{cerrada}</b> cerrada y firmada.{" "}
+            {paraAgendar ? "Si el paciente sigue el tratamiento aquí, agéndale la próxima cita." : "Llama al siguiente paciente."}
+          </div>
+        )}
+        {paraAgendar && jornada && (
+          <div className="flex flex-col gap-2">
+            <AgendaCitas
+              jornada={jornada.id}
+              paciente={paraAgendar.paciente}
+              atencionId={paraAgendar.atencionId}
+              solicitadaEn={paraAgendar.cerradaEn}
+              practica
+              onAgendada={() => setCitaAgendada(true)}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              {citaAgendada && <span className="text-sm text-emerald-700">Cita agendada.</span>}
+              <button onClick={() => setParaAgendar(null)} className="btn-primario">
+                {citaAgendada ? "Listo: siguiente paciente" : "No necesita cita: siguiente paciente"}
+              </button>
+            </div>
           </div>
         )}
         {jornada.pacientesReales ? (

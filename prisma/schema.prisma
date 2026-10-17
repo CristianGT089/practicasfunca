@@ -937,6 +937,7 @@ model Simulacion {
   existencias      ExistenciaSimulacion[]
   pendientes       PendienteSimulacion[]
   entregasProveedor EntregaProveedor[]
+  citasOdontologia CitaOdontologia[]
   participantes    ParticipanteJornada[]
   asignaciones     AsignacionEspacio[]
   atenciones       AtencionJornada[]
@@ -1215,4 +1216,57 @@ model ItemRecepcion {
   actualizadoEn        DateTime?
 
   @@map("items_recepcion")
+}
+
+// ---------- Agenda de citas de Salud Oral ----------
+
+// Una cita en la agenda de una unidad (silla). Sin simulación = agenda real del consultorio;
+// con simulación = la agenda de práctica de esa jornada (se borra con ella). Reglas en
+// lib/modulos/odontologia/agenda.ts (horario, festivos, cruces, oportunidad de 3 días hábiles).
+model CitaOdontologia {
+  id                String          @id @default(cuid())
+  simulacionId      String?
+  simulacion        Simulacion?     @relation(fields: [simulacionId], references: [id], onDelete: Cascade)
+  unidad            Int
+  inicio            DateTime
+  duracionMin       Int
+  tipo              TipoCita
+  motivo            String
+  pacienteNombre    String
+  pacienteDocumento String
+  pacienteTelefono  String?
+  // Menor de edad: quien lo trae (la cita se confirma con el acudiente).
+  acudienteNombre   String?
+  estado            EstadoCita      @default(PROGRAMADA)
+  // Cuándo la pidió el paciente: desde ahí se cuentan los 3 días hábiles (Res. 1552 de 2013).
+  solicitadaEn      DateTime        @default(now())
+  // El paciente pidió expresamente otra fecha (la excepción de la norma).
+  fechaPedidaPorPaciente Boolean    @default(false)
+  observaciones     String?
+  // Práctica: la ocupan otros pacientes desde el inicio (no la agendó un estudiante).
+  deRelleno         Boolean         @default(false)
+  // Práctica: la atención de la que salió la cita (para calificarla).
+  atencionId        String?
+  creadaPorId       String?
+  creadoEn          DateTime        @default(now())
+  actualizadoEn     DateTime        @updatedAt
+
+  @@index([simulacionId, inicio])
+  @@index([inicio])
+  @@map("citas_odontologia")
+}
+
+enum TipoCita {
+  VALORACION
+  CONTROL
+  TRATAMIENTO
+  URGENCIA
+}
+
+enum EstadoCita {
+  PROGRAMADA
+  CONFIRMADA
+  ATENDIDA
+  NO_ASISTIO
+  CANCELADA
 }

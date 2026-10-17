@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PuestosTemporales from "@/components/admin/PuestosTemporales";
 import Ventanillas from "./Ventanillas";
+import AgendaCitas from "@/components/modulos/odontologia/AgendaCitas";
 import { hora, type AtencionReporte, type Participante } from "./tipos";
 
 /**
@@ -95,6 +96,16 @@ export default function ControlOdontologia({
           </ul>
         )}
       </section>
+
+      {registro === "historia" && (
+        <details className="tarjeta-sm p-4">
+          <summary className="cursor-pointer text-sm font-heading font-semibold text-blue-900">Agenda de la jornada</summary>
+          <p className="mt-1 mb-3 text-xs text-slate-500">
+            Las citas que los estudiantes van dando al cerrar cada historia (las grises son de otros pacientes, para que la agenda no esté vacía).
+          </p>
+          <AgendaCitas jornada={simulacionId} />
+        </details>
+      )}
 
       {sesionTurneroId && (
         <PuestosTemporales

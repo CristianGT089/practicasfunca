@@ -30,6 +30,7 @@ const NOMBRES_COMPONENTE: Record<string, string> = {
   placa: "Índice de placa",
   remision: "Remisión",
   acudiente: "Acudiente (menor de edad)",
+  agenda: "Próxima cita en la agenda",
 };
 
 const etiquetaRemision = (c: string | null) => REMISIONES.find((r) => r.codigo === c)?.etiqueta ?? "—";

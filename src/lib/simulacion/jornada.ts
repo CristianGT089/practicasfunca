@@ -22,6 +22,7 @@ import { hojaVacia, normalizarHoja, notaHoja, revisarHoja } from "@/lib/modulos/
 import { casoRonda, esperadoDeCaso } from "@/lib/modulos/enfermeria/ronda";
 import { evaluarRecepcion, type MotivoRecepcion, type RegistroItem } from "./recepcion";
 import { acudienteEsperadoDeCaso } from "@/lib/modulos/odontologia/acudiente";
+import { revisarCitaDeAtencion } from "@/lib/modulos/odontologia/agenda";
 
 // ---------------------------------------------------------------------------
 // Participantes y ventanillas
@@ -333,6 +334,7 @@ function claveDeLinea(descripcion: string, cumplido: boolean): ClaveCriterio {
   if (descripcion.startsWith("Examen")) return "EXAMENES";
   if (descripcion.startsWith("Índice")) return "INDICE_PLACA";
   if (descripcion.startsWith("Acudiente")) return "ACUDIENTE";
+  if (descripcion.startsWith("Agenda")) return "AGENDA";
   return "REMISION";
 }
 
@@ -361,6 +363,18 @@ async function calificarAtencionOdontologia(atencionId: string, ahora: Date) {
   // El acudiente se califica con la edad que tenía el paciente el día de la atención.
   const acudiente = acudienteEsperadoDeCaso(caso.paciente, atencion.llamadoEn ?? ahora);
   const revision = revisarHistoria(esperado, historia, denticion, resultadoEsperado, atencion.remision, acudiente);
+  // La próxima cita que agendó al cerrar la historia (agenda de práctica de la jornada).
+  const citas = await prisma.citaOdontologia.findMany({ where: { atencionId: atencion.id, estado: { not: "CANCELADA" } } });
+  const agenda = revisarCitaDeAtencion({
+    conductaEsperada: resultadoEsperado,
+    citas,
+    cerradaEn: atencion.cerradaEn ?? ahora,
+    esMenor: acudiente !== null,
+  });
+  if (agenda) {
+    revision.puntajes.agenda = agenda.puntaje;
+    revision.lineas.push(...agenda.lineas.map((l) => ({ ...l, obligatorio: true })));
+  }
   const etiquetaRemision = (c: string | null) => REMISIONES.find((r) => r.codigo === c)?.etiqueta ?? "sin elegir";
 
   const criterios: Criterio[] = [
