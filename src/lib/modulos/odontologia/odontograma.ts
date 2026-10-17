@@ -320,8 +320,9 @@ export function dientesPresentes(denticion: Denticion, marcas: Marca[]): number[
 // ---------------------------------------------------------------------------
 
 /**
- * Cómo se describe cada hallazgo en el examen, sin nombrar la convención: el estudiante
- * tiene que reconocer qué convención corresponde. `clinico` es lo que se ve en boca;
+ * Cómo se describe cada hallazgo en el examen, sin nombrar la convención ni la conducta
+ * ("se indica extraerlo"): solo lo que se ve en boca. El estudiante tiene que reconocer qué
+ * convención corresponde y decidir qué hacer. `clinico` es lo que se ve en boca;
  * `radiografico`, lo que aparece en la radiografía (si el hallazgo solo es radiográfico,
  * no tiene descripción clínica).
  */
@@ -332,10 +333,10 @@ const DESCRIPCION: Record<CodigoHallazgo, { clinico?: string; radiografico?: str
   AMALGAMA: { clinico: "restauración metálica plateada (amalgama)" },
   AUSENTE: { clinico: "no se observa en boca; el paciente refiere que se lo extrajeron" },
   EXODONCIA_SIMPLE_INDICADA: {
-    clinico: "destrucción coronal extensa, no restaurable, con raíces accesibles; se indica extraerlo",
+    clinico: "destrucción coronal extensa que compromete casi toda la corona, con las raíces firmes y accesibles",
   },
   EXODONCIA_QUIRURGICA_INDICADA: {
-    clinico: "parcialmente cubierto por encía, con dolor e inflamación recurrente; su extracción requiere técnica quirúrgica",
+    clinico: "parcialmente cubierto por encía, con dolor e inflamación recurrente de la encía que lo rodea",
   },
   SIN_ERUPCIONAR: {
     clinico: "no se observa en boca y el paciente no recuerda que se lo hayan extraído",
@@ -343,9 +344,9 @@ const DESCRIPCION: Record<CodigoHallazgo, { clinico?: string; radiografico?: str
   },
   ENDODONCIA_REALIZADA: { radiografico: "conductos radiculares obturados (tratamiento de conductos ya realizado)" },
   ENDODONCIA_INDICADA: {
-    clinico: "dolor espontáneo e intenso, que se prolonga después de retirar el frío; necesita tratamiento de conductos",
+    clinico: "dolor espontáneo e intenso, que se prolonga después de retirar el frío",
   },
-  SELLANTE_POR_HACER: { clinico: "fosas y fisuras profundas, sin caries; se recomienda sellarlas" },
+  SELLANTE_POR_HACER: { clinico: "fosas y fisuras profundas y retentivas, sin caries" },
   SELLANTE_REALIZADO: { clinico: "fosas y fisuras cubiertas con sellante, bien retenido" },
   ROTACION: { clinico: "girado sobre su propio eje respecto a los dientes vecinos" },
   CORONA_BUEN_ESTADO: { clinico: "corona completa bien adaptada" },
