@@ -24,3 +24,12 @@
 - Regla de los tres clics: lo frecuente se alcanza desde el Inicio (`/admin`) o el panel del
   estudiante en ≤ 3 clics. Navegación del docente por tareas: Inicio · Jornadas ·
   Calificaciones · Estudiantes ▾ · Contenido ▾ · Configuración ▾ (solo coordinación).
+
+## Guía de inicio de docentes
+
+- `src/app/admin/guia/page.tsx`: los pasos de una práctica (grupo → jornada → dejarla lista →
+  acompañarla → calificar → contenido → cuenta), con consejos filtrados por los módulos del
+  docente (`/api/auth/me`). El Inicio la ofrece mientras `Usuario.guiaVistaEn` sea null;
+  terminarla u omitirla llama `POST /api/auth/guia`. Queda en el menú de la cuenta.
+- Describe flujos y nombres de botones reales: si cambias uno (asistente, «Iniciar jornada»,
+  «Finalizar», «Calificar», PDF, cuentas de computadores, tablero), actualiza la guía.

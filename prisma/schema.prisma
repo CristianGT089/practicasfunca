@@ -105,6 +105,8 @@ model Usuario {
   gruposComoDocente    Grupo[]               @relation("GrupoDocentes")
   gruposComoEstudiante Grupo[]               @relation("GrupoEstudiantes")
   casosInterpretados   Paciente[]            @relation("CasosInterpretados")
+  // Cuándo vio (o descartó) la guía de inicio de docentes: si es null, el Inicio la ofrece.
+  guiaVistaEn          DateTime?
   participaciones      ParticipanteJornada[]
   simulacionesCreadas  Simulacion[]          @relation("SimulacionesCreadas")
 

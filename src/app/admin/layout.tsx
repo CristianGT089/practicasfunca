@@ -131,7 +131,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         nombre={sesion.nombre}
         rol={sesion.rol === "ADMIN" ? "Coordinación" : "Docente"}
         onSalir={cerrarSesion}
-        enlacesCuenta={[{ href: "/panel", label: "Vista estudiante" }]}
+        enlacesCuenta={[
+          { href: "/panel", label: "Vista estudiante" },
+          { href: "/admin/guia", label: "Guía de inicio" },
+        ]}
       />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">{children}</main>
     </div>

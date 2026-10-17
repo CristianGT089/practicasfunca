@@ -34,6 +34,8 @@ export default function InicioAdminPage() {
   const [rol, setRol] = useState<"ADMIN" | "DOCENTE" | null>(null);
   const [jornadas, setJornadas] = useState<Jornada[] | null>(null);
   const [tipos, setTipos] = useState<string[]>([]);
+  // La primera vez, el Inicio ofrece la guía hasta que el docente la vea o la descarte.
+  const [ofrecerGuia, setOfrecerGuia] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -41,6 +43,7 @@ export default function InicioAdminPage() {
       .then((d) => {
         setNombre(d.usuario?.nombre ?? "");
         setRol(d.usuario?.rol ?? null);
+        setOfrecerGuia(!!d.usuario && !d.usuario.guiaVistaEn);
       });
     fetch("/api/simulaciones")
       .then((r) => r.json())
@@ -126,6 +129,32 @@ export default function InicioAdminPage() {
           )}
         </div>
       </section>
+
+      {ofrecerGuia && (
+        <section className="tarjeta flex flex-col gap-4 border-l-4 border-gold-500 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="eyebrow">¿Primera vez aquí?</p>
+            <h2 className="mt-1 font-heading text-xl font-bold text-blue-900">Te mostramos cómo funciona en cinco minutos</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Del grupo a la nota: crear una jornada, dejarla lista, acompañarla y calificarla.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              onClick={() => {
+                setOfrecerGuia(false);
+                fetch("/api/auth/guia", { method: "POST" });
+              }}
+              className="text-sm font-semibold text-slate-500 hover:text-blue-800"
+            >
+              Ahora no
+            </button>
+            <Link href="/admin/guia" className="btn-primario px-5 py-2.5">
+              Empezar la guía
+            </Link>
+          </div>
+        </section>
+      )}
 
       {pendientes.length > 0 && (
         <section aria-labelledby="pendientes">

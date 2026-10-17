@@ -25,6 +25,8 @@ export async function GET() {
       rutaDirecta: usuario.rutaDirecta,
       // Cuenta de un computador de jornada: qué ventanilla/unidad es (no hay que elegirla).
       espacioNumero: usuario.espacioNumero,
+      // Si ya vio la guía de inicio de docentes (null = el Inicio la ofrece).
+      guiaVistaEn: usuario.guiaVistaEn?.toISOString() ?? null,
     },
     modulos: modulos.map((m) => ({
       id: m.id,
