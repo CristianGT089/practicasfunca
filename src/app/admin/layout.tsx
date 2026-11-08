@@ -81,6 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const todos = [
     "/admin",
     "/admin/calificaciones",
+    "/admin/clase",
     JORNADAS.href,
     ...PERSONAS.map((e) => e.href),
     ...contenido.flatMap((s) => s.items.map((i) => i.href)),
@@ -96,6 +97,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     marcar({ href: "/admin", label: "Inicio" }),
     ...(visible(JORNADAS) ? [marcar({ href: JORNADAS.href, label: JORNADAS.label, guia: "nav-jornadas" })] : []),
     marcar({ href: "/admin/calificaciones", label: "Calificaciones", guia: "nav-calificaciones" }),
+    marcar({ href: "/admin/clase", label: "Clase en vivo" }),
     {
       href: "#personas",
       guia: "nav-estudiantes",
@@ -122,7 +124,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       : []),
   ];
 
-  if (RUTAS_SIN_CHROME.includes(pathname)) {
+  // El presentador de la clase en vivo (/admin/clase/<id>) también va a pantalla completa.
+  if (RUTAS_SIN_CHROME.includes(pathname) || /^\/admin\/clase\/[^/]+$/.test(pathname)) {
     return <div className="min-h-screen bg-[var(--background)]">{children}</div>;
   }
 

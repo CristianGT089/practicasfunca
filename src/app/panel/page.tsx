@@ -53,6 +53,19 @@ export default function PanelPage() {
   const [moduloActivo, setModuloActivo] = useState<Modulo | null>(null);
   const [redirigiendo, setRedirigiendo] = useState(false);
   const [dictado, setDictado] = useState<{ nombre: string; pausado: boolean } | null>(null);
+  const [claseEnVivo, setClaseEnVivo] = useState(false);
+
+  // ¿Hay una clase en vivo (curso de TICs) para este estudiante? Se revisa cada 10 s.
+  useEffect(() => {
+    const revisar = () =>
+      fetch("/api/clase/estado")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setClaseEnVivo(!!d?.sesion))
+        .catch(() => {});
+    revisar();
+    const t = setInterval(revisar, 10000);
+    return () => clearInterval(t);
+  }, []);
 
   // ¿El docente está dictando un caso a este grupo? Se revisa cada 10 s.
   useEffect(() => {
@@ -254,6 +267,41 @@ export default function PanelPage() {
 
       <main className="px-4 sm:px-6 py-8 sm:py-10">
         <div className="mx-auto max-w-4xl flex flex-col gap-6">
+          {/* 0. Clase en vivo: el docente está presentando. */}
+          {claseEnVivo && (
+            <button
+              onClick={() => router.push("/panel/clase")}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-800 to-blue-700 p-5 sm:p-6 text-left text-white shadow-[0_16px_40px_-20px_rgba(30,46,85,0.8)]"
+            >
+              <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gold-500/20 blur-2xl" />
+              <span className="relative flex flex-wrap items-center justify-between gap-4">
+                <span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-gold-500/15 px-3 py-1 text-xs font-semibold text-gold-400">
+                    <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" aria-hidden />
+                    Clase en vivo
+                  </span>
+                  <span className="mt-2 block font-heading text-xl font-bold">Tu docente está presentando</span>
+                  <span className="block text-sm text-blue-200">Entra para seguir la clase en tu computador.</span>
+                </span>
+                <span className="btn-cta">Entrar a la clase →</span>
+              </span>
+            </button>
+          )}
+
+          {!claseEnVivo && (
+            <button
+              onClick={() => router.push("/panel/clase")}
+              className="tarjeta-accion flex items-center gap-4 !py-4"
+            >
+              <span className="text-3xl" aria-hidden>🖥️</span>
+              <span className="flex-1">
+                <span className="block font-heading font-bold text-blue-900">Clase de TICs</span>
+                <span className="block text-sm text-slate-600">Repasa las diapositivas y practica mecanografía y atajos a tu ritmo.</span>
+              </span>
+              <span className="text-blue-700">→</span>
+            </button>
+          )}
+
           {/* 1. Lo urgente: el docente está dictando ahora mismo. */}
           {dictado && (
             <button

@@ -110,6 +110,9 @@ model Usuario {
   guiasVistas          String[]              @default([])
   participaciones      ParticipanteJornada[]
   simulacionesCreadas  Simulacion[]          @relation("SimulacionesCreadas")
+  clasesDictadas       SesionClase[]
+  asistenciasClase     AsistenciaClase[]
+  progresosClase       ProgresoClase[]
 
   @@map("usuarios")
 }
@@ -127,6 +130,7 @@ model Grupo {
   estudiantes  Usuario[]    @relation("GrupoEstudiantes")
   modulos      Modulo[]     @relation("GrupoModulos")
   simulaciones Simulacion[]
+  clases       SesionClase[]
 
   @@map("grupos")
 }
@@ -1276,4 +1280,69 @@ enum EstadoCita {
   ATENDIDA
   NO_ASISTIO
   CANCELADA
+}
+
+// ---------- Clase en vivo (curso de TICs) ----------
+// El docente presenta una lección (contenido en src/lib/clase/lecciones) y los estudiantes la
+// siguen en su computador. Ver docs/clase.md.
+
+model SesionClase {
+  id          String    @id @default(cuid())
+  // Slug de la lección ("tics-1").
+  leccion     String
+  // Diapositiva que está mostrando el docente (índice desde 0).
+  diapositiva Int       @default(0)
+  // La diapositiva más lejana a la que ha llegado el docente: los estudiantes no pueden pasar de ahí.
+  maxima      Int       @default(0)
+  // Ids de las preguntas rápidas cuya respuesta ya reveló el docente: los estudiantes ven la
+  // correcta (también si vuelven atrás) y ya no pueden cambiar su voto.
+  reveladas   String[]  @default([])
+  // Sube cada vez que el docente pulsa "Traer a todos": los estudiantes que se movieron por su
+  // cuenta vuelven a su diapositiva y a seguirlo.
+  llamado     Int       @default(0)
+  activa      Boolean   @default(true)
+  docenteId   String
+  docente     Usuario   @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  // Null = abierta a cualquier estudiante (solo admin); si no, a los de ese grupo.
+  grupoId     String?
+  grupo       Grupo?    @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  creadoEn    DateTime  @default(now())
+  cerradaEn   DateTime?
+
+  asistencias AsistenciaClase[]
+
+  @@index([activa])
+  @@map("sesiones_clase")
+}
+
+// Quién está conectado y en qué diapositiva (se actualiza con cada consulta del estudiante).
+model AsistenciaClase {
+  id          String      @id @default(cuid())
+  sesionId    String
+  sesion      SesionClase @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  usuarioId   String
+  usuario     Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  diapositiva Int         @default(0)
+  siguiendo   Boolean     @default(true)
+  primeraVez  DateTime    @default(now())
+  ultimaVez   DateTime    @default(now())
+
+  @@unique([sesionId, usuarioId])
+  @@map("asistencias_clase")
+}
+
+// Progreso del estudiante en cada actividad de una lección (no depende de la sesión: si se
+// desconecta o practica en casa, lo retoma). `datos` depende de la actividad.
+model ProgresoClase {
+  id            String   @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  leccion       String
+  actividad     String
+  datos         Json     @default("{}")
+  completado    Boolean  @default(false)
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([usuarioId, leccion, actividad])
+  @@map("progresos_clase")
 }
