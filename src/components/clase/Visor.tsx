@@ -26,6 +26,8 @@ export default function Visor({
   marcada,
   limite,
   sesionPresentador,
+  modo = "vivo",
+  motivoLimite = "Espera a que el profe avance",
 }: {
   leccion: Leccion;
   indice: number;
@@ -43,6 +45,10 @@ export default function Visor({
   limite?: number | null;
   /** Solo en el modo presentador: las preguntas rápidas muestran el compilado de esta clase. */
   sesionPresentador?: string;
+  /** "ritmo" = clase a tu ritmo: muestra la explicación del profe en cada diapositiva. */
+  modo?: "vivo" | "ritmo";
+  /** Por qué no se puede pasar del límite (aparece al pasar el mouse por «Siguiente»). */
+  motivoLimite?: string;
 }) {
   const total = leccion.diapositivas.length;
   const ultima = limite == null ? total - 1 : Math.min(limite, total - 1);
@@ -87,7 +93,7 @@ export default function Visor({
         <span className="hidden h-6 w-px shrink-0 bg-white/20 sm:block" aria-hidden />
         <span className="hidden min-w-0 leading-tight sm:block">
           <span className="block truncate font-heading text-sm font-bold text-white">{leccion.titulo}</span>
-          <span className="block text-[11px] text-gold-400">Clase en vivo</span>
+          <span className="block text-[11px] text-gold-400">{modo === "ritmo" ? "Clase a tu ritmo" : "Clase en vivo"}</span>
         </span>
         <span className="ml-auto flex items-center gap-2">{arriba}</span>
       </header>
@@ -101,7 +107,18 @@ export default function Visor({
           {d.seccion && d.tipo !== "seccion" && d.tipo !== "portada" && (
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-500">{d.seccion}</p>
           )}
-          <Diapositiva key={indice} d={d} origen={origen} sesionPresentador={sesionPresentador} />
+          {modo === "ritmo" && d.guia && (
+            <div className="mb-6 flex gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 px-4 py-3 sm:px-5 sm:py-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-900 text-xl" aria-hidden>
+                🧑‍🏫
+              </span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gold-700">El profe te explica</p>
+                <p className="mt-0.5 text-base text-blue-950 sm:text-lg">{d.guia}</p>
+              </div>
+            </div>
+          )}
+          <Diapositiva key={indice} d={d} origen={modo === "ritmo" ? undefined : origen} sesionPresentador={sesionPresentador} />
         </div>
       </main>
 
@@ -145,7 +162,7 @@ export default function Visor({
             disabled={indice >= ultima}
             className="btn-primario"
             aria-label="Diapositiva siguiente"
-            title={indice >= ultima && ultima < total - 1 ? "Espera a que el profe avance" : undefined}
+            title={indice >= ultima && ultima < total - 1 ? motivoLimite : undefined}
           >
             Siguiente →
           </button>

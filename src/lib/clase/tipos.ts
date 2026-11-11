@@ -22,6 +22,13 @@ export type DiapositivaBase = {
   seccion?: string;
   /** Notas para el docente: solo se ven en el modo presentador. */
   notas?: string;
+  /**
+   * Explicación para la clase a tu ritmo: lo que diría el profe en clase. Aparece en un recuadro
+   * sobre la diapositiva cuando el estudiante la hace solo.
+   */
+  guia?: string;
+  /** Solo en la clase en vivo, o solo en la clase a tu ritmo. Sin esto, va en las dos. */
+  modo?: "vivo" | "ritmo";
 };
 
 export type Diapositiva = DiapositivaBase &
@@ -144,6 +151,8 @@ export type Diapositiva = DiapositivaBase &
       }
     | { tipo: "repaso"; titulo: string; preguntas: { icono: string; tema: string; pregunta: string }[] }
     | { tipo: "gracias"; titulo: string; proxima?: string }
+    /** Cierre de la clase a tu ritmo: resumen de lo hecho y botón para enviar el reporte. */
+    | { tipo: "terminar"; titulo: string; proxima?: string }
   );
 
 export type NodoArbol = { nombre: string; tipo?: "carpeta" | "archivo"; hijos?: NodoArbol[] };
@@ -154,6 +163,13 @@ export type Leccion = {
   descripcion: string;
   diapositivas: Diapositiva[];
 };
+
+export type ModoLeccion = "vivo" | "ritmo";
+
+/** La lección con solo las diapositivas de ese modo (los índices cambian entre modos). */
+export function vistaDe(leccion: Leccion, modo: ModoLeccion): Leccion {
+  return { ...leccion, diapositivas: leccion.diapositivas.filter((d) => !d.modo || d.modo === modo) };
+}
 
 /** Ids de las preguntas rápidas (no calificables) de una lección. */
 export function preguntasDe(leccion: Leccion) {

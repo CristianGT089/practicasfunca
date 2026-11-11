@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SeccionARitmo from "@/components/clase/SeccionARitmo";
 
 type Datos = {
   lecciones: { slug: string; titulo: string; descripcion: string; total: number }[];
@@ -126,6 +127,8 @@ export default function ClaseAdmin() {
             {error && <p className="mt-3 text-sm font-semibold text-rose-700">{error}</p>}
           </section>
         )}
+
+        {datos && <SeccionARitmo lecciones={datos.lecciones} grupos={datos.grupos} />}
       </div>
     </main>
   );

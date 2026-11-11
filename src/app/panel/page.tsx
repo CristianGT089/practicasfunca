@@ -54,6 +54,17 @@ export default function PanelPage() {
   const [redirigiendo, setRedirigiendo] = useState(false);
   const [dictado, setDictado] = useState<{ nombre: string; pausado: boolean } | null>(null);
   const [claseEnVivo, setClaseEnVivo] = useState(false);
+  const [aTuRitmo, setATuRitmo] = useState<
+    { id: string; titulo: string; diapositiva: number; maxima: number; total: number; iniciadoEn: string | null; terminadoEn: string | null }[]
+  >([]);
+
+  // Clases a tu ritmo que el docente le habilitó (para quien faltó a la clase en vivo).
+  useEffect(() => {
+    fetch("/api/clase/ritmo")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setATuRitmo(d.recorridos ?? []))
+      .catch(() => {});
+  }, []);
 
   // ¿Hay una clase en vivo (curso de TICs) para este estudiante? Se revisa cada 10 s.
   useEffect(() => {
@@ -287,6 +298,40 @@ export default function PanelPage() {
               </span>
             </button>
           )}
+
+          {/* 0b. Clase a tu ritmo: la que se perdió, para hacerla sola. */}
+          {aTuRitmo.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => router.push(`/panel/clase/ritmo/${r.id}`)}
+              className={
+                r.terminadoEn
+                  ? "tarjeta-accion flex items-center gap-4 !py-4 text-left"
+                  : "flex flex-wrap items-center gap-4 rounded-3xl border-2 border-gold-500/60 bg-gold-50 p-5 text-left shadow-sm transition hover:shadow-md sm:p-6"
+              }
+            >
+              <span className="text-3xl" aria-hidden>
+                {r.terminadoEn ? "✅" : "🧭"}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold uppercase tracking-wider text-gold-700">Clase a tu ritmo</span>
+                <span className="block font-heading text-lg font-bold text-blue-900">{r.titulo}</span>
+                <span className="block text-sm text-slate-600">
+                  {r.terminadoEn
+                    ? "Ya le enviaste tu reporte al profe. Puedes volver a repasarla cuando quieras."
+                    : r.iniciadoEn
+                      ? `Vas en la diapositiva ${r.diapositiva + 1} de ${r.total}. Sigue donde ibas.`
+                      : "Tu profe te la habilitó para que la hagas a tu ritmo, con explicaciones paso a paso."}
+                </span>
+                {!r.terminadoEn && r.iniciadoEn && (
+                  <span className="mt-2 block h-2 overflow-hidden rounded-full bg-gold-100">
+                    <span className="block h-full rounded-full bg-gold-500" style={{ width: `${((r.maxima + 1) / r.total) * 100}%` }} />
+                  </span>
+                )}
+              </span>
+              <span className={r.terminadoEn ? "text-blue-700" : "btn-cta"}>{r.terminadoEn ? "→" : r.iniciadoEn ? "Continuar →" : "Empezar →"}</span>
+            </button>
+          ))}
 
           {!claseEnVivo && (
             <button

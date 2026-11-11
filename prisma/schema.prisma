@@ -113,6 +113,8 @@ model Usuario {
   clasesDictadas       SesionClase[]
   asistenciasClase     AsistenciaClase[]
   progresosClase       ProgresoClase[]
+  asignacionesClase    AsignacionClase[]
+  recorridosClase      RecorridoClase[]
 
   @@map("usuarios")
 }
@@ -131,6 +133,7 @@ model Grupo {
   modulos      Modulo[]     @relation("GrupoModulos")
   simulaciones Simulacion[]
   clases       SesionClase[]
+  asignaciones AsignacionClase[]
 
   @@map("grupos")
 }
@@ -1345,4 +1348,46 @@ model ProgresoClase {
 
   @@unique([usuarioId, leccion, actividad])
   @@map("progresos_clase")
+}
+
+// "Clase a tu ritmo": la misma lección, pero cada estudiante la recorre solo, con explicaciones,
+// en orden, y al terminar le llega el reporte al docente. Para quienes no pudieron venir a la
+// clase en vivo. Solo la ven los estudiantes que el docente eligió (ver RecorridoClase).
+model AsignacionClase {
+  id          String    @id @default(cuid())
+  leccion     String
+  docenteId   String
+  docente     Usuario   @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  grupoId     String?
+  grupo       Grupo?    @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  // Mensaje del docente que ven al empezar (fecha de entrega, su correo para compartir en Drive…).
+  mensaje     String?
+  // Cerrada = ya no aparece en el panel de los estudiantes (el reporte se conserva).
+  activa      Boolean   @default(true)
+  creadoEn    DateTime  @default(now())
+
+  recorridos  RecorridoClase[]
+
+  @@index([activa])
+  @@map("asignaciones_clase")
+}
+
+// Un estudiante habilitado para hacer una asignación, y por dónde va.
+model RecorridoClase {
+  id            String          @id @default(cuid())
+  asignacionId  String
+  asignacion    AsignacionClase @relation(fields: [asignacionId], references: [id], onDelete: Cascade)
+  usuarioId     String
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  diapositiva   Int             @default(0)
+  // La más lejana a la que llegó: puede volver atrás, pero no saltarse diapositivas.
+  maxima        Int             @default(0)
+  iniciadoEn    DateTime?
+  terminadoEn   DateTime?
+  // El docente ya abrió el reporte después de que terminó (para avisarle de los nuevos).
+  revisado      Boolean         @default(false)
+  actualizadoEn DateTime        @updatedAt
+
+  @@unique([asignacionId, usuarioId])
+  @@map("recorridos_clase")
 }

@@ -26,6 +26,8 @@ export default function ClaseEstudiante() {
   const [siguiendo, setSiguiendo] = useState(true);
   const [conexion, setConexion] = useState(true);
   const [listo, setListo] = useState(false);
+  // Vista previa de la clase a tu ritmo (?modo=ritmo): para que el docente la revise. Sin reporte.
+  const [vistaRitmo, setVistaRitmo] = useState(false);
 
   // Refs para el ciclo de consulta (evita reiniciar el intervalo en cada cambio).
   const estado = useRef({ indice: 0, siguiendo: true, sesionId: null as string | null, llamado: -1 });
@@ -34,7 +36,8 @@ export default function ClaseEstudiante() {
     estado.current.siguiendo = siguiendo;
   }, [indice, siguiendo]);
 
-  const leccion = leccionPorSlug(sesion?.leccion ?? slugLibre) ?? LECCIONES[0];
+  const leccion = (sesion ? leccionPorSlug(sesion.leccion) : leccionPorSlug(slugLibre, vistaRitmo ? "ritmo" : "vivo")) ?? LECCIONES[0];
+  const ritmo = !sesion && vistaRitmo;
 
   const aplicar = useCallback((s: Sesion | null, inicial = false) => {
     if (!s) {
@@ -63,6 +66,7 @@ export default function ClaseEstudiante() {
 
   useEffect(() => {
     const pedida = new URLSearchParams(window.location.search).get("leccion");
+    const conRitmo = new URLSearchParams(window.location.search).get("modo") === "ritmo";
 
     Promise.all([fetch("/api/auth/me").then((r) => r.json()), fetch("/api/clase/estado").then((r) => (r.ok ? r.json() : { sesion: null }))])
       .then(([me, est]) => {
@@ -71,10 +75,12 @@ export default function ClaseEstudiante() {
           return;
         }
         setNombre(me.usuario.nombre);
+        if (conRitmo) setVistaRitmo(true);
         if (pedida && leccionPorSlug(pedida)) setSlugLibre(pedida);
         if (est.sesion) aplicar(est.sesion, true);
         else {
           const slug = pedida && leccionPorSlug(pedida) ? pedida : LECCIONES[0].slug;
+          if (conRitmo) return setListo(true);
           try {
             const guardado = Number(localStorage.getItem(`clase-indice-${slug}`));
             if (Number.isInteger(guardado) && guardado > 0) setIndice(guardado);
@@ -111,13 +117,13 @@ export default function ClaseEstudiante() {
 
   // Sin clase en vivo, recuerda por dónde iba.
   useEffect(() => {
-    if (sesion || !listo) return;
+    if (sesion || !listo || ritmo) return;
     try {
       localStorage.setItem(`clase-indice-${leccion.slug}`, String(indice));
     } catch {
       /* sin almacenamiento local */
     }
-  }, [indice, sesion, listo, leccion.slug]);
+  }, [indice, sesion, listo, ritmo, leccion.slug]);
 
   const ir = useCallback(
     (i: number) => {
@@ -160,6 +166,7 @@ export default function ClaseEstudiante() {
         aviso={aviso}
         marcada={sesion?.diapositiva ?? null}
         limite={sesion?.maxima ?? null}
+        modo={ritmo ? "ritmo" : "vivo"}
         arriba={
           <>
             {sesion ? (
@@ -168,7 +175,7 @@ export default function ClaseEstudiante() {
                 {siguiendo && !atrasado ? "Siguiendo al profe" : "En vivo"}
               </span>
             ) : (
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">Modo repaso</span>
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">{ritmo ? "Vista previa · a tu ritmo" : "Modo repaso"}</span>
             )}
             {nombre && <span className="hidden text-sm text-blue-100 md:inline">{nombre}</span>}
             <button onClick={() => router.push("/panel")} className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-100 hover:bg-white/10">

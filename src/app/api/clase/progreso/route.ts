@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const usuario = await requireUser();
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const leccion = req.nextUrl.searchParams.get("leccion");
-  if (!leccionPorSlug(leccion)) return NextResponse.json({ error: "Lección no encontrada" }, { status: 404 });
+  if (!leccionPorSlug(leccion, "todo")) return NextResponse.json({ error: "Lección no encontrada" }, { status: 404 });
   const filas = await prisma.progresoClase.findMany({ where: { usuarioId: usuario.id, leccion: leccion! } });
   return NextResponse.json({
     progresos: Object.fromEntries(filas.map((f) => [f.actividad, { datos: f.datos, completado: f.completado }])),
@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest) {
   const usuario = await requireUser();
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const body = await req.json().catch(() => null);
-  const leccion = leccionPorSlug(body?.leccion);
+  const leccion = leccionPorSlug(body?.leccion, "todo");
   const actividad = typeof body?.actividad === "string" ? body.actividad : null;
   // Se guarda progreso de actividades y respuestas a preguntas rápidas (datos = { opcion }).
   if (!leccion || !actividad || !leccion.diapositivas.some((d) => (d.tipo === "actividad" || d.tipo === "pregunta") && d.id === actividad)) {

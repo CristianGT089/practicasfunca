@@ -7,7 +7,7 @@ import type { Leccion } from "../tipos";
 export const TICS_1: Leccion = {
   slug: "tics-1",
   titulo: "Clase 1 · Fundamentos de computador",
-  descripcion: "Quién soy, el curso, TICs, el computador, atajos, mecanografía, carpetas, Drive, ofimática y The Knick.",
+  descripcion: "Quién soy, el curso, TICs, el computador, atajos, mecanografía, carpetas, Drive y ofimática.",
   diapositivas: [
     // ───────────────────────── BIENVENIDA ─────────────────────────
     {
@@ -15,6 +15,7 @@ export const TICS_1: Leccion = {
       seccion: "Bienvenida",
       titulo: "Curso de TICs para el área de la salud",
       subtitulo: "Clase 1 · Fundamentos de computador",
+      guia: "¡Hola! Esta es la clase 1, la que te perdiste. La vas a hacer por tu cuenta, a tu ritmo: en cada diapositiva te aparece este recuadro con lo que yo explicaría en clase. Lee, haz las actividades y al final pulsa «Terminar» para que me llegue tu reporte.",
       pie: "Aquí no se compite: se aprende haciendo, cada quien a su ritmo.",
       mostrarAcceso: true,
       notas: "Mientras llegan: que todos entren a la plataforma con el usuario que les diste. Si alguien no puede, que levante la mano.",
@@ -22,6 +23,7 @@ export const TICS_1: Leccion = {
     {
       tipo: "agenda",
       seccion: "Bienvenida",
+      modo: "vivo",
       titulo: "Así se ve el día de hoy",
       bloques: [
         { hora: "7:00", tema: "Bienvenida, quién soy y cómo se califica", icono: "👋" },
@@ -36,7 +38,25 @@ export const TICS_1: Leccion = {
         { hora: "12:45", tema: "La nube y Google Drive", icono: "☁️" },
         { hora: "13:30", tema: "Ofimática y procesador de texto", icono: "📄" },
         { hora: "13:55", tema: "Mini quiz (Q10)", icono: "✅", externo: true },
-        { hora: "14:10", tema: "The Knick · Capítulo 1", icono: "🎬" },
+      ],
+    },
+    {
+      tipo: "agenda",
+      seccion: "Bienvenida",
+      modo: "ritmo",
+      titulo: "Tu ruta para esta clase",
+      guia: "Calcula unas cuatro horas en total. No tienes que hacerlo de una sentada: si te cansas, sal y vuelve después, que la plataforma recuerda dónde ibas.",
+      bloques: [
+        { hora: "15 min", tema: "Bienvenida y cómo se califica", icono: "👋" },
+        { hora: "1 h", tema: "Prueba diagnóstica (Q10)", icono: "📝", externo: true },
+        { hora: "15 min", tema: "¿Qué son las TICs?", icono: "🌐" },
+        { hora: "30 min", tema: "El computador y sus componentes", icono: "🖥️" },
+        { hora: "30 min", tema: "Atajos de teclado", icono: "⌨️" },
+        { hora: "30 min", tema: "Mecanografía", icono: "✍️" },
+        { hora: "30 min", tema: "Archivos y carpetas", icono: "📁" },
+        { hora: "30 min", tema: "La nube y Google Drive", icono: "☁️" },
+        { hora: "20 min", tema: "Ofimática y procesador de texto", icono: "📄" },
+        { hora: "15 min", tema: "Mini quiz (Q10)", icono: "✅", externo: true },
       ],
     },
     {
@@ -45,6 +65,7 @@ export const TICS_1: Leccion = {
       eyebrow: "¿Quién soy?",
       nombre: "Cristian Guzmán",
       cargo: "Ingeniero de Sistemas · Docente de TICs en FUNCA",
+      guia: "Soy tu profe de TICs. Te cuento un poco de mí para que sepas con quién vas a trabajar los domingos. Si tienes dudas durante esta clase, escríbeme: para eso estoy.",
       resumen:
         "Empecé como técnico en sistemas en el SENA, como ustedes que hoy empiezan su técnico. Después estudié Ingeniería de Sistemas en la Universidad Distrital y hoy trabajo construyendo software.",
       datos: [
@@ -60,6 +81,7 @@ export const TICS_1: Leccion = {
       seccion: "Bienvenida",
       eyebrow: "El curso",
       titulo: "¿Qué vamos a aprender?",
+      guia: "Este es el mapa del semestre. Empezamos por lo básico (esta clase) y terminamos usando inteligencia artificial. Todo va con ejemplos de salud, porque es lo que vas a usar en tu trabajo.",
       intro: "Todos los domingos de 7:00 a 3:00. Cada clase es práctica: más manos en el teclado que ojos en la pantalla.",
       columnas: 4,
       tarjetas: [
@@ -75,6 +97,7 @@ export const TICS_1: Leccion = {
       seccion: "Bienvenida",
       eyebrow: "Calificación",
       titulo: "¿Cómo se califica el curso?",
+      guia: "Esto es importante: así sale tu nota. El Ser es tu actitud en clase; el Hacer, las actividades prácticas como las de hoy; el Saber, los quices en Q10. Fíjate que dentro del Saber el quiz final pesa más de la mitad.",
       partes: [
         { valor: 20, nombre: "Ser", texto: "Actitud, puntualidad, participación y respeto por el ritmo de los demás." },
         { valor: 40, nombre: "Hacer", texto: "Las actividades prácticas de cada clase, como la reflexión de The Knick." },
@@ -96,6 +119,7 @@ export const TICS_1: Leccion = {
     {
       tipo: "contenido",
       seccion: "Bienvenida",
+      modo: "vivo",
       eyebrow: "Esta plataforma",
       titulo: "Cómo vamos a trabajar",
       columnas: 3,
@@ -107,17 +131,36 @@ export const TICS_1: Leccion = {
       cierre: "Nadie ve el resultado de nadie. Las prácticas son para ustedes, no para competir.",
     },
     {
+      tipo: "contenido",
+      seccion: "Bienvenida",
+      modo: "ritmo",
+      eyebrow: "Esta plataforma",
+      titulo: "Cómo funciona la clase a tu ritmo",
+      guia: "Lee esto con calma antes de empezar: así sabes cómo moverte por la clase.",
+      columnas: 3,
+      tarjetas: [
+        { icono: "🧑‍🏫", titulo: "Te explico en cada paso", texto: "El recuadro de arriba de cada diapositiva es lo que yo diría en clase. Léelo primero." },
+        { icono: "➡️", titulo: "Avanzas en orden", texto: "Con «Siguiente» o la flecha →. Puedes volver atrás cuando quieras, pero no saltarte diapositivas." },
+        { icono: "💭", titulo: "Preguntas rápidas", texto: "No tienen nota. Respondes y enseguida ves si acertaste y por qué." },
+        { icono: "✋", titulo: "Actividades", texto: "Se hacen aquí o en tu Chromebook. Si pasas sin terminar una, me queda como pendiente." },
+        { icono: "💾", titulo: "Se guarda solo", texto: "Puedes salir y volver otro día: entras con tu usuario y sigues donde ibas." },
+        { icono: "📨", titulo: "Al final, «Terminar»", texto: "Así me llega tu reporte: qué hiciste, qué te faltó y cómo te fue en las preguntas.", color: "amarilla" },
+      ],
+      cierre: "Solo tú y yo vemos tus resultados. No es una competencia: es para que aprendas.",
+    },
+    {
       tipo: "externo",
       seccion: "Bienvenida",
       eyebrow: "Antes de empezar",
       titulo: "Prueba diagnóstica",
+      guia: "Si no hiciste la prueba diagnóstica en Q10, hazla ahora en otra pestaña (Ctrl + T). No tiene nota, pero me sirve para saber con qué llegas. Al final de la clase te pregunto si la hiciste.",
       plataforma: "Q10",
       duracion: "1 hora",
       pasos: [
         "Abran una pestaña nueva (Ctrl + T) y entren a Q10 con su usuario de FUNCA.",
         "Busquen la prueba diagnóstica del curso de TICs.",
         "Respondan con calma y con lo que saben hoy: no se consulta en internet.",
-        "Cuando terminen, vuelvan a esta pestaña y esperen a los demás.",
+        "Cuando terminen, vuelvan a esta pestaña.",
       ],
       aviso: "No es para aprobar o reprobar: me sirve para ajustar el ritmo del curso a ustedes.",
     },
@@ -127,14 +170,16 @@ export const TICS_1: Leccion = {
       tipo: "pregunta",
       seccion: "Bienvenida",
       id: "p-celular",
+      guia: "Vas a encontrar preguntas como esta en toda la clase. No tienen nota: responde con sinceridad.",
       pregunta: "¿Cuántas horas al día usas el celular?",
       opciones: ["Menos de 2", "Entre 2 y 4", "Entre 4 y 6", "Más de 6"],
     },
-    { tipo: "seccion", seccion: "TICs", numero: 1, titulo: "¿Qué son las TICs?", icono: "🌐" },
+    { tipo: "seccion", seccion: "TICs", numero: 1, titulo: "¿Qué son las TICs?", icono: "🌐", guia: "Primer tema: qué son las TICs. Seguro las usas todo el día sin saber que se llaman así." },
     {
       tipo: "pregunta",
       seccion: "TICs",
       id: "p-tic-c",
+      guia: "Adivina antes de ver la explicación. Equivocarte aquí no cuenta: es para que pienses.",
       pregunta: "En la sigla TIC, ¿qué significa la C?",
       opciones: ["Computación", "Comunicación", "Control", "Código"],
       correcta: 1,
@@ -145,6 +190,7 @@ export const TICS_1: Leccion = {
       seccion: "TICs",
       eyebrow: "Definición",
       titulo: "Tecnologías de la Información y la Comunicación",
+      guia: "Fíjate en las tres palabras: la tecnología es la herramienta, la información es lo que manejamos y la comunicación es cómo la compartimos. Cuando registras signos vitales en un sistema y el médico los ve desde otra sala, están las tres.",
       intro: "Todas las herramientas digitales que usamos para crear, guardar, buscar y compartir información.",
       columnas: 3,
       tarjetas: [
@@ -158,6 +204,7 @@ export const TICS_1: Leccion = {
       seccion: "TICs",
       eyebrow: "En su trabajo",
       titulo: "Las TICs en el área de la salud",
+      guia: "En cualquier IPS, droguería u hospital vas a encontrar varias de estas. Mira la tarjeta amarilla: los datos de salud son sensibles y la ley obliga a protegerlos. Nunca mandes una historia clínica por WhatsApp ni dejes tu sesión abierta en un computador compartido.",
       columnas: 3,
       tarjetas: [
         { icono: "📋", titulo: "Historia clínica electrónica", texto: "La información del paciente en un sistema, no en papel." },
@@ -172,6 +219,7 @@ export const TICS_1: Leccion = {
     {
       tipo: "contenido",
       seccion: "TICs",
+      modo: "vivo",
       eyebrow: "Conversemos",
       titulo: "¿Qué TICs usaron hoy antes de llegar aquí?",
       columnas: 2,
@@ -180,14 +228,24 @@ export const TICS_1: Leccion = {
         { icono: "🗣️", titulo: "Compartan uno", texto: "¿Cuál de esas les cambió la vida? ¿Cuál les cuesta usar?", color: "amarilla" },
       ],
     },
+    {
+      tipo: "pregunta",
+      seccion: "TICs",
+      modo: "ritmo",
+      id: "p-tic-hoy",
+      pregunta: "¿Cuál de estas TICs usaste más hoy, antes de empezar esta clase?",
+      opciones: ["WhatsApp o chat", "Un mapa o app de transporte", "La app del banco o Nequi", "Correo o redes sociales"],
+      guia: "En clase esto lo conversamos en grupo. Aquí piénsalo tú: todas esas opciones son TICs. Escoge la que más usaste.",
+    },
 
     // ───────────────────────── EL COMPUTADOR ─────────────────────────
-    { tipo: "seccion", seccion: "El computador", numero: 2, titulo: "El computador y sus componentes", icono: "🖥️" },
+    { tipo: "seccion", seccion: "El computador", numero: 2, titulo: "El computador y sus componentes", icono: "🖥️", guia: "Segundo tema: el computador por dentro y por fuera. Al final vas a poder explicar por qué un equipo se pone lento." },
     {
       tipo: "flujo",
       seccion: "El computador",
       eyebrow: "¿Qué es un computador?",
       titulo: "Una máquina que recibe, procesa, guarda y muestra información",
+      guia: "Todo computador hace cuatro cosas. Ejemplo: escribes el nombre de un paciente en el teclado (entrada), el procesador lo ubica (proceso), aparece en la pantalla (salida) y queda guardado en Drive (almacenamiento).",
       pasos: [
         { icono: "⌨️", titulo: "Entrada", texto: "Le damos datos: teclado, mouse, micrófono, escáner." },
         { icono: "🧠", titulo: "Proceso", texto: "El procesador hace los cálculos y sigue las instrucciones." },
@@ -200,6 +258,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       eyebrow: "Las dos partes",
       titulo: "Hardware y software",
+      guia: "Truco para no confundirte: si lo puedes tocar con la mano, es hardware. Si es un programa o una app, es software. ChromeOS, el sistema de tu Chromebook, también es software.",
       columnas: 2,
       tarjetas: [
         { icono: "🔩", titulo: "Hardware", texto: "Lo que se puede tocar.", items: ["Teclado, mouse, pantalla", "Procesador, memoria, disco", "Impresora, USB, cables"] },
@@ -212,6 +271,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       actividad: "clasificar",
       id: "hardware-software",
+      guia: "Toca Hardware o Software para cada elemento. Si te equivocas, te lo marca y lo intentas de nuevo. La actividad queda completa cuando aciertas todos.",
       titulo: "¿Hardware o software?",
       intro: "Toca la categoría correcta para cada elemento. Si te equivocas, vuelve a intentar.",
       categorias: [
@@ -236,6 +296,7 @@ export const TICS_1: Leccion = {
       tipo: "pregunta",
       seccion: "El computador",
       id: "p-cerebro",
+      guia: "Piénsalo antes de responder: ¿cuál de estas partes hace los cálculos?",
       pregunta: "¿Qué parte es el «cerebro» del computador?",
       opciones: ["La memoria RAM", "El procesador (CPU)", "El disco duro", "La pantalla"],
       correcta: 1,
@@ -246,6 +307,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       eyebrow: "Por dentro",
       titulo: "Los componentes internos",
+      guia: "Una comparación que ayuda: el procesador es quien trabaja, la RAM es su mesa (lo que tiene abierto ahora) y el disco es el archivador (lo guardado). Si la mesa es pequeña (poca RAM) y abres muchas cosas, todo se pone lento. Por eso al comprar un equipo se miran el procesador, la RAM y el disco.",
       columnas: 3,
       tarjetas: [
         { icono: "🧠", titulo: "Procesador (CPU)", texto: "El cerebro: hace todos los cálculos. Se mide en GHz." },
@@ -261,6 +323,7 @@ export const TICS_1: Leccion = {
       tipo: "pregunta",
       seccion: "El computador",
       id: "p-ram",
+      guia: "Recuerda la comparación de la mesa y el archivador.",
       pregunta: "¿Qué pasa con lo que está en la memoria RAM cuando apagas el computador?",
       opciones: ["Se guarda en la nube", "Se borra", "Se pasa a la USB", "Queda igual"],
       correcta: 1,
@@ -271,6 +334,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       eyebrow: "Unidades",
       titulo: "¿Cuánto es un GB?",
+      guia: "No necesitas aprenderte los números, solo el orden: KB, MB, GB, TB, de menor a mayor. Te sirve para saber si un archivo cabe en un correo (normalmente hasta 25 MB) o cuánto espacio te queda en Drive.",
       intro: "La información se mide en bytes. Cada unidad es unas mil veces la anterior.",
       columnas: ["Unidad", "Equivale a", "Ejemplo"],
       filas: [
@@ -286,6 +350,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       eyebrow: "Por fuera",
       titulo: "Periféricos: entrada, salida y ambos",
+      guia: "La pregunta clave es hacia dónde va la información. Si entra al computador (escribes, hablas, escaneas), es entrada. Si sale (ves, oyes, imprimes), es salida. Si hace las dos, como la pantalla táctil, que muestra y a la vez recibe tus toques, es ambos.",
       columnas: 3,
       tarjetas: [
         { icono: "⬇️", titulo: "Entrada", texto: "Meten información al computador.", items: ["Teclado", "Mouse", "Micrófono", "Escáner", "Cámara web"] },
@@ -298,6 +363,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       actividad: "clasificar",
       id: "entrada-salida",
+      guia: "Igual que la anterior. Ojo con la memoria USB: le guardas archivos y también los sacas de ella.",
       titulo: "¿Entrada, salida o ambos?",
       intro: "Piensa: ¿este aparato le da información al computador, la recibe, o las dos?",
       categorias: [
@@ -323,6 +389,7 @@ export const TICS_1: Leccion = {
       seccion: "El computador",
       eyebrow: "El jefe",
       titulo: "El sistema operativo",
+      guia: "El sistema operativo es el programa que arranca primero y organiza todo lo demás. Tu Chromebook usa ChromeOS; en la mayoría de trabajos vas a encontrar Windows. Haz lo que dice la frase de abajo: busca en tu pantalla el estante, el botón de aplicaciones y el Wi-Fi.",
       intro: "El programa principal: administra el hardware y deja abrir los demás programas.",
       tarjetas: [
         { icono: "🪟", titulo: "Los más comunes", items: ["Windows (Microsoft): la mayoría de oficinas", "macOS (Apple)", "Linux (libre y gratuito)", "Android e iOS (celulares)"] },
@@ -334,12 +401,13 @@ export const TICS_1: Leccion = {
     },
 
     // ───────────────────────── ATAJOS ─────────────────────────
-    { tipo: "seccion", seccion: "Atajos", numero: 3, titulo: "Atajos de teclado", subtitulo: "Hacer en un segundo lo que con el mouse toma cinco", icono: "⌨️" },
+    { tipo: "seccion", seccion: "Atajos", numero: 3, titulo: "Atajos de teclado", subtitulo: "Hacer en un segundo lo que con el mouse toma cinco", icono: "⌨️", guia: "Tercer tema, y uno de los más útiles: los atajos de teclado. Con ellos trabajas mucho más rápido." },
     {
       tipo: "contenido",
       seccion: "Atajos",
       eyebrow: "Conozcan su teclado",
       titulo: "Las teclas especiales",
+      guia: "Mira tu teclado mientras lees cada tarjeta y ubica cada tecla. En el Chromebook, la tecla de Búsqueda (🔍) está donde otros teclados tienen Bloq Mayús, y la fila de arriba no tiene F1–F12 sino botones como atrás, recargar y mostrar ventanas.",
       intro: "Casi todas están en cualquier teclado. Las amarillas son propias del Chromebook.",
       columnas: 4,
       tarjetas: [
@@ -357,6 +425,7 @@ export const TICS_1: Leccion = {
       tipo: "pregunta",
       seccion: "Atajos",
       id: "p-copiar",
+      guia: "Si no sabes, adivina: la siguiente diapositiva te lo explica.",
       pregunta: "¿Cuál es el atajo para copiar?",
       opciones: ["Ctrl + V", "Ctrl + C", "Ctrl + X", "Ctrl + P"],
       correcta: 1,
@@ -376,6 +445,7 @@ export const TICS_1: Leccion = {
       seccion: "Atajos",
       eyebrow: "Los imprescindibles",
       titulo: "Estos funcionan igual en casi todos lados",
+      guia: "Estos son los atajos más usados en el mundo. Mantén apretada Ctrl con el meñique izquierdo y toca la letra. Para recordarlos: C de Copiar, la V está al lado, la X parece unas tijeras (cortar) y la Z es la última letra (volver atrás).",
       intro: "En Chromebook, Windows y Linux son iguales. En Mac se cambia Ctrl por ⌘ (Cmd).",
       columnas: ["Atajo", "Qué hace", "Atajo", "Qué hace"],
       filas: [
@@ -402,6 +472,7 @@ export const TICS_1: Leccion = {
       seccion: "Atajos",
       eyebrow: "Ojo: cada sistema tiene los suyos",
       titulo: "Los atajos del sistema cambian",
+      guia: "Lo importante de esta tabla: Ctrl + C es igual en todos los computadores, pero abrir archivos o tomar una captura no. Cuando llegues a un computador nuevo, busca en internet «atajos de» y el nombre del sistema.",
       intro: "Lo que hace el sistema operativo (abrir archivos, capturas, bloquear) cambia según el computador. Hoy usamos Chromebook, pero en su trabajo pueden encontrarse Windows.",
       columnas: ["Para…", "Chromebook (ChromeOS)", "Windows", "Mac"],
       filas: [
@@ -421,11 +492,12 @@ export const TICS_1: Leccion = {
       actividad: "atajos",
       id: "atajos",
       titulo: "Practica tus atajos",
+      guia: "Tiene tres partes (los botones de arriba de la actividad). Parte 1: presiona cada atajo en esta página y se marca solo. Parte 2: úsalos en tareas reales dentro de las cajas de texto. Parte 3: prueba los atajos propios del Chromebook y márcalos tú. Para que quede completa necesitas las partes 1 y 2.",
       intro: "Tres partes: pruébalos, úsalos en tareas reales y practica los propios del Chromebook. A tu ritmo.",
     },
 
     // ───────────────────────── MECANOGRAFÍA ─────────────────────────
-    { tipo: "seccion", seccion: "Mecanografía", numero: 4, titulo: "Mecanografía", subtitulo: "Escribir sin mirar el teclado", icono: "✍️" },
+    { tipo: "seccion", seccion: "Mecanografía", numero: 4, titulo: "Mecanografía", subtitulo: "Escribir sin mirar el teclado", icono: "✍️", guia: "Cuarto tema: escribir sin mirar el teclado. Al principio vas a ir más lento, es normal. Con práctica, en unas semanas escribes más rápido que mirando." },
     {
       tipo: "pregunta",
       seccion: "Mecanografía",
@@ -440,6 +512,7 @@ export const TICS_1: Leccion = {
       seccion: "Mecanografía",
       eyebrow: "La técnica",
       titulo: "Cómo poner las manos",
+      guia: "Pon las manos ahora mismo: busca con los índices las rayitas de la F y la J y deja caer los demás dedos en A S D y K L Ñ. Cada dedo se encarga de las teclas de su columna. Si te pierdes, vuelve a buscar las rayitas sin mirar.",
       columnas: 3,
       tarjetas: [
         { icono: "🏠", titulo: "La fila guía", texto: "Mano izquierda en A S D F, mano derecha en J K L Ñ. Los pulgares en la barra espaciadora." },
@@ -454,16 +527,18 @@ export const TICS_1: Leccion = {
       actividad: "mecanografia",
       id: "mecanografia",
       titulo: "Práctica de mecanografía",
+      guia: "Empieza por el Nivel 1 aunque te parezca fácil, y mira la pantalla, no el teclado. Si te equivocas, borra y corrige: el texto no se termina con errores. Al terminar todos los textos de un nivel se abre el siguiente. Para pasar a la siguiente diapositiva tienes que terminar los 5 textos del Nivel 1; vas a ir lento al principio y es normal.",
       intro: "Escoge un nivel y escribe el texto. Solo tú ves tus resultados: la meta es mejorar tu propia marca.",
     },
 
     // ───────────────────────── CARPETAS ─────────────────────────
-    { tipo: "seccion", seccion: "Carpetas", numero: 5, titulo: "Archivos y carpetas", subtitulo: "Un lugar para cada cosa", icono: "📁" },
+    { tipo: "seccion", seccion: "Carpetas", numero: 5, titulo: "Archivos y carpetas", subtitulo: "Un lugar para cada cosa", icono: "📁", guia: "Quinto tema: organizar tus archivos. Es lo que te ahorra tiempo cuando necesitas encontrar un documento rápido." },
     {
       tipo: "contenido",
       seccion: "Carpetas",
       eyebrow: "Conceptos",
       titulo: "Archivo y carpeta",
+      guia: "Un archivo es un documento; una carpeta es donde lo guardas. Las carpetas pueden tener otras carpetas dentro, como un archivador con cajones y, dentro de cada cajón, sobres.",
       columnas: 2,
       tarjetas: [
         { icono: "📄", titulo: "Archivo", texto: "El documento en sí: un texto, una hoja de cálculo, una foto, un PDF. Es como una hoja de papel." },
@@ -485,6 +560,7 @@ export const TICS_1: Leccion = {
       seccion: "Carpetas",
       eyebrow: "Extensiones",
       titulo: "El apellido de cada archivo",
+      guia: "La extensión son las letras después del punto en el nombre del archivo y dicen qué tipo de archivo es. Si le cambias el nombre a un archivo, no borres la extensión: el computador no sabría con qué abrirlo.",
       intro: "Las letras después del punto dicen qué tipo de archivo es y con qué programa se abre.",
       columnas: ["Extensión", "Tipo", "Se abre con"],
       filas: [
@@ -501,6 +577,7 @@ export const TICS_1: Leccion = {
       seccion: "Carpetas",
       eyebrow: "La ruta",
       titulo: "Carpetas dentro de carpetas",
+      guia: "La ruta es como la dirección de una casa: de lo general a lo particular. «Mis archivos › TICs_Salud › Fundamentos» quiere decir: entra a Mis archivos, luego a TICs_Salud y luego a Fundamentos. En la siguiente diapositiva vas a armar esa estructura en tu Chromebook.",
       intro: "La ruta es la dirección de un archivo: Mis archivos › TICs_Salud › Fundamentos › mi_archivo.docx",
       raiz: {
         nombre: "Mis archivos",
@@ -528,6 +605,7 @@ export const TICS_1: Leccion = {
       actividad: "checklist",
       id: "carpetas",
       titulo: "Arma tu estructura de carpetas",
+      guia: "Haz cada paso en tu Chromebook y vuelve a esta pestaña con Alt + Tab para marcarlo. Si un atajo no te sale, usa el clic derecho (dos dedos en el touchpad). Si no estás en un Chromebook, hazlo con el Explorador de archivos (Windows + E).",
       intro: "Hazlo en tu Chromebook (abre Archivos con Alt + Shift + M) y marca cada paso al terminarlo. Vuelve aquí con Alt + Tab.",
       pasos: [
         { id: "captura", texto: "Toma una captura de pantalla con Ctrl + ▭ (la tecla de mostrar ventanas)", ayuda: "Es la tecla de la fila de arriba que tiene un rectángulo con dos rayitas. La imagen queda en Descargas: ese será tu archivo de prueba." },
@@ -546,12 +624,13 @@ export const TICS_1: Leccion = {
     },
 
     // ───────────────────────── DRIVE ─────────────────────────
-    { tipo: "seccion", seccion: "La nube", numero: 6, titulo: "La nube y Google Drive", subtitulo: "Sus archivos en cualquier computador", icono: "☁️" },
+    { tipo: "seccion", seccion: "La nube", numero: 6, titulo: "La nube y Google Drive", subtitulo: "Sus archivos en cualquier computador", icono: "☁️", guia: "Sexto tema: la nube. Es lo que te permite empezar un trabajo en la sede y terminarlo en la casa." },
     {
       tipo: "contenido",
       seccion: "La nube",
       eyebrow: "La nube",
       titulo: "¿Qué es guardar «en la nube»?",
+      guia: "«La nube» no está en el cielo: son computadores enormes de empresas como Google que guardan tus archivos. Entras con tu cuenta desde cualquier equipo. Si el Chromebook se daña, tus archivos siguen en Drive.",
       intro: "Guardar en servidores de internet en lugar de solo en el disco del equipo.",
       columnas: 3,
       tarjetas: [
@@ -575,6 +654,7 @@ export const TICS_1: Leccion = {
       seccion: "La nube",
       eyebrow: "Google Drive",
       titulo: "Lo que hay que saber de Drive",
+      guia: "Los permisos son clave en salud: compartir con «cualquiera con el enlace» un documento con datos de pacientes es un riesgo. Comparte siempre con el correo de la persona y dale solo el permiso que necesita.",
       columnas: 2,
       tarjetas: [
         { icono: "🗂️", titulo: "Las partes", items: ["Mi unidad: sus archivos y carpetas", "Compartidos conmigo: lo que otros les comparten", "Botón «+ Nuevo»: carpetas, subir archivos, documentos", "Papelera: lo borrado dura 30 días"] },
@@ -588,6 +668,7 @@ export const TICS_1: Leccion = {
       actividad: "checklist",
       id: "drive",
       titulo: "Tu carpeta en Google Drive",
+      guia: "Abre Drive con el botón y haz cada paso. Para compartir la carpeta necesitas mi correo: búscalo en «Mensaje del profe», arriba a la derecha. Si no tienes cuenta de Gmail, créala primero y anota la contraseña.",
       intro: "Abre Drive en otra pestaña, haz cada paso y vuelve a marcarlo aquí. En el Chromebook, Drive también aparece dentro de la app Archivos.",
       enlace: { href: "https://drive.google.com", texto: "Abrir Google Drive" },
       pasos: [
@@ -595,13 +676,13 @@ export const TICS_1: Leccion = {
         { id: "carpeta", texto: "Crea la carpeta TICs_Salud con «+ Nuevo › Carpeta»" },
         { id: "subcarpetas", texto: "Dentro, crea las mismas subcarpetas: Fundamentos, Ofimática, Hojas de cálculo, IA" },
         { id: "subir", texto: "Sube la captura Apellido_Prueba a TICs_Salud › Fundamentos", ayuda: "«+ Nuevo › Subir archivo» y búscala en Mis archivos. O arrástrala desde la app Archivos." },
-        { id: "compartir", texto: "Comparte la carpeta TICs_Salud con el correo del profe como Comentador", ayuda: "Clic derecho en la carpeta › Compartir. El correo está en el tablero." },
+        { id: "compartir", texto: "Comparte la carpeta TICs_Salud con el correo del profe como Comentador", ayuda: "Clic derecho en la carpeta › Compartir. El correo del profe está en el tablero (o en «Mensaje del profe», si haces la clase a tu ritmo)." },
         { id: "celular", texto: "Abre Drive en tu celular y comprueba que la carpeta está ahí (opcional)" },
       ],
     },
 
     // ───────────────────────── OFIMÁTICA ─────────────────────────
-    { tipo: "seccion", seccion: "Ofimática", numero: 7, titulo: "Ofimática y procesador de texto", icono: "📄" },
+    { tipo: "seccion", seccion: "Ofimática", numero: 7, titulo: "Ofimática y procesador de texto", icono: "📄", guia: "Último tema: los programas de oficina. Hoy solo los conoces; el próximo domingo los trabajamos a fondo." },
     {
       tipo: "pregunta",
       seccion: "Ofimática",
@@ -616,6 +697,7 @@ export const TICS_1: Leccion = {
       seccion: "Ofimática",
       eyebrow: "Ofimática",
       titulo: "Las herramientas de la oficina",
+      guia: "Hay tres familias de programas que hacen lo mismo. En el trabajo vas a ver más Microsoft (Word, Excel); en el curso usamos Google (Docs, Sheets) porque es gratis y funciona en el Chromebook. Lo que aprendes en uno te sirve en el otro.",
       intro: "Ofimática = oficina + informática: los programas para el trabajo de oficina. Vienen en paquetes (suites).",
       columnas: ["Para…", "Microsoft 365", "Google (gratis)", "LibreOffice (libre)"],
       filas: [
@@ -631,13 +713,14 @@ export const TICS_1: Leccion = {
       seccion: "Ofimática",
       eyebrow: "Procesador de texto",
       titulo: "¿Para qué sirve un procesador de texto?",
+      guia: "Aprende ya los tres atajos de formato: Ctrl + B (negrita), Ctrl + I (cursiva) y Ctrl + U (subrayado). En Word en español cambian a Ctrl + N, Ctrl + K y Ctrl + S.",
       intro: "Para crear documentos escritos con buen formato: protocolos, informes, remisiones, cartas, hojas de vida.",
       columnas: 2,
       tarjetas: [
         { icono: "🧭", titulo: "Las partes de la ventana", items: ["Barra de menús y herramientas (o cinta)", "La hoja: el área donde se escribe", "La regla: márgenes y sangrías", "El zoom y el contador de palabras"] },
         { icono: "🎨", titulo: "Lo básico del formato", items: ["Negrita Ctrl + B, cursiva Ctrl + I, subrayado Ctrl + U (en Word en español: Ctrl + N, K, S)", "Tipo y tamaño de letra", "Alineación: izquierda, centrado, justificado", "Títulos y listas"] },
       ],
-      cierre: "El próximo domingo lo trabajamos a fondo. Hoy solo creamos el primer documento.",
+      cierre: "Hoy creas tu primer documento y tu primer entregable: un poema usando todo lo que trae la interfaz.",
     },
     {
       tipo: "actividad",
@@ -645,7 +728,8 @@ export const TICS_1: Leccion = {
       actividad: "checklist",
       id: "primer-documento",
       titulo: "Tu primer documento en la nube",
-      intro: "Lo creas en Google Docs, dentro de tu carpeta de Drive. Ahí mismo harás la actividad de The Knick.",
+      guia: "Este documento lo vas a usar la próxima clase, así que ponle el nombre exacto. Fíjate en el último paso: Google Docs guarda solo, no hay que pulsar guardar.",
+      intro: "Lo creas en Google Docs, dentro de tu carpeta de Drive. Ahí mismo harás la reflexión de The Knick en la próxima clase.",
       enlace: { href: "https://docs.google.com/document/create", texto: "Crear un documento en Google Docs" },
       pasos: [
         { id: "crear", texto: "En Drive, entra a TICs_Salud › Fundamentos y haz «+ Nuevo › Documentos de Google»" },
@@ -656,10 +740,39 @@ export const TICS_1: Leccion = {
       ],
     },
     {
+      tipo: "actividad",
+      seccion: "Ofimática",
+      actividad: "checklist",
+      id: "poema",
+      titulo: "Entregable 1: un poema en Google Docs",
+      intro: "Escribe un poema corto (mínimo tres estrofas, del tema que quieras) y úsalo para probar todo lo que trae la interfaz. Se entrega en Q10.",
+      guia: "Este es tu primer entregable y cuenta en el Hacer. La idea no es que el poema sea perfecto, sino que explores los menús: Formato, Insertar y Herramientas. Si no encuentras una opción, pasa el mouse por los botones de la barra: cada uno dice qué hace. Al final lo descargas en PDF y lo subes a Q10.",
+      enlace: { href: "https://docs.google.com/document/create", texto: "Crear un documento en Google Docs" },
+      pasos: [
+        { id: "crear", texto: "En Drive, dentro de TICs_Salud › Fundamentos, crea un documento llamado Apellido_Nombre_Poema", ayuda: "«+ Nuevo › Documentos de Google». El nombre se cambia arriba a la izquierda." },
+        { id: "escribir", texto: "Escribe tu poema: mínimo tres estrofas" },
+        { id: "titulo", texto: "Ponle título con el estilo «Título» y céntralo", ayuda: "El estilo se escoge en la lista que dice «Texto normal», en la barra de herramientas." },
+        { id: "fuente", texto: "Cambia el tipo y el tamaño de letra de cada estrofa" },
+        { id: "formato", texto: "Usa negrita (Ctrl + B), cursiva (Ctrl + I) y subrayado (Ctrl + U) en algunas palabras" },
+        { id: "color", texto: "Ponle color al texto y resalta un verso", ayuda: "La «A» de la barra cambia el color de la letra; el lápiz, el resaltado." },
+        { id: "alineacion", texto: "Prueba las alineaciones y el interlineado", ayuda: "Formato › Alineación y sangría, y Formato › Interlineado y espacio entre párrafos." },
+        { id: "lista", texto: "Agrega una lista con viñetas o numerada (por ejemplo, lo que te inspiró)" },
+        { id: "imagen", texto: "Inserta una imagen que acompañe el poema", ayuda: "Insertar › Imagen › Buscar en la Web. Ajústala con las opciones que salen al hacer clic en ella." },
+        { id: "tabla", texto: "Inserta una tabla con tu nombre, tu programa y la fecha", ayuda: "Insertar › Tabla." },
+        { id: "emoji", texto: "Inserta un emoji o un carácter especial", ayuda: "Insertar › Caracteres especiales, o Insertar › Emoji." },
+        { id: "encabezado", texto: "Pon tu nombre en el encabezado y el número de página en el pie", ayuda: "Insertar › Encabezados y pies de página, e Insertar › Números de página." },
+        { id: "comentario", texto: "Deja un comentario en un verso (Ctrl + Alt + M)" },
+        { id: "ortografia", texto: "Revisa la ortografía", ayuda: "Herramientas › Ortografía y gramática." },
+        { id: "pdf", texto: "Descárgalo en PDF", ayuda: "Archivo › Descargar › Documento PDF. Queda en tu carpeta Descargas." },
+        { id: "q10", texto: "Súbelo en Q10 a la actividad «Entregable 1: Poema»" },
+      ],
+    },
+    {
       tipo: "externo",
       seccion: "Ofimática",
       eyebrow: "Para cerrar la mañana",
       titulo: "Mini quiz",
+      guia: "Si el mini quiz de la clase 1 está abierto en Q10, hazlo ahora. Este sí tiene nota: respóndelo sin mirar la clase.",
       plataforma: "Q10",
       duracion: "15 minutos",
       pasos: [
@@ -670,49 +783,19 @@ export const TICS_1: Leccion = {
       ],
       aviso: "Cuenta dentro de «los demás quices» (el 40% del Saber).",
     },
-
-    // ───────────────────────── THE KNICK ─────────────────────────
-    { tipo: "seccion", seccion: "The Knick", numero: 8, titulo: "The Knick · Capítulo 1", subtitulo: "La medicina de hace 125 años", icono: "🎬" },
     {
-      tipo: "video",
-      seccion: "The Knick",
-      eyebrow: "Lo que vamos a ver",
-      titulo: "The Knick — «Method and Madness»",
-      ficha: [
-        { etiqueta: "Año", valor: "2014" },
-        { etiqueta: "Dirección", valor: "Steven Soderbergh" },
-        { etiqueta: "Época", valor: "Nueva York, 1900" },
-        { etiqueta: "Duración", valor: "≈ 50 minutos" },
+      tipo: "actividad",
+      seccion: "Ofimática",
+      modo: "ritmo",
+      actividad: "checklist",
+      id: "q10",
+      titulo: "¿Hiciste tus pruebas en Q10?",
+      intro: "Marca solo lo que de verdad hiciste: me sirve para saber qué te falta.",
+      pasos: [
+        { id: "diagnostica", texto: "Hice la prueba diagnóstica en Q10" },
+        { id: "mini-quiz", texto: "Hice el mini quiz de la clase 1 en Q10" },
       ],
-      sinopsis:
-        "En el hospital Knickerbocker, el cirujano John Thackery intenta abrirse camino en una medicina que apenas empieza a usar electricidad, anestesia y asepsia, mientras enfrenta sus propios límites.",
-      observar: [
-        { icono: "💡", titulo: "La tecnología", texto: "¿Qué aparatos, inventos o registros usan? ¿Qué les falta que hoy damos por hecho?" },
-        { icono: "🧼", titulo: "La higiene", texto: "Fíjense en las manos, los instrumentos y las salas. ¿Qué harían distinto hoy?" },
-        { icono: "⚖️", titulo: "La ética", texto: "El trato a los pacientes, al personal y entre colegas. ¿Qué les incomoda?" },
-        { icono: "📋", titulo: "La información", texto: "¿Cómo guardan y comparten los datos del paciente? Compárenlo con una historia clínica electrónica." },
-      ],
-      aviso: "Tiene escenas quirúrgicas explícitas, consumo de drogas y el racismo de la época. Si alguna escena les afecta, pueden mirar a otro lado o salir un momento.",
-    },
-    {
-      tipo: "tarea",
-      seccion: "The Knick",
-      eyebrow: "Actividad reflexiva · Hacer",
-      titulo: "Reflexión sobre The Knick",
-      entrega: "Próximo domingo, antes de las 7:00 a. m.",
-      intro: "En el documento que creaste hoy en Drive, responde con tus palabras (media página a una página):",
-      preguntas: [
-        "¿Qué tecnologías (o la falta de ellas) viste en el hospital de 1900 y cómo afectaban la atención de los pacientes?",
-        "Escoge una escena y cuenta cómo se haría hoy con las TICs: historia clínica electrónica, imágenes diagnósticas, comunicación entre el equipo.",
-        "¿Qué situación ética te impactó más y por qué?",
-        "¿Qué te llevas para tu futuro trabajo en el área de la salud?",
-      ],
-      formato: [
-        "Documento de Google Docs: TICs_Salud › Fundamentos",
-        "Nombre: Apellido_Nombre_Reflexion_TheKnick",
-        "Con título, tu nombre, programa y fecha",
-        "Compartido con el profe (ya lo está si compartiste la carpeta)",
-      ],
+      guia: "Si no pudiste entrar a Q10 o la prueba ya estaba cerrada, déjala sin marcar y avanza. En tu reporte me queda que te falta y lo arreglamos.",
     },
 
     // ───────────────────────── CIERRE ─────────────────────────
@@ -720,6 +803,7 @@ export const TICS_1: Leccion = {
       tipo: "repaso",
       seccion: "Cierre",
       titulo: "Cierre — Repaso relámpago",
+      guia: "Para cerrar, intenta responder estas preguntas en voz alta o en un papel, sin devolverte. Si alguna no te sale, usa el índice (abajo, el número de la diapositiva) para volver a ese tema.",
       preguntas: [
         { icono: "🔩", tema: "Hardware", pregunta: "¿La memoria RAM es hardware o software? ¿Qué pasa con ella al apagar?" },
         { icono: "⌨️", tema: "Atajos", pregunta: "¿Qué atajo deshace la última acción? ¿Y cuál cambia de ventana?" },
@@ -727,6 +811,7 @@ export const TICS_1: Leccion = {
         { icono: "☁️", tema: "La nube", pregunta: "¿Qué permiso le das a alguien que solo debe leer un documento?" },
       ],
     },
-    { tipo: "gracias", seccion: "Cierre", titulo: "¡Gracias!", proxima: "Próxima clase: Procesador de texto · Traigan su reflexión de The Knick" },
+    { tipo: "gracias", seccion: "Cierre", modo: "vivo", titulo: "¡Gracias!", proxima: "Próxima clase: The Knick (capítulo 1) y procesador de texto" },
+    { tipo: "terminar", seccion: "Cierre", modo: "ritmo", titulo: "¡Llegaste al final de la clase 1!", proxima: "Próxima clase: The Knick (capítulo 1) y procesador de texto" },
   ],
 };

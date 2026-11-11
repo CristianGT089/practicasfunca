@@ -7,6 +7,7 @@ import Checklist from "./actividades/Checklist";
 import Clasificar from "./actividades/Clasificar";
 import Mecanografia from "./actividades/Mecanografia";
 import Pregunta from "./Pregunta";
+import Terminar from "./Terminar";
 
 /** Pinta una diapositiva de la lección. La misma para el proyector y para el estudiante. */
 export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoDiapositiva; origen?: string; sesionPresentador?: string }) {
@@ -43,14 +44,14 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
         <div>
           <Titulo titulo={d.titulo} />
           <ol className="mt-6 grid gap-2 sm:grid-cols-2">
-            {d.bloques.map((b) => (
+            {d.bloques.map((b, i) => (
               <li
-                key={b.hora}
+                key={i}
                 className={`flex items-center gap-4 rounded-2xl px-4 py-2.5 ${
                   b.pausa ? "bg-gold-50 border-2 border-dashed border-gold-500/60" : b.externo ? "bg-blue-900 text-white" : "tarjeta-sm"
                 }`}
               >
-                <span className={`w-14 shrink-0 font-heading text-lg font-bold ${b.externo ? "text-gold-400" : "text-blue-800"}`}>{b.hora}</span>
+                <span className={`min-w-14 shrink-0 whitespace-nowrap font-heading text-lg font-bold ${b.externo ? "text-gold-400" : "text-blue-800"}`}>{b.hora}</span>
                 <span className="text-2xl" aria-hidden>{b.icono}</span>
                 <span className={`font-semibold ${b.externo ? "" : "text-blue-950"}`}>{b.tema}</span>
               </li>
@@ -355,6 +356,9 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
           {d.proxima && <p className="mt-6 text-2xl text-blue-700">{d.proxima}</p>}
         </div>
       );
+
+    case "terminar":
+      return <Terminar titulo={d.titulo} proxima={d.proxima} />;
   }
 }
 

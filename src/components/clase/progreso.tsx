@@ -67,6 +67,21 @@ export function ProveedorProgreso({
   return <ContextoProgreso.Provider value={{ progresos, cargado, guardar, reveladas, revelar }}>{children}</ContextoProgreso.Provider>;
 }
 
+/** Todo el progreso de la lección (para saber qué falta antes de avanzar o al terminar). */
+export function useProgresos() {
+  const { progresos, cargado } = useContext(ContextoProgreso);
+  return { progresos, cargado };
+}
+
+/** Clase a tu ritmo: lo que necesita la diapositiva final para mostrar el resumen y enviarlo. */
+export type CtxRecorrido = {
+  leccion: import("@/lib/clase/tipos").Leccion;
+  terminadoEn: string | null;
+  terminar: () => Promise<boolean>;
+  ir: (i: number) => void;
+};
+export const ContextoRecorrido = createContext<CtxRecorrido | null>(null);
+
 export function useRevelacion() {
   const { reveladas, revelar } = useContext(ContextoProgreso);
   return { reveladas, revelar };

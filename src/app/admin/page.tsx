@@ -221,6 +221,8 @@ export default function InicioAdminPage() {
         </div>
       </section>
 
+      <ReportesARitmo />
+
       {pendientes.length > 0 && (
         <section aria-labelledby="pendientes" data-guia="pendientes">
           <p className="eyebrow">Para hoy</p>
@@ -303,5 +305,38 @@ export default function InicioAdminPage() {
 
       <Recorrido id="inicio" pasos={PASOS_INICIO} listo={jornadas !== null} />
     </div>
+  );
+}
+
+/** Aviso de reportes nuevos de la clase a tu ritmo (estudiantes que terminaron y no has revisado). */
+function ReportesARitmo() {
+  const [nuevas, setNuevas] = useState<{ id: string; titulo: string; grupo: string | null; nuevos: number }[]>([]);
+  useEffect(() => {
+    fetch("/api/admin/clase/ritmo")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setNuevas((d.asignaciones ?? []).filter((a: { nuevos: number }) => a.nuevos > 0)))
+      .catch(() => {});
+  }, []);
+  if (nuevas.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2">
+      {nuevas.map((a) => (
+        <Link key={a.id} href={`/admin/clase/ritmo/${a.id}`} className="tarjeta-accion flex items-center gap-4 !border-2 !border-gold-500/60 !bg-gold-50">
+          <span className="text-3xl" aria-hidden>
+            📨
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-heading font-bold text-blue-900">
+              {a.nuevos === 1 ? "1 estudiante terminó" : `${a.nuevos} estudiantes terminaron`} la clase a su ritmo
+            </span>
+            <span className="block text-sm text-slate-600">
+              {a.titulo}
+              {a.grupo ? ` · ${a.grupo}` : ""}
+            </span>
+          </span>
+          <span className="btn-cta shrink-0 !py-2">Ver reporte →</span>
+        </Link>
+      ))}
+    </section>
   );
 }

@@ -50,3 +50,20 @@ Los atajos del sistema y la app Archivos de ChromeOS son distintos a Windows: la
 compara y la parte 3 de la práctica de atajos es de Chromebook. La mecanografía permite «ignorar
 tildes y ñ» por si el teclado está en inglés. Los emojis usan Noto Color Emoji (Google Fonts) para
 verse también en equipos sin fuente de emojis.
+
+## Clase a tu ritmo (para quienes faltaron)
+
+La misma lección, pero cada estudiante la hace solo, en orden y con la explicación del profe en
+cada diapositiva (campo `guia`). Al terminar envía su reporte al docente.
+
+- **Contenido:** cada diapositiva puede tener `guia` (recuadro «El profe te explica») y `modo`
+  (`"vivo"` o `"ritmo"`; sin `modo` va en las dos). `leccionPorSlug(slug, "ritmo")` da la versión
+  a tu ritmo. El progreso (`ProgresoClase`) es el mismo en los dos modos.
+- **Quién la hace:** en *Clase en vivo › Clase a tu ritmo › Habilitar a estudiantes* se elige
+  lección, grupo y estudiantes (vienen marcados los que no entraron a la clase en vivo). Se pueden
+  agregar o quitar después desde el reporte. Modelos `AsignacionClase` y `RecorridoClase`.
+- **Reglas:** no se salta diapositivas (máximo una más que la más lejana); las preguntas se
+  responden para seguir; pasar una actividad sin terminar pide confirmación y queda pendiente.
+- **Reporte:** `/admin/clase/ritmo/<id>`; los reportes nuevos aparecen en el Inicio del docente.
+- Vista previa sin reporte: `/panel/clase?leccion=tics-1&modo=ritmo`.
+- The Knick salió de la clase 1: sus diapositivas están en `lecciones/theKnick.ts` para la clase 2.
