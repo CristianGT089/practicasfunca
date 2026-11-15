@@ -17,6 +17,38 @@ export type ItemClasificar = { id: string; texto: string; correcta: string };
 
 export type PasoChecklist = { id: string; texto: string; ayuda?: string };
 
+/** Reto de la interfaz simulada: tocar la parte de la ventana que se pide. */
+export type RetoInterfaz = { zona: string; pista: string; explicacion?: string };
+
+/** Retos de la cuadrícula: tocar una celda, escribir dónde está algo o seleccionar un rango. */
+export type RetoCeldas =
+  | { tipo: "tocar"; celda: string; texto: string }
+  | { tipo: "escribir"; celda: string; texto: string; marcar?: boolean }
+  | { tipo: "rango"; rango: string; texto: string };
+
+/**
+ * Reto de ordenar y filtrar: se cumple cuando la tabla queda así. `filtro: null` = sin filtros;
+ * `filtroActivo` = solo pide crear el filtro.
+ */
+export type RetoOrdenar = {
+  texto: string;
+  filtroActivo?: boolean;
+  orden?: { columna: number; direccion: "asc" | "desc" };
+  filtro?: { columna: number; valores: string[] } | null;
+};
+
+/** Reto de formato condicional: crear una regla así (o una escala de colores) sobre una columna. */
+export type RetoCondicional = {
+  texto: string;
+  columna: number;
+  condicion: "menor" | "mayor" | "igual" | "contiene" | "escala";
+  valor?: string | number;
+  color?: "rojo" | "amarillo" | "verde";
+};
+
+/** Reto de fórmulas: escribir en `celda` una fórmula que dé lo mismo que `solucion`. */
+export type RetoFormula = { celda: string; texto: string; solucion: string; funcion?: string; pista?: string };
+
 export type DiapositivaBase = {
   /** Para la barra de progreso y el índice ("TICs", "El computador"...). */
   seccion?: string;
@@ -119,6 +151,58 @@ export type Diapositiva = DiapositivaBase &
         pasos: PasoChecklist[];
         enlace?: { href: string; texto: string };
         arbol?: NodoArbol;
+      }
+    | {
+        tipo: "actividad";
+        actividad: "interfaz";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** Qué ventana se simula. */
+        app: "docs" | "sheets";
+        retos: RetoInterfaz[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "celdas";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** Contenido opcional de la cuadrícula, desde A1. */
+        datos?: (string | number)[][];
+        columnas?: number;
+        filas?: number;
+        retos: RetoCeldas[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "ordenar";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** La tabla: la primera fila son los encabezados. Fechas como dd/mm/aaaa. */
+        datos: (string | number)[][];
+        retos: RetoOrdenar[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "condicional";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** La tabla: la primera fila son los encabezados. */
+        datos: (string | number)[][];
+        retos: RetoCondicional[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "formulas";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** La hoja desde A1 (la fila 1 son los encabezados). */
+        datos: (string | number)[][];
+        retos: RetoFormula[];
       }
     | {
         tipo: "video";

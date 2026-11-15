@@ -4,7 +4,12 @@ import type { Diapositiva as TipoDiapositiva, Tarjeta } from "@/lib/clase/tipos"
 import Arbol from "./Arbol";
 import Atajos from "./actividades/Atajos";
 import Checklist from "./actividades/Checklist";
+import Celdas from "./actividades/Celdas";
 import Clasificar from "./actividades/Clasificar";
+import Condicional from "./actividades/Condicional";
+import Formulas from "./actividades/Formulas";
+import Interfaz from "./actividades/Interfaz";
+import OrdenarFiltrar from "./actividades/OrdenarFiltrar";
 import Mecanografia from "./actividades/Mecanografia";
 import Pregunta from "./Pregunta";
 import Terminar from "./Terminar";
@@ -255,6 +260,11 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
           {d.actividad === "checklist" && <Checklist id={d.id} pasos={d.pasos} enlace={d.enlace} arbol={d.arbol} />}
           {d.actividad === "atajos" && <Atajos id={d.id} />}
           {d.actividad === "mecanografia" && <Mecanografia id={d.id} />}
+          {d.actividad === "interfaz" && <Interfaz id={d.id} app={d.app} retos={d.retos} />}
+          {d.actividad === "celdas" && <Celdas id={d.id} retos={d.retos} datos={d.datos} columnas={d.columnas} filas={d.filas} />}
+          {d.actividad === "ordenar" && <OrdenarFiltrar id={d.id} datos={d.datos} retos={d.retos} />}
+          {d.actividad === "condicional" && <Condicional id={d.id} datos={d.datos} retos={d.retos} />}
+          {d.actividad === "formulas" && <Formulas id={d.id} datos={d.datos} retos={d.retos} />}
         </div>
       );
 

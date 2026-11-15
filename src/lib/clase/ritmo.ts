@@ -105,6 +105,16 @@ export function armarReporte(leccion: Leccion, progresos: Progreso[]): Reporte {
     } else if (d.actividad === "atajos") {
       const hechos = lista(datos.hechos) as string[];
       detalle = `${hechos.length} atajos y tareas marcados`;
+    } else if (d.actividad === "interfaz" || d.actividad === "celdas" || d.actividad === "ordenar" || d.actividad === "condicional") {
+      const hechos = new Set(lista(datos.hechos) as number[]);
+      const fallos = typeof datos.fallos === "number" ? datos.fallos : 0;
+      detalle = `${hechos.size} de ${d.retos.length} retos · ${fallos} intento${fallos === 1 ? "" : "s"} fallido${fallos === 1 ? "" : "s"}`;
+      faltantes = d.retos.filter((_, i) => !hechos.has(i)).map((r) => ("pista" in r ? r.pista : r.texto));
+    } else if (d.actividad === "formulas") {
+      const formulas = objeto(datos.formulas);
+      const fallos = typeof datos.fallos === "number" ? datos.fallos : 0;
+      detalle = `${d.retos.filter((r) => formulas[r.celda]).length} de ${d.retos.length} fórmulas · ${fallos} intento${fallos === 1 ? "" : "s"} fallido${fallos === 1 ? "" : "s"}`;
+      faltantes = d.retos.filter((r) => !formulas[r.celda]).map((r) => `${r.celda}: ${r.texto}`);
     } else if (d.actividad === "mecanografia") {
       const intentos = lista(datos.intentos) as IntentoMecanografia[];
       if (intentos.length) {

@@ -26,6 +26,21 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   Tipos de diapositiva en `src/lib/clase/tipos.ts`; se pintan en `src/components/clase/Diapositiva.tsx`.
 - Actividades (`tipo: "actividad"`): `clasificar`, `checklist` (pasos fuera de la plataforma,
   con enlace y árbol de carpetas), `atajos` y `mecanografia` (textos en `src/lib/clase/mecanografia.ts`).
+- Simulaciones de ofimática (clase 2): `interfaz` (una ventana de Docs o Sheets dibujada; se toca
+  la parte pedida y, si se equivoca, se le dice qué tocó; zonas en `actividades/Interfaz.tsx`),
+  `celdas` (cuadrícula: tocar, escribir y seleccionar rangos) y `formulas` (mini hoja que calcula de
+  verdad con `src/lib/clase/formulas.ts`: referencias, rangos, + − * /, SUMA/SUM, PROMEDIO/AVERAGE,
+  MAX, MIN, CONTAR/COUNT, CONTARA; separador «;» o «,»; exige usar referencias y la función pedida).
+- `ordenar` (filtro de Sheets: «Crear filtro», ▾ por encabezado con Ordenar A → Z / Z → A y Filtrar
+  por valores; al ordenar se renumeran las filas y al filtrar se saltan) y `condicional` (panel de
+  reglas: intervalo, condición, valor y color, o escala de colores; gana la primera regla, como en Sheets).
+- En las simulaciones el reto y el mensaje quedan fijos arriba (sticky) para que se vean al bajar.
+- Pantallas: el contenido (`.lienzo-clase`, en globals.css) escala solo desde 1600 px de ancho
+  (1,15 / 1,3 / 1,55 / 2); el zoom del presentador llega como `--zoom-manual` y se multiplica. En
+  pantallas bajas (≤ 720 px de alto) se reducen los márgenes. Revisado sin desbordes a 1024, 1280,
+  1366 y 1920 px.
+- Los quices van en Q10: en la lección solo se anuncian con una diapositiva `externo` (y en la
+  clase a tu ritmo, un checklist «¿Hiciste el quiz?»).
 - Mecanografía progresiva: cada nivel tiene sus textos en orden («Texto 2 de 5»); el siguiente nivel
   se abre al terminar todos los del anterior y al volver se retoma el primer texto pendiente. Al
   terminar, el resultado tapa el texto. El signo de una tecla muerta (´ antes de la vocal) queda
@@ -66,4 +81,4 @@ cada diapositiva (campo `guia`). Al terminar envía su reporte al docente.
   responden para seguir; pasar una actividad sin terminar pide confirmación y queda pendiente.
 - **Reporte:** `/admin/clase/ritmo/<id>`; los reportes nuevos aparecen en el Inicio del docente.
 - Vista previa sin reporte: `/panel/clase?leccion=tics-1&modo=ritmo`.
-- The Knick salió de la clase 1: sus diapositivas están en `lecciones/theKnick.ts` para la clase 2.
+- The Knick salió de la clase 1 y está en la clase 2 (`lecciones/tics2.ts`).

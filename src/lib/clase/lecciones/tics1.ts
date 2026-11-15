@@ -811,7 +811,7 @@ export const TICS_1: Leccion = {
         { icono: "☁️", tema: "La nube", pregunta: "¿Qué permiso le das a alguien que solo debe leer un documento?" },
       ],
     },
-    { tipo: "gracias", seccion: "Cierre", modo: "vivo", titulo: "¡Gracias!", proxima: "Próxima clase: The Knick (capítulo 1) y procesador de texto" },
-    { tipo: "terminar", seccion: "Cierre", modo: "ritmo", titulo: "¡Llegaste al final de la clase 1!", proxima: "Próxima clase: The Knick (capítulo 1) y procesador de texto" },
+    { tipo: "gracias", seccion: "Cierre", modo: "vivo", titulo: "¡Gracias!", proxima: "Próxima clase: The Knick, Docs en equipo y hojas de cálculo" },
+    { tipo: "terminar", seccion: "Cierre", modo: "ritmo", titulo: "¡Llegaste al final de la clase 1!", proxima: "Próxima clase: The Knick, Docs en equipo y hojas de cálculo" },
   ],
 };

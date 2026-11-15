@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import type { Leccion } from "@/lib/clase/tipos";
 import Image from "next/image";
 import Diapositiva from "./Diapositiva";
@@ -102,13 +102,14 @@ export default function Visor({
       </div>
       {aviso}
 
-      <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
-        <div className="mx-auto max-w-6xl" style={zoom !== 1 ? { zoom } : undefined}>
+      <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 [@media(max-height:720px)]:py-4">
+        {/* lienzo-clase: escala sola en pantallas grandes (globals.css); el zoom del presentador se multiplica. */}
+        <div className="lienzo-clase mx-auto max-w-6xl" style={{ "--zoom-manual": zoom } as CSSProperties}>
           {d.seccion && d.tipo !== "seccion" && d.tipo !== "portada" && (
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-500">{d.seccion}</p>
           )}
           {modo === "ritmo" && d.guia && (
-            <div className="mb-6 flex gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 px-4 py-3 sm:px-5 sm:py-4">
+            <div className="mb-6 flex gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 px-4 py-3 sm:px-5 sm:py-4 [@media(max-height:720px)]:mb-4 [@media(max-height:720px)]:py-2.5">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-900 text-xl" aria-hidden>
                 🧑‍🏫
               </span>
@@ -123,7 +124,7 @@ export default function Visor({
       </main>
 
       <footer className="sticky bottom-0 z-30 border-t border-blue-200 bg-white/95 px-4 py-2 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2">
+        <div className="lienzo-clase mx-auto flex max-w-6xl flex-wrap items-center gap-2">
           <button onClick={() => onIr(indice - 1)} disabled={indice === 0} className="btn-suave" aria-label="Diapositiva anterior">
             ← Anterior
           </button>
