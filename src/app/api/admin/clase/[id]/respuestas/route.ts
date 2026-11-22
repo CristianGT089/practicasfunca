@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const asistentes = await prisma.asistenciaClase.findMany({ where: { sesionId: s.id }, select: { usuarioId: true } });
   const respuestas = await prisma.progresoClase.findMany({
-    where: { leccion: s.leccion, actividad: pregunta.id, usuarioId: { in: asistentes.map((a) => a.usuarioId) } },
+    where: { leccion: s.leccion, contexto: "", actividad: pregunta.id, usuarioId: { in: asistentes.map((a) => a.usuarioId) } },
     select: { datos: true },
   });
   const conteo = pregunta.opciones.map(() => 0);

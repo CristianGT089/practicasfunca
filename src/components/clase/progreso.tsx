@@ -25,8 +25,11 @@ export function ProveedorProgreso({
   children,
   reveladas = null,
   revelar,
+  recorrido,
 }: {
   leccion: string;
+  /** Clase a tu ritmo: el progreso se guarda aparte, solo de este recorrido. */
+  recorrido?: string;
   children: ReactNode;
   reveladas?: string[] | null;
   revelar?: (pregunta: string, mostrar: boolean) => void;
@@ -36,12 +39,13 @@ export function ProveedorProgreso({
   const pendientes = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
-    fetch(`/api/clase/progreso?leccion=${encodeURIComponent(leccion)}`)
+    const extra = recorrido ? `&recorrido=${encodeURIComponent(recorrido)}` : "";
+    fetch(`/api/clase/progreso?leccion=${encodeURIComponent(leccion)}${extra}`)
       .then((r) => (r.ok ? r.json() : { progresos: {} }))
       .then((d) => setProgresos(d.progresos ?? {}))
       .catch(() => {})
       .finally(() => setCargado(true));
-  }, [leccion]);
+  }, [leccion, recorrido]);
 
   const guardar = useCallback(
     (actividad: string, datos: unknown, completado = false) => {
@@ -55,13 +59,13 @@ export function ProveedorProgreso({
           fetch("/api/clase/progreso", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ leccion, actividad, datos, completado }),
+            body: JSON.stringify({ leccion, actividad, datos, completado, recorrido }),
             keepalive: true,
           }).catch(() => {});
         }, 400)
       );
     },
-    [leccion]
+    [leccion, recorrido]
   );
 
   return <ContextoProgreso.Provider value={{ progresos, cargado, guardar, reveladas, revelar }}>{children}</ContextoProgreso.Provider>;

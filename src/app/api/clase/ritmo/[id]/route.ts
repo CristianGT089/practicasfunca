@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/nucleo/auth";
 import { prisma } from "@/lib/nucleo/prisma";
 import { leccionPorSlug } from "@/lib/clase/lecciones";
 import { requisitoPendiente } from "@/lib/clase/requisitos";
+import { contextoRitmo } from "@/lib/clase/servidor";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -65,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const actual = leccion.diapositivas[r.maxima];
     if (actual.tipo === "pregunta" || actual.tipo === "actividad") {
       const progreso = await prisma.progresoClase.findUnique({
-        where: { usuarioId_leccion_actividad: { usuarioId: r.usuarioId, leccion: leccion.slug, actividad: actual.id } },
+        where: { usuarioId_leccion_contexto_actividad: { usuarioId: r.usuarioId, leccion: leccion.slug, contexto: contextoRitmo(r.id), actividad: actual.id } },
       });
       if (requisitoPendiente(actual, progreso ?? undefined)) diapositiva = r.maxima;
     }

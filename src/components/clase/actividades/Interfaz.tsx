@@ -128,7 +128,7 @@ export default function Interfaz({ id, app, retos }: { id: string; app: "docs" |
   return (
     <div className="flex flex-col gap-3">
       {/* El reto y el mensaje quedan a la vista aunque haya que bajar para tocar algo. */}
-      <div className="sticky top-11 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
+      <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
         <div className="flex flex-wrap items-center gap-3">
           <div
             className={`flex-1 rounded-2xl px-4 py-3 font-heading text-lg font-bold ${actual === -1 ? "bg-emerald-50 text-emerald-800" : "bg-blue-900 text-white"}`}

@@ -1,9 +1,10 @@
 import { vistaDe, type Leccion, type ModoLeccion } from "../tipos";
 import { TICS_1 } from "./tics1";
 import { TICS_2 } from "./tics2";
+import { TICS_3 } from "./tics3";
 
 /** Todas las lecciones disponibles, en orden. Para agregar una: crear el archivo y sumarla aquí. */
-const TODAS: Leccion[] = [TICS_1, TICS_2];
+const TODAS: Leccion[] = [TICS_1, TICS_2, TICS_3];
 
 /** Versión en vivo de cada lección (la que proyecta el docente). */
 export const LECCIONES: Leccion[] = TODAS.map((l) => vistaDe(l, "vivo"));

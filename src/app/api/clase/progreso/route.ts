@@ -3,15 +3,20 @@ import type { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/nucleo/auth";
 import { prisma } from "@/lib/nucleo/prisma";
 import { leccionPorSlug } from "@/lib/clase/lecciones";
-import { sesionActivaPara } from "@/lib/clase/servidor";
+import { CONTEXTO_VIVO, contextoPara, sesionActivaPara } from "@/lib/clase/servidor";
 
-/** Progreso propio en las actividades de una lección: { [actividad]: { datos, completado } }. */
+/**
+ * Progreso propio en las actividades de una lección: { [actividad]: { datos, completado } }.
+ * Con `?recorrido=<id>` es el de esa clase a tu ritmo (aparte del en vivo y de las demás).
+ */
 export async function GET(req: NextRequest) {
   const usuario = await requireUser();
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const leccion = req.nextUrl.searchParams.get("leccion");
   if (!leccionPorSlug(leccion, "todo")) return NextResponse.json({ error: "Lección no encontrada" }, { status: 404 });
-  const filas = await prisma.progresoClase.findMany({ where: { usuarioId: usuario.id, leccion: leccion! } });
+  const contexto = await contextoPara(usuario.id, leccion!, req.nextUrl.searchParams.get("recorrido"));
+  if (contexto === null) return NextResponse.json({ error: "Esta clase no está habilitada para ti" }, { status: 403 });
+  const filas = await prisma.progresoClase.findMany({ where: { usuarioId: usuario.id, leccion: leccion!, contexto } });
   return NextResponse.json({
     progresos: Object.fromEntries(filas.map((f) => [f.actividad, { datos: f.datos, completado: f.completado }])),
   });
@@ -28,9 +33,11 @@ export async function PUT(req: NextRequest) {
   if (!leccion || !actividad || !leccion.diapositivas.some((d) => (d.tipo === "actividad" || d.tipo === "pregunta") && d.id === actividad)) {
     return NextResponse.json({ error: "Actividad no válida" }, { status: 400 });
   }
+  const contexto = await contextoPara(usuario.id, leccion.slug, body?.recorrido);
+  if (contexto === null) return NextResponse.json({ error: "Esta clase no está habilitada para ti" }, { status: 403 });
   // Una pregunta cuya respuesta ya reveló el docente en la clase en vivo no se puede cambiar.
   const pregunta = leccion.diapositivas.find((d) => d.tipo === "pregunta" && d.id === actividad);
-  if (pregunta) {
+  if (pregunta && contexto === CONTEXTO_VIVO) {
     const sesion = await sesionActivaPara(usuario);
     if (sesion?.leccion === leccion.slug && sesion.reveladas.includes(actividad)) {
       return NextResponse.json({ error: "El profe ya reveló la respuesta" }, { status: 409 });
@@ -40,8 +47,8 @@ export async function PUT(req: NextRequest) {
   if (JSON.stringify(datos).length > 50_000) return NextResponse.json({ error: "Datos demasiado grandes" }, { status: 413 });
   const completado = body?.completado === true;
   const fila = await prisma.progresoClase.upsert({
-    where: { usuarioId_leccion_actividad: { usuarioId: usuario.id, leccion: leccion.slug, actividad } },
-    create: { usuarioId: usuario.id, leccion: leccion.slug, actividad, datos, completado },
+    where: { usuarioId_leccion_contexto_actividad: { usuarioId: usuario.id, leccion: leccion.slug, contexto, actividad } },
+    create: { usuarioId: usuario.id, leccion: leccion.slug, contexto, actividad, datos, completado },
     update: { datos, ...(completado ? { completado: true } : {}) },
   });
   return NextResponse.json({ datos: fila.datos, completado: fila.completado });

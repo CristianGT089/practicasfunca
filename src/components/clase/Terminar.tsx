@@ -16,7 +16,7 @@ export default function Terminar({ titulo, proxima }: { titulo: string; proxima?
   // Vista previa del docente o repaso: no hay recorrido que enviar.
   if (!ctx)
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+      <div className="flex flex-col items-center justify-center py-6 text-center">
         <h2 className="font-heading text-5xl font-extrabold text-blue-900">{titulo}</h2>
         {proxima && <p className="mt-6 text-2xl text-blue-700">{proxima}</p>}
       </div>

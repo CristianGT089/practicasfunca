@@ -77,7 +77,7 @@ export async function participantesDeSesion(sesionId: string, grupoId: string | 
   for (const a of asistencias) personas.set(a.usuario.id, a.usuario);
   const ids = [...personas.keys()];
   const progresos = await prisma.progresoClase.findMany({
-    where: { usuarioId: { in: ids }, leccion },
+    where: { usuarioId: { in: ids }, leccion, contexto: CONTEXTO_VIVO },
     select: { usuarioId: true, actividad: true, completado: true },
   });
   const limite = Date.now() - SEGUNDOS_CONECTADO * 1000;
@@ -103,4 +103,24 @@ export async function gruposDelGestor(gestor: Gestor) {
     select: { id: true, nombre: true, _count: { select: { estudiantes: true } } },
     orderBy: { nombre: "asc" },
   });
+}
+
+// ───────────────────────── Contexto del progreso ─────────────────────────
+
+/** Progreso de la clase en vivo y del repaso libre. */
+export const CONTEXTO_VIVO = "";
+
+/** Progreso propio de una clase a tu ritmo: cada recorrido tiene sus resultados aparte. */
+export const contextoRitmo = (recorridoId: string) => `ritmo:${recorridoId}`;
+
+/**
+ * Contexto donde guardar el progreso de este usuario en esta lección. Sin recorrido = en vivo.
+ * Con recorrido, debe ser suyo, de esa lección y estar activo; si no, null (no se guarda).
+ */
+export async function contextoPara(usuarioId: string, leccion: string, recorridoId: unknown): Promise<string | null> {
+  if (recorridoId === undefined || recorridoId === null || recorridoId === "") return CONTEXTO_VIVO;
+  if (typeof recorridoId !== "string") return null;
+  const r = await prisma.recorridoClase.findUnique({ where: { id: recorridoId }, select: { usuarioId: true, asignacion: { select: { leccion: true, activa: true } } } });
+  if (!r || r.usuarioId !== usuarioId || !r.asignacion.activa || r.asignacion.leccion !== leccion) return null;
+  return contextoRitmo(recorridoId);
 }

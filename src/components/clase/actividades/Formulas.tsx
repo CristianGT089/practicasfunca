@@ -2,23 +2,63 @@
 
 import { useRef, useState } from "react";
 import type { RetoFormula } from "@/lib/clase/tipos";
-import { celdaAIndices, ErrorFormula, evaluar, letraColumna, mostrarNumero, nombreCelda, usaFuncion, usaReferencias, type Hoja } from "@/lib/clase/formulas";
+import {
+  argumentosDe,
+  celdaAIndices,
+  celdasDeRango,
+  desplazar,
+  ErrorCelda,
+  ErrorFormula,
+  evaluar,
+  letraColumna,
+  mismoValor,
+  mostrarValor,
+  nombreCelda,
+  usaAbsoluta,
+  usaFuncion,
+  usaReferencias,
+  type Hoja,
+  type Valor,
+} from "@/lib/clase/formulas";
 import { useProgreso } from "../progreso";
 
 type Datos = { formulas: Record<string, string>; fallos: number };
+
+/** Celdas que llena un reto: la suya y, si se copia, todas las del rango (con el corrimiento de cada una). */
+function destinos(r: RetoFormula): { celda: string; filas: number; cols: number }[] {
+  const origen = celdaAIndices(r.celda)!;
+  const lista = r.copiar ? celdasDeRango(r.copiar) : [r.celda];
+  return lista.map((celda) => {
+    const c = celdaAIndices(celda)!;
+    return { celda, filas: c.fila - origen.fila, cols: c.col - origen.col };
+  });
+}
+
+/** La fórmula que queda en una celda copiada (para mostrarla al pasar el mouse). */
+function destinosFormula(r: RetoFormula, formula: string, celda: string): string {
+  const d = destinos(r).find((x) => x.celda === celda);
+  return d ? desplazar(formula, d.filas, d.cols) : formula;
+}
+
+function poner(hoja: Hoja, celda: string, v: Valor) {
+  const c = celdaAIndices(celda);
+  if (!c) return;
+  while (hoja.length <= c.fila) hoja.push([]);
+  hoja[c.fila][c.col] = v;
+}
 
 /** La hoja con los resultados de las fórmulas ya resueltas (para que se vean en su celda). */
 function hojaCon(base: (string | number)[][], retos: RetoFormula[], formulas: Record<string, string>): Hoja {
   const hoja: Hoja = base.map((f) => [...f]);
   for (const r of retos) {
     const f = formulas[r.celda];
-    const c = celdaAIndices(r.celda);
-    if (!f || !c) continue;
-    try {
-      while (hoja.length <= c.fila) hoja.push([]);
-      hoja[c.fila][c.col] = evaluar(f, hoja);
-    } catch {
-      /* fórmula guardada que ya no evalúa: se ignora */
+    if (!f) continue;
+    for (const d of destinos(r)) {
+      try {
+        poner(hoja, d.celda, evaluar(desplazar(f, d.filas, d.cols), hoja));
+      } catch (e) {
+        poner(hoja, d.celda, e instanceof ErrorCelda ? e.codigo : null);
+      }
     }
   }
   return hoja;
@@ -43,8 +83,9 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
 
   const hoja = hojaCon(base, retos, formulas);
   const objetivo = reto ? celdaAIndices(reto.celda) : null;
-  const nFilas = Math.max(hoja.length, ...retos.map((r) => (celdaAIndices(r.celda)?.fila ?? 0) + 1)) + 1;
-  const nCols = Math.max(...hoja.map((f) => f.length), ...retos.map((r) => (celdaAIndices(r.celda)?.col ?? 0) + 1));
+  const ultimas = retos.flatMap((r) => destinos(r).map((d) => celdaAIndices(d.celda)!));
+  const nFilas = Math.max(hoja.length, ...ultimas.map((c) => c.fila + 1)) + 1;
+  const nCols = Math.max(...hoja.map((f) => f.length), ...ultimas.map((c) => c.col + 1));
   const resueltos = retos.filter((r) => formulas[r.celda]).length;
 
   function fallar(t: string) {
@@ -58,34 +99,60 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
     const f = texto.trim();
     if (!f) return;
     if (!f.startsWith("=")) return fallar("Toda fórmula empieza con el signo igual (=). Si no, la hoja lo toma como texto.");
-    // La celda que se está llenando no cuenta (si no, sería una referencia circular).
+    // Las celdas que se están llenando no cuentan (si no, sería una referencia circular).
+    const lista = destinos(reto);
     const hojaSinEsta = hoja.map((fila) => [...fila]);
-    if (objetivo && hojaSinEsta[objetivo.fila]) hojaSinEsta[objetivo.fila][objetivo.col] = null;
-    let valor: number;
-    let esperado: number;
+    for (const d of lista) {
+      const c = celdaAIndices(d.celda)!;
+      if (hojaSinEsta[c.fila]) hojaSinEsta[c.fila][c.col] = null;
+    }
+    let valor: Valor;
     try {
       valor = evaluar(f, hojaSinEsta);
     } catch (err) {
+      if (err instanceof ErrorCelda) return fallar(`Tu fórmula da ${err.message}`);
       return fallar(err instanceof ErrorFormula ? err.message : "La fórmula tiene un error");
     }
-    try {
-      esperado = evaluar(reto.solucion, hojaSinEsta);
-    } catch {
-      esperado = NaN;
-    }
+    const calcular = (formula: string): Valor | ErrorCelda => {
+      try {
+        return evaluar(formula, hojaSinEsta);
+      } catch (e) {
+        return e instanceof ErrorCelda ? e : new ErrorCelda("#ERROR!", "");
+      }
+    };
     if (!usaReferencias(f))
       return fallar(
-        `Da ${mostrarNumero(valor)}, pero escribiste los números a mano. Usa los nombres de las celdas (B2, C3…): así, si cambia un dato, la fórmula se actualiza sola.`,
+        `Da ${mostrarValor(valor)}, pero escribiste los datos a mano. Usa los nombres de las celdas (B2, C3…): así, si cambia un dato, la fórmula se actualiza sola.`,
       );
     if (reto.funcion && !usaFuncion(f, reto.funcion))
-      return fallar(`Da ${mostrarNumero(valor)}. Ahora hazlo con la función ${reto.funcion}: es más corto y sirve para muchas filas.`);
-    if (Math.abs(valor - esperado) > 0.005) return fallar(`Tu fórmula da ${mostrarNumero(valor)}, pero no es lo que se pide. Revisa qué celdas usaste.`);
+      return fallar(`Da ${mostrarValor(valor)}. Ahora hazlo con la función ${reto.funcion}: es la que pide el reto.`);
+    const esperado = calcular(reto.solucion);
+    if (esperado instanceof ErrorCelda || !mismoValor(valor, esperado)) {
+      if (usaFuncion(f, "BUSCARV") && argumentosDe(f, "BUSCARV") === 3)
+        return fallar(`Tu fórmula da ${mostrarValor(valor)}. Te faltó el último dato, FALSO: sin él, BUSCARV busca «aproximado» y puede traer otra fila.`);
+      return fallar(`Tu fórmula da ${mostrarValor(valor)}, pero no es lo que se pide. Revisa qué celdas usaste.`);
+    }
+    // Al copiarla hacia abajo, cada copia tiene que dar lo mismo que la solución copiada.
+    for (const d of lista.slice(1)) {
+      const copia = desplazar(f, d.filas, d.cols);
+      const suya = calcular(copia);
+      const debe = calcular(desplazar(reto.solucion, d.filas, d.cols));
+      const bien = !(suya instanceof ErrorCelda) && !(debe instanceof ErrorCelda) && mismoValor(suya, debe);
+      if (!bien) {
+        const da = suya instanceof ErrorCelda ? suya.codigo : mostrarValor(suya);
+        const fijar = usaAbsoluta(reto.solucion) && !usaAbsoluta(f) ? ` Al copiar, todas las referencias se corren. ¿Cuál celda debe quedarse quieta? Fíjala con $ (por ejemplo ${/\$[A-Z]{1,2}\$\d+/i.exec(reto.solucion)?.[0] ?? "$B$7"}).` : "";
+        return fallar(`En ${reto.celda} da bien, pero al copiarla a ${d.celda} queda ${copia} y da ${da}.${fijar}`);
+      }
+    }
     const nuevas = { ...formulas, [reto.celda]: f };
     guardar(
       { formulas: nuevas, fallos: datos?.fallos ?? 0 },
       retos.every((r) => nuevas[r.celda]),
     );
-    setMensaje({ bien: true, texto: `¡Bien! ${reto.celda} = ${mostrarNumero(valor)}.` });
+    setMensaje({
+      bien: true,
+      texto: reto.copiar ? `¡Bien! La fórmula se copió hasta ${reto.copiar.split(":")[1]} y todas dan bien.` : `¡Bien! ${reto.celda} = ${mostrarValor(valor)}.`,
+    });
     setTexto("");
     setElegido(null);
     setVerPista(false);
@@ -99,10 +166,10 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
       entrada.current?.focus();
       return;
     }
-    const r = retos.findIndex((x) => x.celda === nombre);
+    const r = retos.findIndex((x) => destinos(x).some((d) => d.celda === nombre));
     if (r !== -1) {
       setElegido(r);
-      setTexto(formulas[nombre] ?? "");
+      setTexto(formulas[retos[r].celda] ?? "");
       setMensaje(null);
       setVerPista(false);
       entrada.current?.focus();
@@ -112,7 +179,7 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
   return (
     <div className="flex flex-col">
       {/* Reto, barra de fórmulas y mensaje quedan fijos arriba: así se ve la respuesta mientras se escribe. */}
-      <div className="sticky top-11 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pt-3">
+      <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pt-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex-1 rounded-2xl px-4 py-3 font-heading text-lg font-bold ${reto ? "bg-blue-900 text-white" : "bg-emerald-50 text-emerald-800"}`}>
             {reto ? (
@@ -187,15 +254,17 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
                   {Array.from({ length: nCols }, (_, c) => {
                     const v = hoja[f]?.[c];
                     const nombre = nombreCelda(f, c);
-                    const esReto = retos.some((r) => r.celda === nombre);
-                    const resuelto = !!formulas[nombre];
+                    const delReto = retos.find((r) => destinos(r).some((d) => d.celda === nombre));
+                    const esReto = !!delReto;
+                    const resuelto = !!delReto && !!formulas[delReto.celda];
+                    const formulaAqui = resuelto && delReto ? destinosFormula(delReto, formulas[delReto.celda], nombre) : undefined;
                     const activa = objetivo && objetivo.fila === f && objetivo.col === c;
                     return (
                       <td
                         key={c}
                         onClick={() => clicCelda(f, c)}
-                        title={resuelto ? formulas[nombre] : undefined}
-                        className={`h-8 cursor-cell border border-slate-200 px-2 ${typeof v === "number" ? "text-right" : "text-left"} ${f === 0 ? "font-bold" : ""} ${
+                        title={formulaAqui}
+                        className={`h-8 cursor-cell border border-slate-200 px-2 ${typeof v === "number" ? "text-right" : typeof v === "boolean" ? "text-center" : "text-left"} ${f === 0 ? "font-bold" : ""} ${
                           activa
                             ? "bg-gold-100 outline outline-2 -outline-offset-1 outline-[#1A73E8]"
                             : resuelto
@@ -205,7 +274,7 @@ export default function Formulas({ id, datos: base, retos }: { id: string; datos
                                 : "hover:bg-slate-50"
                         }`}
                       >
-                        {typeof v === "number" ? mostrarNumero(v) : (v ?? "")}
+                        {mostrarValor(v ?? null)}
                         {activa && !resuelto && <span className="text-gold-700">?</span>}
                       </td>
                     );

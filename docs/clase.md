@@ -35,10 +35,12 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   por valores; al ordenar se renumeran las filas y al filtrar se saltan) y `condicional` (panel de
   reglas: intervalo, condición, valor y color, o escala de colores; gana la primera regla, como en Sheets).
 - En las simulaciones el reto y el mensaje quedan fijos arriba (sticky) para que se vean al bajar.
-- Pantallas: el contenido (`.lienzo-clase`, en globals.css) escala solo desde 1600 px de ancho
-  (1,15 / 1,3 / 1,55 / 2); el zoom del presentador llega como `--zoom-manual` y se multiplica. En
-  pantallas bajas (≤ 720 px de alto) se reducen los márgenes. Revisado sin desbordes a 1024, 1280,
-  1366 y 1920 px.
+- Pantallas (`Visor.tsx`): la barra de arriba y la de abajo quedan fijas y solo el área de la
+  diapositiva hace scroll. Las diapositivas de presentación **se ajustan a la pantalla** (zoom que
+  las encoge hasta caber, mínimo 0,6) y se centran; las actividades (juegos, checklists) solo
+  escalan con el ancho y se recorren con scroll, con el reto fijo arriba (`sticky top-0`). En
+  monitores anchos crece (ancho/1390, máx. 2) y el zoom del presentador (A−/A+) se multiplica.
+  Revisado a 1366×768 (Chromebook): ninguna presentación de las clases 1–3 necesita scroll.
 - Los quices van en Q10: en la lección solo se anuncian con una diapositiva `externo` (y en la
   clase a tu ritmo, un checklist «¿Hiciste el quiz?»).
 - Mecanografía progresiva: cada nivel tiene sus textos en orden («Texto 2 de 5»); el siguiente nivel
@@ -51,13 +53,22 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   `SesionClase.reveladas`: cada estudiante ve en su pantalla la correcta, si acertó y la explicación
   (también si vuelve atrás) y ya no puede cambiar su voto. En modo repaso se revela al responder.
 - `notas` de una diapositiva: solo se ven en el presentador (botón «Notas»).
+- Ilustraciones (`tipo: "visual"`): dibujos en `components/clase/Visuales.tsx` en vez de tarjetas
+  (caja negra, $ al copiar, SI, BUSCARV, partes y tipos de gráfico, zonas de la tabla dinámica,
+  cuadrícula de Sheets, ordenar vs. filtrar). Para uno nuevo: agregarlo a `Visual` en `tipos.ts`.
+- Simulaciones de la clase 3: `formulas` (ahora con texto, comparaciones, SI, CONTAR.SI, SUMAR.SI,
+  .CONJUNTO, BUSCARV/X, SI.ERROR, REDONDEAR, HOY; `copiar` revisa cada copia y enseña el $),
+  `grafico` (editor de gráficos) y `dinamica` (editor de tabla dinámica). Hojas .xlsx en
+  `public/clase/tics-3/` (se generan con `scripts/clase/hojas_tics3.py`).
 
 ## Datos
 
 - `SesionClase`: lección, diapositiva actual, `maxima` (tope para los estudiantes), `llamado`, grupo (null = todos, solo admin).
 - `AsistenciaClase`: última consulta y diapositiva de cada estudiante en la sesión.
-- `ProgresoClase`: por usuario + lección + actividad (o pregunta). No depende de la sesión, así
-  que si se desconecta o practica en casa lo retoma.
+- `ProgresoClase`: por usuario + lección + **contexto** + actividad (o pregunta). Contexto `""` =
+  clase en vivo y repaso; `ritmo:<recorridoId>` = una clase a tu ritmo. Así cada clase a tu ritmo
+  tiene sus propios resultados: no se mezcla con la clase en vivo ni con otra asignación de la
+  misma lección. No depende de la sesión: si se desconecta o practica en casa lo retoma.
 
 ## Pensado para Chromebooks
 
@@ -73,7 +84,9 @@ cada diapositiva (campo `guia`). Al terminar envía su reporte al docente.
 
 - **Contenido:** cada diapositiva puede tener `guia` (recuadro «El profe te explica») y `modo`
   (`"vivo"` o `"ritmo"`; sin `modo` va en las dos). `leccionPorSlug(slug, "ritmo")` da la versión
-  a tu ritmo. El progreso (`ProgresoClase`) es el mismo en los dos modos.
+  a tu ritmo. El progreso de cada recorrido va aparte (contexto `ritmo:<id>`): el panel y el
+  reporte solo cuentan lo que hizo en esa clase a tu ritmo. Un estudiante puede tener varias (de
+  distintas lecciones o la misma dos veces); si se repite una lección, el panel muestra la fecha.
 - **Quién la hace:** en *Clase en vivo › Clase a tu ritmo › Habilitar a estudiantes* se elige
   lección, grupo y estudiantes (vienen marcados los que no entraron a la clase en vivo). Se pueden
   agregar o quitar después desde el reporte. Modelos `AsignacionClase` y `RecorridoClase`.

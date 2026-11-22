@@ -1341,12 +1341,15 @@ model ProgresoClase {
   usuarioId     String
   usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   leccion       String
+  // De dónde es este progreso: "" = clase en vivo / repaso; "ritmo:<recorridoId>" = una clase a tu
+  // ritmo. Así cada clase a tu ritmo tiene sus propios resultados y no se mezcla con las demás.
+  contexto      String   @default("")
   actividad     String
   datos         Json     @default("{}")
   completado    Boolean  @default(false)
   actualizadoEn DateTime @updatedAt
 
-  @@unique([usuarioId, leccion, actividad])
+  @@unique([usuarioId, leccion, contexto, actividad])
   @@map("progresos_clase")
 }
 

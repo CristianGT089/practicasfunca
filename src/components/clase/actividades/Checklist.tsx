@@ -12,11 +12,13 @@ export default function Checklist({
   id,
   pasos,
   enlace,
+  archivos,
   arbol,
 }: {
   id: string;
   pasos: PasoChecklist[];
   enlace?: { href: string; texto: string };
+  archivos?: { href: string; texto: string }[];
   arbol?: NodoArbol;
 }) {
   const { datos, guardar } = useProgreso<Datos>(id);
@@ -35,10 +37,19 @@ export default function Checklist({
   return (
     <div className={`grid gap-5 ${arbol ? "lg:grid-cols-[1fr_260px]" : ""}`}>
       <div className="flex flex-col gap-3">
-        {enlace && (
-          <a href={enlace.href} target="_blank" rel="noopener noreferrer" className="btn-cta self-start">
-            {enlace.texto} ↗
-          </a>
+        {(enlace || archivos?.length) && (
+          <div className="flex flex-wrap gap-2">
+            {archivos?.map((a) => (
+              <a key={a.href} href={a.href} download className="btn-primario">
+                ⬇ {a.texto}
+              </a>
+            ))}
+            {enlace && (
+              <a href={enlace.href} target="_blank" rel="noopener noreferrer" className="btn-cta">
+                {enlace.texto} ↗
+              </a>
+            )}
+          </div>
         )}
         <ol className="flex flex-col gap-2">
           {pasos.map((p, i) => {

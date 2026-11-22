@@ -47,7 +47,64 @@ export type RetoCondicional = {
 };
 
 /** Reto de fórmulas: escribir en `celda` una fórmula que dé lo mismo que `solucion`. */
-export type RetoFormula = { celda: string; texto: string; solucion: string; funcion?: string; pista?: string };
+export type RetoFormula = {
+  celda: string;
+  texto: string;
+  solucion: string;
+  funcion?: string;
+  pista?: string;
+  /**
+   * Rango hasta donde se copia la fórmula al acertar (como arrastrar el cuadrito azul), p. ej.
+   * "E2:E6". Se revisa cada copia: sirve para enseñar las referencias fijas con $.
+   */
+  copiar?: string;
+};
+
+export type TipoGrafico = "columnas" | "barras" | "lineas" | "circular";
+
+/**
+ * Reto de gráficos: armar el gráfico pedido escogiendo el tipo, la columna de las etiquetas
+ * (eje X / categorías) y la de los valores. `datos` cambia la tabla solo para este reto.
+ */
+export type RetoGrafico = {
+  texto: string;
+  tipo: TipoGrafico;
+  etiquetas: number;
+  serie: number;
+  /** Exige escribir un título. */
+  titulo?: boolean;
+  datos?: (string | number)[][];
+  /** Por qué ese tipo es el indicado (se muestra al acertar). */
+  porque?: string;
+};
+
+export type ResumenDinamica = "SUMA" | "CONTARA" | "PROMEDIO" | "MAX" | "MIN";
+
+/**
+ * Reto de tabla dinámica: se cumple cuando el editor queda así. Si trae `respuesta`, además hay
+ * que leer el número en la tabla y escribirlo.
+ */
+export type RetoDinamica = {
+  texto: string;
+  filas?: number;
+  columnas?: number;
+  valores?: { columna: number; resumen: ResumenDinamica };
+  filtro?: { columna: number; valores: string[] };
+  pregunta?: string;
+  respuesta?: number;
+};
+
+/** Ilustraciones de las diapositivas `visual` (se dibujan en components/clase/Visuales.tsx). */
+export type Visual =
+  | "caja-negra"
+  | "copiar"
+  | "decision"
+  | "buscar"
+  | "tipos-grafico"
+  | "partes-grafico"
+  | "zonas-dinamica"
+  | "cuadricula"
+  | "ordenar-filtrar";
 
 export type DiapositivaBase = {
   /** Para la barra de progreso y el índice ("TICs", "El computador"...). */
@@ -98,6 +155,7 @@ export type Diapositiva = DiapositivaBase &
         partes: { valor: number; nombre: string; texto: string; desglose?: { valor: number; nombre: string }[] }[];
         notas_pie?: string[];
       }
+    | { tipo: "visual"; eyebrow?: string; titulo: string; intro?: string; visual: Visual; cierre?: string }
     | { tipo: "flujo"; eyebrow?: string; titulo: string; intro?: string; pasos: Tarjeta[]; extra?: Tarjeta }
     | {
         tipo: "tabla";
@@ -150,6 +208,8 @@ export type Diapositiva = DiapositivaBase &
         intro?: string;
         pasos: PasoChecklist[];
         enlace?: { href: string; texto: string };
+        /** Archivos para descargar (en public/), p. ej. las hojas de práctica. */
+        archivos?: { href: string; texto: string }[];
         arbol?: NodoArbol;
       }
     | {
@@ -203,6 +263,26 @@ export type Diapositiva = DiapositivaBase &
         /** La hoja desde A1 (la fila 1 son los encabezados). */
         datos: (string | number)[][];
         retos: RetoFormula[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "grafico";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** La tabla: la primera fila son los encabezados. */
+        datos: (string | number)[][];
+        retos: RetoGrafico[];
+      }
+    | {
+        tipo: "actividad";
+        actividad: "dinamica";
+        id: string;
+        titulo: string;
+        intro?: string;
+        /** Los datos de origen: la primera fila son los encabezados. */
+        datos: (string | number)[][];
+        retos: RetoDinamica[];
       }
     | {
         tipo: "video";

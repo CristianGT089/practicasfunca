@@ -61,7 +61,7 @@ export default function ClaseARitmo({ params }: { params: Promise<{ id: string }
   if (!recorrido || !leccion) return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Cargando la clase…</div>;
 
   return (
-    <ProveedorProgreso leccion={leccion.slug}>
+    <ProveedorProgreso leccion={leccion.slug} recorrido={recorrido.id}>
       <Recorrer leccion={leccion} inicial={recorrido} nombre={nombre} />
     </ProveedorProgreso>
   );
@@ -109,7 +109,6 @@ function Recorrer({ leccion, inicial, nombre }: { leccion: Leccion; inicial: Rec
       setIndice(destino);
       setMaxima((m) => Math.max(m, destino));
       guardarPosicion(destino);
-      window.scrollTo({ top: 0 });
     },
     [guardarPosicion]
   );

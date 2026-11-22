@@ -3,12 +3,12 @@ import type { Leccion } from "../tipos";
 /**
  * Clase 2 del curso de TICs: mini repaso, por qué hay varias ofimáticas, la interfaz de Docs,
  * The Knick (capítulo 1), trabajo en equipo en un documento compartido, la reflexión y las bases
- * de las hojas de cálculo en Google Sheets. El quiz es en Q10.
+ * de las hojas de cálculo en Google Sheets (las funciones pasaron a la clase 3). El quiz es en Q10.
  */
 export const TICS_2: Leccion = {
   slug: "tics-2",
   titulo: "Clase 2 · Ofimática en la nube: Docs en equipo y Sheets",
-  descripcion: "Repaso, competencia entre ofimáticas, interfaz de Docs, The Knick, documento compartido, reflexión, celdas, tablas, ordenar y filtrar, formato condicional y funciones básicas.",
+  descripcion: "Repaso, competencia entre ofimáticas, interfaz de Docs, The Knick, documento compartido, reflexión, celdas, tablas, ordenar y filtrar y formato condicional.",
   diapositivas: [
     // ───────────────────────── BIENVENIDA ─────────────────────────
     {
@@ -40,8 +40,7 @@ export const TICS_2: Leccion = {
         { hora: "13:05", tema: "Tipos de dato y tablas", icono: "🗂️" },
         { hora: "13:40", tema: "Ordenar y filtrar", icono: "🔀" },
         { hora: "14:05", tema: "Formato condicional", icono: "🎨" },
-        { hora: "14:25", tema: "Funciones básicas (si alcanzamos)", icono: "🧮" },
-        { hora: "14:45", tema: "Quiz de la clase (Q10)", icono: "✅", externo: true },
+        { hora: "14:40", tema: "Quiz de la clase (Q10)", icono: "✅", externo: true },
       ],
     },
     {
@@ -49,7 +48,7 @@ export const TICS_2: Leccion = {
       seccion: "Bienvenida",
       modo: "ritmo",
       titulo: "Tu ruta para esta clase",
-      guia: "Calcula unas seis horas en total, contando el capítulo de The Knick. No tienes que hacerlo de una sentada: sal y vuelve cuando quieras, la plataforma recuerda dónde ibas.",
+      guia: "Calcula unas cinco horas y media en total, contando el capítulo de The Knick. No tienes que hacerlo de una sentada: sal y vuelve cuando quieras, la plataforma recuerda dónde ibas.",
       bloques: [
         { hora: "15 min", tema: "Mini repaso de la clase 1", icono: "🔁" },
         { hora: "15 min", tema: "¿Por qué hay varias ofimáticas?", icono: "🏁" },
@@ -60,7 +59,6 @@ export const TICS_2: Leccion = {
         { hora: "45 min", tema: "Hojas de cálculo: celdas, tipos de dato y tablas", icono: "📊" },
         { hora: "30 min", tema: "Ordenar y filtrar", icono: "🔀" },
         { hora: "25 min", tema: "Formato condicional", icono: "🎨" },
-        { hora: "30 min", tema: "Funciones básicas", icono: "🧮" },
         { hora: "20 min", tema: "Quiz de la clase (Q10)", icono: "✅", externo: true },
       ],
     },
@@ -121,15 +119,6 @@ export const TICS_2: Leccion = {
       correcta: 2,
       explicacion: "Editor puede escribir y cambiar. Comentador solo deja comentarios y Lector solo mira.",
     },
-    {
-      tipo: "pregunta",
-      seccion: "Repaso",
-      id: "p2-ruta",
-      pregunta: "¿Dónde debería quedar una hoja de cálculo del curso?",
-      opciones: ["En Descargas", "En el escritorio", "En TICs_Salud › Hojas de cálculo", "En la papelera"],
-      correcta: 2,
-      explicacion: "Cada archivo en su carpeta: así lo encuentras en segundos. Hoy crearás tu primera hoja ahí.",
-    },
 
     // ───────────────────────── ¿POR QUÉ HAY VARIAS? ─────────────────────────
     {
@@ -155,37 +144,7 @@ export const TICS_2: Leccion = {
         ["LibreOffice", "Comunidad (The Document Foundation)", "2010", "No busca ganar: es software libre y gratis", "Entidades públicas, Linux"],
         ["iWork (Pages, Numbers)", "Apple", "2005", "Viene con sus equipos", "Mac, iPhone, iPad"],
       ],
-      cierre: "Es la misma historia que Coca-Cola y Pepsi, o Claro y Movistar: compiten por los mismos clientes.",
-    },
-    {
-      tipo: "contenido",
-      seccion: "Competencia",
-      eyebrow: "La competencia",
-      titulo: "¿Y a nosotros qué nos deja la competencia?",
-      guia: "Cuando Google sacó Docs gratis y en la nube, con varias personas escribiendo a la vez, Microsoft tuvo que responder: sacó Word gratis en el navegador y también la edición en equipo. Y Google aprendió a abrir y guardar archivos de Word y Excel. Ganamos los usuarios.",
-      columnas: 2,
-      tarjetas: [
-        { icono: "💸", titulo: "Precios más bajos", texto: "Hoy tienes Word, Docs y LibreOffice gratis. Hace 20 años había que comprar la licencia." },
-        { icono: "🤝", titulo: "Trabajar en equipo", texto: "Google lo popularizó; Microsoft lo copió. Hoy los dos dejan escribir a varios a la vez." },
-        { icono: "🔁", titulo: "Se copian lo bueno", texto: "Por eso los botones se parecen tanto: negrita, tablas, comentarios… están en todas." },
-        { icono: "📎", titulo: "Archivos compatibles", texto: "Docs abre un .docx y Sheets un .xlsx; Word y Excel exportan a PDF. Nadie quiere quedarse aislado.", color: "amarilla" },
-      ],
-      cierre: "Por eso no importa cuál uses: si entiendes una, entiendes las demás.",
-    },
-    {
-      tipo: "pregunta",
-      seccion: "Competencia",
-      id: "p2-competencia",
-      guia: "Piensa como empresa: ¿qué harías si tus clientes se están yendo para la competencia?",
-      pregunta: "¿Por qué crees que Microsoft empezó a ofrecer Word y Excel gratis en el navegador?",
-      opciones: [
-        "Porque se le acabaron los clientes",
-        "Para no perder usuarios frente a Google Docs, que era gratis",
-        "Porque la ley lo obligó",
-        "Porque Word ya no se vende",
-      ],
-      correcta: 1,
-      explicacion: "Es competencia de mercado: Google regalaba su ofimática en la nube y Microsoft respondió con una versión web gratis para no perder usuarios.",
+      cierre: "Compiten como Coca-Cola y Pepsi… y ganamos nosotros: hoy son gratis, se copian lo bueno y abren los archivos de las otras.",
     },
     {
       tipo: "actividad",
@@ -218,15 +177,6 @@ export const TICS_2: Leccion = {
     },
 
     // ───────────────────────── CUALQUIER HERRAMIENTA ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "La interfaz",
-      numero: 2,
-      titulo: "Usen la herramienta que quieran",
-      subtitulo: "Lo importante es entender la interfaz",
-      icono: "🧭",
-      guia: "Antes de empezar con la ofimática quiero que te quede algo claro: no tienes que casarte con un programa.",
-    },
     {
       tipo: "contenido",
       seccion: "La interfaz",
@@ -298,21 +248,12 @@ export const TICS_2: Leccion = {
 
     // ───────────────────────── THE KNICK ─────────────────────────
     {
-      tipo: "seccion",
-      seccion: "The Knick",
-      numero: 3,
-      titulo: "The Knick · Capítulo 1",
-      subtitulo: "La medicina de hace 125 años",
-      icono: "🎬",
-      guia: "Ahora vas a ver el primer capítulo de The Knick, una serie sobre un hospital de Nueva York en 1900. Míralo con ojos de trabajador de la salud de hoy: fíjate en todo lo que les faltaba.",
-    },
-    {
       tipo: "video",
       seccion: "The Knick",
-      eyebrow: "Lo que vamos a ver",
+      eyebrow: "Capítulo 1 · la medicina de hace 125 años",
       titulo: "The Knick — «Method and Madness»",
-      guia: "El enlace para ver el capítulo te lo dejo en «Mensaje del profe» (arriba). Antes de darle play, lee las cuatro tarjetas de la derecha y ten un papel o un documento a mano para anotar lo que veas de cada una: lo vas a necesitar en la actividad siguiente.",
-      notas: "Antes de darle play: lean las cuatro tarjetas. Que anoten lo que vean de cada una; lo usarán en el trabajo en grupo.",
+      guia: "Ahora vas a ver el primer capítulo de The Knick, un hospital de Nueva York en 1900; el enlace está en «Mensaje del profe» (arriba). Míralo con ojos de trabajador de la salud de hoy. Antes de darle play, lee las cuatro tarjetas y anota lo que veas de cada una (al menos tres tecnologías que aparecen o que hacen falta): es la materia prima de tu documento y de tu reflexión.",
+      notas: "Antes de darle play: lean las cuatro tarjetas y que anoten lo que vean de cada una. Al terminar, pregunta en voz alta qué le hacía más falta a ese hospital y qué estaban instalando (la luz eléctrica).",
       ficha: [
         { etiqueta: "Año", valor: "2014" },
         { etiqueta: "Dirección", valor: "Steven Soderbergh" },
@@ -329,51 +270,8 @@ export const TICS_2: Leccion = {
       ],
       aviso: "Tiene escenas quirúrgicas explícitas, consumo de drogas y el racismo de la época. Si alguna escena les afecta, pueden mirar a otro lado o salir un momento.",
     },
-    {
-      tipo: "actividad",
-      seccion: "The Knick",
-      modo: "ritmo",
-      actividad: "checklist",
-      id: "knick-visto",
-      titulo: "Mientras ves el capítulo",
-      intro: "Marca cada cosa cuando la tengas anotada.",
-      guia: "Estas notas son la materia prima de lo que sigue: tu documento sobre las TICs en 1900 y hoy, y tu reflexión. Si no pudiste abrir el enlace, escríbeme antes de seguir.",
-      pasos: [
-        { id: "visto", texto: "Vi el capítulo completo" },
-        { id: "tecnologia", texto: "Anoté al menos tres tecnologías que aparecen (o que hacen falta)" },
-        { id: "higiene", texto: "Anoté una escena sobre higiene que hoy se haría distinto" },
-        { id: "informacion", texto: "Anoté cómo guardan o comparten la información del paciente" },
-        { id: "etica", texto: "Anoté una situación ética que me impactó" },
-      ],
-    },
-    {
-      tipo: "pregunta",
-      seccion: "The Knick",
-      id: "p2-knick-falta",
-      guia: "No hay respuesta correcta: escoge la que más te llamó la atención.",
-      pregunta: "De lo que viste, ¿qué es lo que más le hacía falta a ese hospital?",
-      opciones: ["Higiene y esterilización", "Registros e información del paciente", "Electricidad y equipos", "Trato digno al paciente"],
-    },
-    {
-      tipo: "pregunta",
-      seccion: "The Knick",
-      id: "p2-knick-luz",
-      pregunta: "En el capítulo, el hospital está instalando algo que hoy nos parece obvio. ¿Qué es?",
-      opciones: ["Internet", "La luz eléctrica", "El teléfono celular", "El aire acondicionado"],
-      correcta: 1,
-      explicacion: "En 1900 la electricidad apenas llegaba a los hospitales. Hoy todo depende de ella: monitores, historia clínica, imágenes diagnósticas.",
-    },
 
     // ───────────────────────── DOCUMENTO COMPARTIDO ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "En equipo",
-      numero: 4,
-      titulo: "Las TICs en 1900 y hoy",
-      subtitulo: "Un documento compartido, escrito entre todos",
-      icono: "👥",
-      guia: "En clase esto se hace en dos grupos, escribiendo todos a la vez en el mismo documento. Tú lo vas a hacer en tu propio documento, pero vas a usar las mismas herramientas de trabajo en equipo.",
-    },
     {
       tipo: "contenido",
       seccion: "En equipo",
@@ -469,15 +367,6 @@ export const TICS_2: Leccion = {
 
     // ───────────────────────── REFLEXIÓN ─────────────────────────
     {
-      tipo: "seccion",
-      seccion: "Reflexión",
-      numero: 5,
-      titulo: "Reflexión individual",
-      subtitulo: "Ahora con tus palabras",
-      icono: "✍️",
-      guia: "Después de las preguntas, viene tu reflexión personal. Es tu segundo entregable: cuenta en el Hacer y se sube a Q10.",
-    },
-    {
       tipo: "tarea",
       seccion: "Reflexión",
       eyebrow: "Entregable 2 · Hacer",
@@ -524,50 +413,20 @@ export const TICS_2: Leccion = {
     {
       tipo: "seccion",
       seccion: "Hojas de cálculo",
-      numero: 6,
+      numero: 2,
       titulo: "Hojas de cálculo",
       subtitulo: "Google Sheets desde cero",
       icono: "📊",
       guia: "Cambiamos de herramienta: la hoja de cálculo. En salud es de lo que más vas a usar: inventarios, turnos, signos vitales. Usamos Google Sheets, pero todo sirve igual en Excel.",
     },
     {
-      tipo: "pregunta",
+      tipo: "visual",
       seccion: "Hojas de cálculo",
-      id: "p2-hoja-uso",
-      guia: "Sin nota, responde con sinceridad: me ayuda a saber desde dónde partimos.",
-      pregunta: "¿Has usado alguna vez una hoja de cálculo (Excel, Sheets…)?",
-      opciones: ["Nunca", "La he abierto, pero no sé usarla", "Sé lo básico", "La uso con fórmulas"],
-    },
-    {
-      tipo: "contenido",
-      seccion: "Hojas de cálculo",
-      eyebrow: "¿Qué es?",
-      titulo: "Una cuadrícula que organiza datos y hace las cuentas por ti",
-      guia: "Piensa en un cuaderno cuadriculado que además suma, saca promedios y hace gráficos. Si cambias un dato, todas las cuentas se actualizan solas.",
-      columnas: 4,
-      tarjetas: [
-        { icono: "💊", titulo: "Inventario", texto: "Medicamentos, lotes, existencias y vencimientos." },
-        { icono: "🗓️", titulo: "Turnos", texto: "Quién trabaja cada día y cuántas horas." },
-        { icono: "🌡️", titulo: "Signos vitales", texto: "Temperatura, presión y pulso de varios pacientes." },
-        { icono: "🧾", titulo: "Facturación", texto: "Atenciones, valores y totales del mes." },
-      ],
-      cierre: "Excel, Google Sheets y LibreOffice Calc hacen lo mismo: lo que aprendas hoy te sirve en los tres.",
-    },
-    {
-      tipo: "contenido",
-      seccion: "Hojas de cálculo",
-      eyebrow: "El vocabulario",
+      eyebrow: "Las partes",
       titulo: "Libro, hoja, columna, fila, celda y rango",
       guia: "Lo más importante de hoy: una celda se nombra con la letra de su columna y el número de su fila, en ese orden. C4 es la columna C, fila 4. Y un rango se escribe con dos puntos: A1:C5 se lee «de A1 hasta C5».",
-      columnas: 3,
-      tarjetas: [
-        { icono: "📗", titulo: "Libro", texto: "El archivo completo (Inventario_Farmacia)." },
-        { icono: "📑", titulo: "Hoja", texto: "Cada pestaña de abajo. Un libro puede tener varias: Enero, Febrero…" },
-        { icono: "⬇️", titulo: "Columna", texto: "Vertical. Se nombra con letras: A, B, C… Z, AA, AB…" },
-        { icono: "➡️", titulo: "Fila", texto: "Horizontal. Se nombra con números: 1, 2, 3…" },
-        { icono: "🔲", titulo: "Celda", texto: "El cruce de una columna y una fila: C4. Primero la letra, luego el número.", color: "amarilla" },
-        { icono: "🟦", titulo: "Rango", texto: "Un grupo de celdas: A1:C5 = de A1 hasta C5." },
-      ],
+      visual: "cuadricula",
+      cierre: "Sirve para inventarios, turnos, signos vitales o facturación: organiza los datos y hace las cuentas por ti.",
     },
     {
       tipo: "actividad",
@@ -700,7 +559,7 @@ export const TICS_2: Leccion = {
       actividad: "checklist",
       id: "inventario",
       titulo: "Tu primera hoja: inventario de farmacia",
-      intro: "Ahora en Google Sheets de verdad. Este archivo lo usamos también para las funciones.",
+      intro: "Ahora en Google Sheets de verdad. Guárdalo bien: lo usamos también en la clase 3.",
       guia: "Haz los pasos en orden. Si algo no te sale, vuelve a la tabla anterior: ahí está dónde queda cada opción. Inventa los datos, pero que sean realistas.",
       notas: "Pasa por los puestos revisando que los números queden a la derecha (si no, los tomó como texto).",
       enlace: { href: "https://docs.google.com/spreadsheets/create", texto: "Crear una hoja en Google Sheets" },
@@ -721,42 +580,13 @@ export const TICS_2: Leccion = {
 
     // ───────────────────────── ORDENAR Y FILTRAR ─────────────────────────
     {
-      tipo: "seccion",
+      tipo: "visual",
       seccion: "Ordenar y filtrar",
-      numero: 7,
-      titulo: "Ordenar y filtrar",
-      subtitulo: "Encontrar lo que buscas en segundos",
-      icono: "🔀",
-      guia: "Con diez filas encuentras todo a ojo. Con quinientas, no. Ordenar y filtrar es lo que te permite responder rápido: ¿qué vence primero?, ¿cuántos antibióticos tengo?",
-    },
-    {
-      tipo: "contenido",
-      seccion: "Ordenar y filtrar",
-      eyebrow: "Dos herramientas distintas",
+      eyebrow: "Encontrar lo que buscas en segundos",
       titulo: "Ordenar cambia el orden; filtrar oculta",
       guia: "La diferencia importante: ordenar mueve las filas completas a otro lugar. Filtrar no mueve ni borra nada: solo esconde por un rato las filas que no te interesan. Cuando quitas el filtro, vuelven todas.",
-      columnas: 2,
-      tarjetas: [
-        {
-          icono: "🔀",
-          titulo: "Ordenar",
-          texto: "Reacomoda las filas según una columna.",
-          items: ["A → Z: texto alfabético, números de menor a mayor, fechas de la más antigua a la más nueva", "Z → A: al revés", "Ej.: el medicamento que vence primero, arriba"],
-        },
-        {
-          icono: "⏷",
-          titulo: "Filtrar",
-          texto: "Muestra solo las filas que cumplen algo. Las demás quedan ocultas, no borradas.",
-          items: ["Por valores: solo «Antibiótico»", "Por condición: unidades menores que 50", "Ej.: solo los pacientes de urgencias"],
-        },
-        {
-          icono: "⚠️",
-          titulo: "El error más común",
-          texto: "Ordenar una sola columna seleccionada: los nombres quedan con los precios de otro medicamento. Ordena siempre toda la tabla o usa el filtro.",
-          color: "amarilla",
-        },
-        { icono: "👀", titulo: "¿Cómo sé que hay un filtro?", texto: "El ▾ del encabezado cambia de ícono y los números de fila se saltan (2, 5, 8…)." },
-      ],
+      visual: "ordenar-filtrar",
+      cierre: "El error más común: ordenar una sola columna. Selecciona toda la tabla (o usa el filtro) para que cada fila se mueva completa.",
     },
     {
       tipo: "tabla",
@@ -811,15 +641,6 @@ export const TICS_2: Leccion = {
     {
       tipo: "pregunta",
       seccion: "Ordenar y filtrar",
-      id: "p2-filtro-oculta",
-      pregunta: "Filtras para ver solo los antibióticos. ¿Qué pasa con las demás filas?",
-      opciones: ["Se borran", "Se ocultan: vuelven al quitar el filtro", "Se pasan a otra hoja", "Quedan al final de la tabla"],
-      correcta: 1,
-      explicacion: "Filtrar solo oculta. Por eso los números de fila se saltan: las filas siguen ahí.",
-    },
-    {
-      tipo: "pregunta",
-      seccion: "Ordenar y filtrar",
       id: "p2-ordenar-columna",
       guia: "Este error pasa mucho en el trabajo y puede ser grave: un paciente con los datos de otro.",
       pregunta: "Seleccionas solo la columna de nombres y la ordenas A → Z. ¿Qué pasa?",
@@ -847,15 +668,6 @@ export const TICS_2: Leccion = {
     },
 
     // ───────────────────────── FORMATO CONDICIONAL ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "Formato condicional",
-      numero: 8,
-      titulo: "Formato condicional",
-      subtitulo: "Que la hoja pinte sola lo importante",
-      icono: "🎨",
-      guia: "Imagina que la hoja te avisa en rojo qué medicamentos se están agotando, sin que tengas que revisar fila por fila. Eso es el formato condicional.",
-    },
     {
       tipo: "contenido",
       seccion: "Formato condicional",
@@ -946,104 +758,6 @@ export const TICS_2: Leccion = {
     },
 
     // ───────────────────────── FUNCIONES ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "Funciones",
-      numero: 9,
-      titulo: "Fórmulas y funciones básicas",
-      subtitulo: "Que la hoja haga las cuentas",
-      icono: "🧮",
-      guia: "Último tema y el que hace poderosa a la hoja de cálculo: las fórmulas. Con una sola fórmula sumas cien filas.",
-      notas: "Si no alcanza el tiempo, salta a la diapositiva del quiz y deja esto para la próxima clase.",
-    },
-    {
-      tipo: "contenido",
-      seccion: "Funciones",
-      eyebrow: "Fórmulas",
-      titulo: "Toda fórmula empieza con =",
-      guia: "Escribe = y después la cuenta, usando los nombres de las celdas y no los números. ¿Por qué? Porque si mañana cambian las unidades, la fórmula se recalcula sola. Si escribes los números a mano, el resultado queda viejo.",
-      columnas: 3,
-      tarjetas: [
-        { icono: "➕", titulo: "Operaciones", items: ["+ sumar", "− restar", "* multiplicar", "/ dividir", "( ) para agrupar"] },
-        { icono: "🔗", titulo: "Con referencias", texto: "=B2*C2 multiplica lo que haya en B2 por lo que haya en C2. Si cambia B2, cambia el resultado." },
-        { icono: "⚠️", titulo: "No así", texto: "=120*500 da lo mismo hoy, pero no se actualiza si cambian los datos.", color: "amarilla" },
-      ],
-      cierre: "Copiar una fórmula hacia abajo: arrastra el cuadrito azul de la esquina de la celda.",
-    },
-    {
-      tipo: "tabla",
-      seccion: "Funciones",
-      eyebrow: "Funciones",
-      titulo: "Cinco funciones para empezar",
-      guia: "Una función es una fórmula que ya viene hecha: le dices el rango entre paréntesis y ella calcula. Según el idioma de tu hoja se escribe en español (SUMA) o en inglés (SUM), y los datos se separan con punto y coma o con coma. Sheets te va mostrando la ayuda mientras escribes.",
-      columnas: ["Función", "¿Qué hace?", "Ejemplo"],
-      filas: [
-        ["=SUMA(B2:B7)", "Suma todos los números del rango", "Total de unidades en bodega"],
-        ["=PROMEDIO(C2:C7)", "Saca el promedio", "Precio promedio de los medicamentos"],
-        ["=MAX(C2:C7)", "El número más alto", "El medicamento más caro"],
-        ["=MIN(B2:B7)", "El número más bajo", "Lo que está por agotarse"],
-        ["=CONTAR(B2:B7)", "Cuenta cuántas celdas tienen números", "Cuántos medicamentos tienen existencias registradas"],
-      ],
-      cierre: "En inglés: SUM, AVERAGE, MAX, MIN y COUNT.",
-    },
-    {
-      tipo: "actividad",
-      seccion: "Funciones",
-      actividad: "formulas",
-      id: "formulas-inventario",
-      titulo: "La hoja hace las cuentas",
-      intro: "Escribe cada fórmula en la barra de fórmulas y pulsa Enter. La hoja calcula de verdad.",
-      guia: "Empieza siempre con =. Mientras escribes, puedes hacer clic en una celda para agregar su nombre a la fórmula, como en Sheets. Si te equivocas, te digo por qué. Fíjate en el Suero oral: dice «Agotado», que es texto. Mira qué pasa con él en SUMA y en CONTAR.",
-      datos: [
-        ["Medicamento", "Unidades", "Precio", "Total"],
-        ["Acetaminofén", 120, 500],
-        ["Ibuprofeno", 80, 800],
-        ["Loratadina", 45, 1200],
-        ["Suero oral", "Agotado", 2500],
-        ["Amoxicilina", 60, 1500],
-        ["Total unidades"],
-        ["Precio promedio"],
-        ["Precio más alto"],
-        ["Menos unidades"],
-        ["Con existencias"],
-      ],
-      retos: [
-        { celda: "D2", texto: "Calcula el total del Acetaminofén: unidades por precio.", solucion: "=B2*C2", pista: "Multiplica con asterisco: =B2*C2" },
-        { celda: "D3", texto: "Ahora el total del Ibuprofeno.", solucion: "=B3*C3", pista: "Igual que la anterior, pero con la fila 3." },
-        { celda: "B7", texto: "Suma todas las unidades con una función.", solucion: "=SUMA(B2:B6)", funcion: "SUMA", pista: "=SUMA(B2:B6). El texto «Agotado» no se suma." },
-        { celda: "C8", texto: "Saca el precio promedio.", solucion: "=PROMEDIO(C2:C6)", funcion: "PROMEDIO", pista: "=PROMEDIO( y el rango de los precios )" },
-        { celda: "C9", texto: "¿Cuál es el precio más alto?", solucion: "=MAX(C2:C6)", funcion: "MAX", pista: "=MAX( y el rango de los precios )" },
-        { celda: "B10", texto: "¿Cuál es la menor cantidad de unidades?", solucion: "=MIN(B2:B6)", funcion: "MIN", pista: "=MIN( y el rango de las unidades )" },
-        { celda: "B11", texto: "¿Cuántos medicamentos tienen unidades registradas como número?", solucion: "=CONTAR(B2:B6)", funcion: "CONTAR", pista: "=CONTAR(B2:B6). Da 4: «Agotado» es texto y CONTAR solo cuenta números." },
-      ],
-    },
-    {
-      tipo: "pregunta",
-      seccion: "Funciones",
-      id: "p2-max",
-      pregunta: "Tienes los precios en C2:C20. ¿Qué fórmula te dice cuál es el más caro?",
-      opciones: ["=SUMA(C2:C20)", "=MAX(C2:C20)", "=CONTAR(C2:C20)", "MAX C2 C20"],
-      correcta: 1,
-      explicacion: "MAX da el valor más alto del rango. La última opción no sirve: le falta el = y los paréntesis.",
-    },
-    {
-      tipo: "actividad",
-      seccion: "Funciones",
-      actividad: "checklist",
-      id: "funciones-sheets",
-      titulo: "Ahora en tu inventario",
-      intro: "Abre tu hoja Apellido_Nombre_Inventario y agrégale cuentas.",
-      guia: "Lo mismo que hiciste en la simulación, pero en Sheets. El truco del cuadrito azul te ahorra escribir la misma fórmula seis veces.",
-      enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
-      pasos: [
-        { id: "columna", texto: "En F1 escribe el encabezado «Total»" },
-        { id: "multiplicar", texto: "En F2 escribe la fórmula unidades × precio (por ejemplo =C2*D2)" },
-        { id: "arrastrar", texto: "Copia la fórmula hasta la fila 7 arrastrando el cuadrito azul", ayuda: "Selecciona F2 y arrastra el cuadrito de la esquina inferior derecha hacia abajo. Mira cómo cambian los números de fila en cada fórmula." },
-        { id: "suma", texto: "Debajo de la tabla, suma el total de unidades y el total en pesos con SUMA" },
-        { id: "otras", texto: "Agrega el precio promedio (PROMEDIO), el más caro (MAX) y el de menos unidades (MIN)" },
-        { id: "cambiar", texto: "Cambia las unidades de un medicamento y mira cómo se recalcula todo" },
-      ],
-    },
 
     // ───────────────────────── QUIZ (Q10) ─────────────────────────
     {
@@ -1086,10 +800,9 @@ export const TICS_2: Leccion = {
         { icono: "🔲", tema: "Celdas", pregunta: "¿Qué significa C4? ¿Y el rango A1:C5?" },
         { icono: "🔀", tema: "Ordenar y filtrar", pregunta: "¿Qué diferencia hay entre ordenar y filtrar? ¿Se borra algo al filtrar?" },
         { icono: "🎨", tema: "Formato condicional", pregunta: "¿Cómo harías que la hoja pinte de rojo una temperatura mayor que 38?" },
-        { icono: "🧮", tema: "Fórmulas", pregunta: "¿Con qué empieza toda fórmula? ¿Qué hace =PROMEDIO(B2:B7)?" },
       ],
     },
-    { tipo: "gracias", seccion: "Cierre", modo: "vivo", titulo: "¡Gracias!", proxima: "No olviden subir la reflexión de The Knick a Q10: próximo domingo, antes de las 7:00 a. m." },
-    { tipo: "terminar", seccion: "Cierre", modo: "ritmo", titulo: "¡Llegaste al final de la clase 2!", proxima: "No olvides subir la reflexión de The Knick a Q10: próximo domingo, antes de las 7:00 a. m." },
+    { tipo: "gracias", seccion: "Cierre", modo: "vivo", titulo: "¡Gracias!", proxima: "Suban la reflexión de The Knick a Q10 antes del próximo domingo a las 7:00 a. m. La próxima clase: funciones, gráficos y tablas dinámicas." },
+    { tipo: "terminar", seccion: "Cierre", modo: "ritmo", titulo: "¡Llegaste al final de la clase 2!", proxima: "Sube la reflexión de The Knick a Q10 antes del próximo domingo a las 7:00 a. m. Lo que sigue: funciones, gráficos y tablas dinámicas (clase 3)." },
   ],
 };

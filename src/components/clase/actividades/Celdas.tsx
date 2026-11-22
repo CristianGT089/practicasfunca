@@ -118,7 +118,7 @@ export default function Celdas({
 
   return (
     <div className="flex flex-col gap-3" onPointerUp={soltar} onPointerLeave={soltar}>
-      <div className="sticky top-11 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
+      <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex-1 rounded-2xl px-4 py-3 font-heading text-lg font-bold ${reto ? "bg-blue-900 text-white" : "bg-emerald-50 text-emerald-800"}`}>
             {reto ? `${reto.tipo === "tocar" ? "👆" : reto.tipo === "rango" ? "🖱️" : "⌨️"} ${reto.texto}` : "🎉 ¡Completaste todos los retos!"}

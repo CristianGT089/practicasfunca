@@ -55,7 +55,7 @@ export default function PanelPage() {
   const [dictado, setDictado] = useState<{ nombre: string; pausado: boolean } | null>(null);
   const [claseEnVivo, setClaseEnVivo] = useState(false);
   const [aTuRitmo, setATuRitmo] = useState<
-    { id: string; titulo: string; diapositiva: number; maxima: number; total: number; iniciadoEn: string | null; terminadoEn: string | null }[]
+    { id: string; titulo: string; diapositiva: number; maxima: number; total: number; iniciadoEn: string | null; terminadoEn: string | null; habilitada: string }[]
   >([]);
 
   // Clases a tu ritmo que el docente le habilitó (para quien faltó a la clase en vivo).
@@ -315,7 +315,15 @@ export default function PanelPage() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-bold uppercase tracking-wider text-gold-700">Clase a tu ritmo</span>
-                <span className="block font-heading text-lg font-bold text-blue-900">{r.titulo}</span>
+                <span className="block font-heading text-lg font-bold text-blue-900">
+                  {r.titulo}
+                  {/* Si tiene la misma clase dos veces, la fecha las distingue (cada una lleva sus propios resultados). */}
+                  {aTuRitmo.filter((x) => x.titulo === r.titulo).length > 1 && (
+                    <span className="ml-2 text-sm font-semibold text-slate-500">
+                      · habilitada el {new Date(r.habilitada).toLocaleDateString("es-CO", { day: "numeric", month: "long" })}
+                    </span>
+                  )}
+                </span>
                 <span className="block text-sm text-slate-600">
                   {r.terminadoEn
                     ? "Ya le enviaste tu reporte al profe. Puedes volver a repasarla cuando quieras."

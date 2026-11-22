@@ -9,7 +9,7 @@ export async function GET() {
   if (!usuario) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const recorridos = await prisma.recorridoClase.findMany({
     where: { usuarioId: usuario.id, asignacion: { activa: true } },
-    include: { asignacion: { select: { leccion: true } } },
+    include: { asignacion: { select: { leccion: true, creadoEn: true } } },
     orderBy: { asignacion: { creadoEn: "desc" } },
   });
   return NextResponse.json({
@@ -25,6 +25,7 @@ export async function GET() {
           total: leccion.diapositivas.length,
           iniciadoEn: r.iniciadoEn,
           terminadoEn: r.terminadoEn,
+          habilitada: r.asignacion.creadoEn,
         },
       ];
     }),

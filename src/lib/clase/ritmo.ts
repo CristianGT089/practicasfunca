@@ -3,6 +3,7 @@ import { esAdmin, filtroGrupos, type Gestor } from "@/lib/nucleo/permisos";
 import { leccionPorSlug } from "./lecciones";
 import { NIVELES_MECANOGRAFIA, type IntentoMecanografia } from "./mecanografia";
 import type { Leccion } from "./tipos";
+import { contextoRitmo } from "./servidor";
 
 /**
  * Clase a tu ritmo: la lección en modo "ritmo" (con explicaciones y en orden) para los
@@ -105,7 +106,7 @@ export function armarReporte(leccion: Leccion, progresos: Progreso[]): Reporte {
     } else if (d.actividad === "atajos") {
       const hechos = lista(datos.hechos) as string[];
       detalle = `${hechos.length} atajos y tareas marcados`;
-    } else if (d.actividad === "interfaz" || d.actividad === "celdas" || d.actividad === "ordenar" || d.actividad === "condicional") {
+    } else if (d.actividad === "interfaz" || d.actividad === "celdas" || d.actividad === "ordenar" || d.actividad === "condicional" || d.actividad === "grafico" || d.actividad === "dinamica") {
       const hechos = new Set(lista(datos.hechos) as number[]);
       const fallos = typeof datos.fallos === "number" ? datos.fallos : 0;
       detalle = `${hechos.size} de ${d.retos.length} retos · ${fallos} intento${fallos === 1 ? "" : "s"} fallido${fallos === 1 ? "" : "s"}`;
@@ -171,8 +172,9 @@ export async function reporteDeAsignacion(asignacionId: string, slug: string) {
     include: { usuario: { select: { id: true, nombre: true, usuario: true } } },
   });
   const progresos = await prisma.progresoClase.findMany({
-    where: { leccion: slug, usuarioId: { in: recorridos.map((r) => r.usuarioId) } },
-    select: { usuarioId: true, actividad: true, datos: true, completado: true },
+    // Solo lo que hizo en esta clase a tu ritmo: ni la clase en vivo ni otras asignaciones.
+    where: { leccion: slug, contexto: { in: recorridos.map((r) => contextoRitmo(r.id)) } },
+    select: { contexto: true, actividad: true, datos: true, completado: true },
   });
   return recorridos
     .map((r) => ({
@@ -187,7 +189,7 @@ export async function reporteDeAsignacion(asignacionId: string, slug: string) {
       revisado: r.revisado,
       reporte: armarReporte(
         leccion,
-        progresos.filter((p) => p.usuarioId === r.usuarioId)
+        progresos.filter((p) => p.contexto === contextoRitmo(r.id))
       ),
     }))
     .sort((a, b) => a.estudiante.nombre.localeCompare(b.estudiante.nombre, "es"));

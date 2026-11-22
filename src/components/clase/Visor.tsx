@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Leccion } from "@/lib/clase/tipos";
 import Image from "next/image";
 import Diapositiva from "./Diapositiva";
+
+/** Escala según el ancho: 1 hasta 1600 px y crece en monitores grandes y proyectores (máx. 2). */
+const zoomPorAncho = (ancho: number) => (ancho < 1600 ? 1 : Math.min(2, ancho / 1390));
+/** Por debajo de esto ya no se encoge: se lee mal. Si aun así no cabe, se hace scroll. */
+const ZOOM_MINIMO = 0.6;
 
 export function tituloDiapositiva(d: Leccion["diapositivas"][number]) {
   if (d.tipo === "pregunta") return `💭 ${d.pregunta}`;
@@ -17,7 +22,7 @@ export function tituloDiapositiva(d: Leccion["diapositivas"][number]) {
  */
 export default function Visor({
   leccion,
-  indice,
+  indice: indicePedido,
   onIr,
   arriba,
   abajo,
@@ -52,6 +57,8 @@ export default function Visor({
 }) {
   const total = leccion.diapositivas.length;
   const ultima = limite == null ? total - 1 : Math.min(limite, total - 1);
+  // Una posición guardada puede quedar fuera si la lección cambió de tamaño: se acota.
+  const indice = Math.min(Math.max(indicePedido, 0), total - 1);
   const d = leccion.diapositivas[indice];
   const [indiceAbierto, setIndiceAbierto] = useState(false);
   const origen = useSyncExternalStore(
@@ -59,6 +66,51 @@ export default function Visor({
     () => window.location.origin,
     () => ""
   );
+
+  // Cada diapositiva se ajusta a la pantalla: las de presentación se encogen hasta caber sin
+  // scroll; las actividades (juegos) solo escalan con el ancho y se recorren con scroll.
+  const area = useRef<HTMLElement>(null);
+  const lienzo = useRef<HTMLDivElement>(null);
+  const esActividad = d.tipo === "actividad";
+  useLayoutEffect(() => {
+    const main = area.current;
+    const el = lienzo.current;
+    if (!main || !el) return;
+    // Síncrono (sin requestAnimationFrame, que el navegador pausa en pestañas de fondo).
+    let ajustando = false;
+    const ajustar = () => {
+      if (ajustando) return;
+      ajustando = true;
+      const base = zoomPorAncho(window.innerWidth) * zoom;
+      el.style.zoom = String(base);
+      if (!esActividad) {
+        const estilo = getComputedStyle(main);
+        const disponible = main.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom);
+        let z = base;
+        // Al encoger cambia el ancho útil y el texto se reacomoda: se ajusta en pocos pasos.
+        for (let i = 0; i < 5; i++) {
+          const alto = el.getBoundingClientRect().height;
+          if (alto <= disponible + 1 || z <= ZOOM_MINIMO) break;
+          z = Math.max(ZOOM_MINIMO, z * (disponible / alto) * 0.985);
+          el.style.zoom = String(z);
+        }
+      }
+      // Los cambios de zoom disparan el observador: se ignoran hasta el siguiente cambio real.
+      queueMicrotask(() => setTimeout(() => (ajustando = false), 0));
+    };
+    ajustar();
+    const obs = new ResizeObserver(() => ajustar());
+    obs.observe(main);
+    if (el.firstElementChild) obs.observe(el.firstElementChild);
+    // Las imágenes y fuentes que cargan tarde cambian el alto.
+    document.fonts?.ready.then(() => ajustar());
+    return () => obs.disconnect();
+  }, [indice, zoom, esActividad, modo]);
+
+  // Al cambiar de diapositiva se vuelve arriba.
+  useEffect(() => {
+    area.current?.scrollTo({ top: 0 });
+  }, [indice]);
 
   useEffect(() => {
     function tecla(e: KeyboardEvent) {
@@ -87,8 +139,8 @@ export default function Visor({
   });
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)]">
-      <header className="sticky top-0 z-30 flex items-center gap-3 bg-blue-900 px-4 py-2.5 text-white">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--background)]">
+      <header className="z-30 flex shrink-0 items-center gap-3 bg-blue-900 px-4 py-2 text-white">
         <Image src="/funca-logo-blanco.png" alt="FUNCA" width={800} height={157} priority className="h-6 w-auto shrink-0 sm:h-7" />
         <span className="hidden h-6 w-px shrink-0 bg-white/20 sm:block" aria-hidden />
         <span className="hidden min-w-0 leading-tight sm:block">
@@ -97,33 +149,35 @@ export default function Visor({
         </span>
         <span className="ml-auto flex items-center gap-2">{arriba}</span>
       </header>
-      <div className="h-1 bg-blue-100">
+      <div className="h-1 shrink-0 bg-blue-100">
         <div className="h-full bg-gold-500 transition-all" style={{ width: `${((indice + 1) / total) * 100}%` }} />
       </div>
-      {aviso}
+      <div className="shrink-0">{aviso}</div>
 
-      <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 [@media(max-height:720px)]:py-4">
-        {/* lienzo-clase: escala sola en pantallas grandes (globals.css); el zoom del presentador se multiplica. */}
-        <div className="lienzo-clase mx-auto max-w-6xl" style={{ "--zoom-manual": zoom } as CSSProperties}>
-          {d.seccion && d.tipo !== "seccion" && d.tipo !== "portada" && (
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-500">{d.seccion}</p>
-          )}
-          {modo === "ritmo" && d.guia && (
-            <div className="mb-6 flex gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 px-4 py-3 sm:px-5 sm:py-4 [@media(max-height:720px)]:mb-4 [@media(max-height:720px)]:py-2.5">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-900 text-xl" aria-hidden>
-                🧑‍🏫
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gold-700">El profe te explica</p>
-                <p className="mt-0.5 text-base text-blue-950 sm:text-lg">{d.guia}</p>
+      {/* El área de la diapositiva es la que hace scroll (si hace falta); arriba y abajo quedan fijos. */}
+      <main ref={area} className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-4 sm:px-8 ${esActividad ? "py-4" : "py-5 [@media(max-height:720px)]:py-3"}`}>
+        <div ref={lienzo} className={`mx-auto w-full max-w-6xl ${esActividad ? "" : "my-auto"}`}>
+          <div>
+            {d.seccion && d.tipo !== "seccion" && d.tipo !== "portada" && (
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-500">{d.seccion}</p>
+            )}
+            {modo === "ritmo" && d.guia && (
+              <div className="mb-4 flex gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 px-4 py-2.5 sm:px-5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-900 text-lg" aria-hidden>
+                  🧑‍🏫
+                </span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gold-700">El profe te explica</p>
+                  <p className="mt-0.5 text-base text-blue-950">{d.guia}</p>
+                </div>
               </div>
-            </div>
-          )}
-          <Diapositiva key={indice} d={d} origen={modo === "ritmo" ? undefined : origen} sesionPresentador={sesionPresentador} />
+            )}
+            <Diapositiva key={indice} d={d} origen={modo === "ritmo" ? undefined : origen} sesionPresentador={sesionPresentador} />
+          </div>
         </div>
       </main>
 
-      <footer className="sticky bottom-0 z-30 border-t border-blue-200 bg-white/95 px-4 py-2 backdrop-blur">
+      <footer className="z-30 shrink-0 border-t border-blue-200 bg-white/95 px-4 py-1.5 backdrop-blur">
         <div className="lienzo-clase mx-auto flex max-w-6xl flex-wrap items-center gap-2">
           <button onClick={() => onIr(indice - 1)} disabled={indice === 0} className="btn-suave" aria-label="Diapositiva anterior">
             ← Anterior
