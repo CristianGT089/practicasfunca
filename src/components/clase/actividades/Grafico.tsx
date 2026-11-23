@@ -153,8 +153,8 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
           muestran el editor (con los datos debajo) o el gráfico. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="max-lg:contents lg:flex lg:flex-col lg:gap-3">
-          <div className={`overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow max-lg:order-2 ${vista === "editor" ? "" : "max-lg:hidden"}`}>
-            <table className="w-full border-collapse text-sm">
+          <div className={`hoja-scroll rounded-2xl border border-slate-300 bg-white shadow max-lg:order-2 ${vista === "editor" ? "" : "max-lg:hidden"}`}>
+            <table className="hoja-fija con-fila1 con-numeros w-full border-collapse text-sm">
               <thead>
                 <tr>
                   <th className="w-10 border border-slate-200 bg-slate-100" />

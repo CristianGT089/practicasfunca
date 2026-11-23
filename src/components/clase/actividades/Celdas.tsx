@@ -284,8 +284,8 @@ export default function Celdas({
           <span className="italic text-slate-400">fx</span>
           <span className="truncate px-2 font-mono">{sel ? String(contenido[sel.b.fila]?.[sel.b.col] ?? "") : ""}</span>
         </div>
-        <div ref={tablaRef} className="overflow-x-auto">
-          <table className="w-full min-w-[19rem] table-fixed select-none border-collapse text-xs sm:min-w-[34rem] sm:text-sm" style={{ touchAction: "pan-x pan-y" }}>
+        <div ref={tablaRef} className="hoja-scroll">
+          <table className="hoja-fija con-fila1 con-numeros w-full min-w-[19rem] table-fixed select-none border-collapse text-xs sm:min-w-[34rem] sm:text-sm" style={{ touchAction: "pan-x pan-y" }}>
             <colgroup>
               <col className="w-7 sm:w-10" />
               {Array.from({ length: nCols }, (_, c) => (

@@ -125,8 +125,8 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className={`overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow lg:block ${vista === "tabla" ? "" : "hidden"}`}>
-          <table className="w-full border-collapse text-sm">
+        <div className={`hoja-scroll rounded-2xl border border-slate-300 bg-white shadow lg:block ${vista === "tabla" ? "" : "hidden"}`}>
+          <table className="hoja-fija con-fila1 con-numeros w-full border-collapse text-sm">
             <thead>
               <tr>
                 <th className="w-10 border border-slate-200 bg-slate-100" />

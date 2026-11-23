@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RetoOrdenar } from "@/lib/clase/tipos";
 import { letraColumna } from "@/lib/clase/formulas";
 import { useProgreso } from "../progreso";
@@ -122,8 +122,8 @@ export default function OrdenarFiltrar({ id, datos: tabla, retos }: { id: string
         </div>
         {/* En pantallas pequeñas la tabla se desplaza dentro de su caja (no la página entera); desde md
             cabe y el menú del filtro se despliega como en Sheets, sin recortarse. */}
-        <div className="overflow-x-auto pb-1 md:overflow-visible">
-          <table className="w-full min-w-max border-collapse text-sm md:min-w-0">
+        <div className="hoja-scroll pb-1">
+          <table className="hoja-fija con-fila1 con-numeros w-full min-w-max border-collapse text-sm md:min-w-0">
             <thead>
               <tr>
                 <th className="w-10 border border-slate-200 bg-slate-100" />
@@ -268,6 +268,42 @@ type PropsMenu = {
  * pantallas pequeñas sería más ancho que la pantalla, así que sale como hoja desde abajo, con
  * fondo oscuro y botón para cerrar.
  */
+/** El desplegable de computador, pegado bajo la celda que lo abrió; se cierra si la hoja se desplaza. */
+function MenuFlotante({ alinearDerecha, onCerrar, children }: { alinearDerecha: boolean; onCerrar: () => void; children: React.ReactNode }) {
+  const ancla = useRef<HTMLSpanElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const cerrarRef = useRef(onCerrar);
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number } | null>(null);
+  useEffect(() => {
+    cerrarRef.current = onCerrar;
+  });
+  useLayoutEffect(() => {
+    const celda = ancla.current?.parentElement;
+    if (!celda) return;
+    const r = celda.getBoundingClientRect();
+    setPos(alinearDerecha ? { top: r.bottom + 4, right: window.innerWidth - r.right } : { top: r.bottom + 4, left: r.left });
+    // Si la hoja o la página se desplazan, el menú quedaría flotando lejos de su columna: se cierra.
+    const cerrar = (e: Event) => {
+      if (window.matchMedia("(min-width: 768px)").matches && !(e.target instanceof Node && menu.current?.contains(e.target))) cerrarRef.current();
+    };
+    window.addEventListener("scroll", cerrar, true);
+    return () => window.removeEventListener("scroll", cerrar, true);
+  }, [alinearDerecha]);
+  return (
+    <span ref={ancla} className="contents">
+      {pos && (
+        <div
+          ref={menu}
+          style={pos}
+          className="fixed z-40 hidden w-64 rounded-xl border border-slate-200 bg-white p-2 text-left text-sm font-normal shadow-2xl md:block"
+        >
+          {children}
+        </div>
+      )}
+    </span>
+  );
+}
+
 function MenuFiltro(p: PropsMenu) {
   const contenido = (
     <>
@@ -316,12 +352,11 @@ function MenuFiltro(p: PropsMenu) {
   );
   return (
     <>
-      {/* Computador: desplegable bajo el encabezado. */}
-      <div
-        className={`absolute top-full z-30 mt-1 hidden w-64 md:block ${p.alinearDerecha ? "right-0" : "left-0"} rounded-xl border border-slate-200 bg-white p-2 text-left text-sm font-normal shadow-2xl`}
-      >
+      {/* Computador: desplegable bajo el encabezado. Flota sobre la página (fixed) para que la hoja,
+          que se desplaza dentro de su caja, no lo recorte. */}
+      <MenuFlotante alinearDerecha={p.alinearDerecha} onCerrar={p.onCerrar}>
         {contenido}
-      </div>
+      </MenuFlotante>
       {/* Celular: hoja inferior. */}
       <div className="fixed inset-0 z-50 bg-slate-900/40 md:hidden" onClick={p.onCerrar} aria-hidden />
       <div

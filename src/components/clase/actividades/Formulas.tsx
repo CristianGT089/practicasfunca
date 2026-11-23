@@ -437,8 +437,8 @@ export default function Formulas({
       )}
 
       <div className="overflow-hidden rounded-b-2xl border border-t-0 border-slate-300 bg-white shadow">
-        <div ref={contenedor} className="overflow-x-auto">
-          <table className="w-full select-none border-collapse text-sm">
+        <div ref={contenedor} className="hoja-scroll">
+          <table className="hoja-fija con-fila1 con-numeros w-full select-none border-collapse text-sm">
             <thead>
               <tr>
                 <th className="w-8 border border-slate-200 bg-slate-100 sm:w-10" />

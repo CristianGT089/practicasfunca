@@ -180,9 +180,9 @@ export default function Dinamica({ id, datos: tabla, retos }: { id: string; dato
           </div>
           {verDatos && (
             // En pantallas pequeñas solo se desplaza a lo ancho (sin scroll dentro del scroll de la página).
-            <div className="overflow-x-auto rounded-2xl border border-slate-300 bg-white lg:max-h-64 lg:overflow-auto">
-              <table className="w-full border-collapse text-sm lg:text-xs">
-                <thead className="lg:sticky lg:top-0">
+            <div className="hoja-scroll rounded-2xl border border-slate-300 bg-white lg:max-h-64">
+              <table className="hoja-fija w-full border-collapse text-sm lg:text-xs">
+                <thead>
                   <tr>
                     {encabezados.map((h) => (
                       <th key={h} className="border border-slate-200 bg-slate-100 px-2 py-1 text-left">

@@ -204,6 +204,29 @@ export default function Visor({
     return () => obs.disconnect();
   }, [indice, zoom, seEncoge, modo]);
 
+  // En las simulaciones, la hoja (`.hoja-scroll`) mide lo que queda libre bajo el bloque fijo del
+  // reto: así, aunque la página baje del todo, las letras y la fila 1 inmovilizadas siguen a la vista.
+  useLayoutEffect(() => {
+    const main = area.current;
+    const el = lienzo.current;
+    if (!esActividad || !main || !el) return;
+    const medir = () => {
+      const bloque = el.querySelector<HTMLElement>(".sticky");
+      const z = parseFloat(el.style.zoom || "1") || 1;
+      const estilo = getComputedStyle(main);
+      const disponible = main.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom);
+      const alto = bloque ? bloque.getBoundingClientRect().height : 0;
+      el.style.setProperty("--alto-hoja", `${Math.max(160, (disponible - alto - 12) / z)}px`);
+    };
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(main);
+    const bloque = el.querySelector<HTMLElement>(".sticky");
+    if (bloque) obs.observe(bloque);
+    if (el.firstElementChild) obs.observe(el.firstElementChild);
+    return () => obs.disconnect();
+  }, [indice, zoom, esActividad]);
+
   // Al cambiar de diapositiva se vuelve arriba y se cierran los menús.
   useEffect(() => {
     area.current?.scrollTo({ top: 0 });

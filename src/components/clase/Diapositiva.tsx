@@ -438,7 +438,10 @@ const COLUMNAS = { 1: "", 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3
 function Rejilla({ tarjetas, columnas, compacta }: { tarjetas: Tarjeta[]; columnas: 1 | 2 | 3 | 4; compacta?: boolean }) {
   // Dos columnas con 4 o 6 tarjetas quedan muy altas: en pantallas anchas se reparten en 4 o 3.
   const n = tarjetas.length;
-  const ancho = !compacta && columnas === 2 && n >= 4 ? (n % 3 === 0 ? "lg:grid-cols-3" : n % 4 === 0 ? "lg:grid-cols-4" : "") : "";
+  // …salvo si traen fórmulas u otras «palabras» largas que no se pueden partir: se saldrían de la tarjeta.
+  const largas = tarjetas.some((t) => [t.titulo, t.texto ?? "", ...(t.items ?? [])].some((x) => x.split(/\s+/).some((w) => w.length > 18)));
+  const ancho =
+    !compacta && columnas === 2 && n >= 4 && !largas ? (n % 3 === 0 ? "lg:grid-cols-3" : n % 4 === 0 ? "lg:grid-cols-4" : "") : "";
   return (
     <div className={`${compacta ? "" : "mt-5"} grid grid-cols-1 gap-3 ${COLUMNAS[columnas]} ${ancho}`}>
       {tarjetas.map((t) => (
@@ -455,7 +458,7 @@ function TarjetaVista({ t: original, grande }: { t: Tarjeta; grande?: boolean })
   const fondo =
     t.color === "amarilla" ? "bg-gold-50 border-2 border-gold-500/50 rounded-3xl" : t.color === "navy" ? "bg-blue-900 text-white rounded-3xl" : "tarjeta";
   return (
-    <div className={`${fondo} flex-1 p-4 ${grande ? "text-center" : ""}`}>
+    <div className={`${fondo} min-w-0 flex-1 p-4 [overflow-wrap:anywhere] ${grande ? "text-center" : ""}`}>
       {t.icono && <div className={grande ? "text-5xl" : "text-3xl"} aria-hidden>{t.icono}</div>}
       <p className={`mt-2 font-heading font-bold ${grande ? "text-2xl" : "text-lg"} ${t.color === "navy" ? "text-white" : "text-blue-900"}`}>{t.titulo}</p>
       {t.texto && <p className={`mt-1 ${t.color === "navy" ? "text-blue-100" : "text-slate-700"}`}>{t.texto}</p>}
