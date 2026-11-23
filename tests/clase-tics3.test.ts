@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TICS_3 } from "../src/lib/clase/lecciones/tics3";
+import { GRAFICOS_Y_DINAMICAS } from "../src/lib/clase/lecciones/pendientes/graficosDinamicas";
 import { celdaAIndices, celdasDeRango, desplazar, evaluar, usaTablas, type Hoja } from "../src/lib/clase/formulas";
 import { calcularDinamica, faltaEnDinamica, type ConfigDinamica } from "../src/lib/clase/dinamica";
 
@@ -27,8 +28,8 @@ test("clase 3: cada solución de fórmulas calcula sin error, también al copiar
   }
 });
 
-test("clase 3: las respuestas de la tabla dinámica salen de la tabla", () => {
-  for (const d of TICS_3.diapositivas) {
+test("gráficos y dinámicas (pendientes para la clase 4): las respuestas de la tabla dinámica salen de la tabla", () => {
+  for (const d of GRAFICOS_Y_DINAMICAS) {
     if (d.tipo !== "actividad" || d.actividad !== "dinamica") continue;
     for (const r of d.retos) {
       const c: ConfigDinamica = { filas: r.filas ?? null, columnas: r.columnas ?? null, valores: r.valores ?? null, filtro: r.filtro ?? null };
@@ -49,4 +50,9 @@ test("clase 3: los retos que exigen tabla tienen tabla y la solución la usa", (
       assert.ok(usaTablas(r.solucion).tabla, `${d.id} ${r.celda}: la solución no usa la tabla`);
     }
   }
+});
+
+test("clase 3: ya no trae gráficos ni tablas dinámicas (pasaron a la clase 4)", () => {
+  assert.ok(!TICS_3.diapositivas.some((d) => d.tipo === "actividad" && (d.actividad === "grafico" || d.actividad === "dinamica")));
+  assert.ok(GRAFICOS_Y_DINAMICAS.some((d) => d.tipo === "actividad" && d.actividad === "dinamica"));
 });

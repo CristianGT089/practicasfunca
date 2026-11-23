@@ -63,6 +63,10 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   .CONJUNTO, BUSCARV/X, SI.ERROR, REDONDEAR, HOY; `copiar` revisa cada copia y enseña el $),
   `grafico` (editor de gráficos) y `dinamica` (editor de tabla dinámica). Hojas .xlsx en
   `public/clase/tics-3/` (se generan con `scripts/clase/hojas_tics3.py`).
+- **Clase 3 recortada (23 nov 2026):** ese domingo solo alcanzaron las funciones. Gráficos, tablas
+  dinámicas y el Entregable 3 salieron de `tics3.ts` y quedaron en
+  `lecciones/pendientes/graficosDinamicas.ts` (`GRAFICOS_Y_DINAMICAS`, sin registrar) para abrir la
+  clase 4. Sus pruebas siguen en `tests/clase-tics3.test.ts`.
 
 ## Datos
 

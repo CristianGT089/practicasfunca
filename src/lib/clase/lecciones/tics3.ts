@@ -1,59 +1,18 @@
 import type { Leccion } from "../tipos";
 
 /**
- * Clase 3 del curso de TICs: las funciones que no alcanzamos en la clase 2 y todo lo de
- * clase5_formulas_basicas, clase6_funciones_avanzadas y clase7_graficos_tablas_dinamicas
- * (general/*.tex): referencias y $, funciones de resumen, SI, CONTAR.SI, SUMAR.SI y sus
- * .CONJUNTO, CONCATENAR, REDONDEAR, HOY, SI.ERROR, errores, BUSCARV/BUSCARX, gráficos y tablas
- * dinámicas. Arranca con el quiz de la clase 2 (Q10). Hojas de práctica en public/clase/tics-3/
- * (se generan con scripts/clase/hojas_tics3.py).
+ * Clase 3 del curso de TICs: las funciones que no alcanzamos en la clase 2 y lo de
+ * clase5_formulas_basicas y clase6_funciones_avanzadas (general/*.tex): referencias y $,
+ * tablas con nombre, funciones de resumen, SI, CONTAR.SI, SUMAR.SI y sus .CONJUNTO,
+ * CONCATENAR, REDONDEAR, HOY, SI.ERROR, errores y BUSCARV/BUSCARX. Arranca con el quiz de la
+ * clase 2 (Q10). Hojas de práctica en public/clase/tics-3/ (scripts/clase/hojas_tics3.py).
+ * Gráficos, tablas dinámicas y el Entregable 3 no alcanzaron: pasaron al inicio de la clase 4
+ * (lecciones/pendientes/graficosDinamicas.ts).
  */
 
 const ARCHIVO_FUNCIONES = { href: "/clase/tics-3/TICs3_Funciones.xlsx", texto: "Descargar TICs3_Funciones.xlsx" };
-const ARCHIVO_ATENCIONES = { href: "/clase/tics-3/TICs3_Atenciones.xlsx", texto: "Descargar TICs3_Atenciones.xlsx" };
-const ARCHIVO_ENTREGABLE = { href: "/clase/tics-3/TICs3_Entregable.xlsx", texto: "Descargar TICs3_Entregable.xlsx" };
 const DRIVE = { href: "https://drive.google.com/drive/my-drive", texto: "Abrir mi Drive" };
 
-/** Atenciones de una IPS (enero a marzo) para la simulación de tabla dinámica. */
-const ATENCIONES: (string | number)[][] = [
-  ["Mes", "Sede", "Servicio", "Régimen", "Valor", "Estado"],
-  ["01 Ene", "Sede Centro", "Vacunación", "Subsidiado", 18000, "Atendida"],
-  ["01 Ene", "Sede Norte", "Limpieza dental", "Contributivo", 60000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Nebulización", "Subsidiado", 32000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Consulta de enfermería", "Contributivo", 35000, "Atendida"],
-  ["01 Ene", "Sede Norte", "Vacunación", "Subsidiado", 36000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Nebulización", "Contributivo", 32000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Curación", "Subsidiado", 56000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Vacunación", "Contributivo", 18000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Limpieza dental", "Contributivo", 120000, "Atendida"],
-  ["01 Ene", "Sede Norte", "Nebulización", "Contributivo", 64000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Nebulización", "Subsidiado", 32000, "Atendida"],
-  ["01 Ene", "Sede Centro", "Nebulización", "Subsidiado", 64000, "Atendida"],
-  ["02 Feb", "Sede Norte", "Consulta de enfermería", "Contributivo", 35000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Vacunación", "Contributivo", 18000, "Cancelada"],
-  ["02 Feb", "Sede Centro", "Vacunación", "Contributivo", 18000, "Cancelada"],
-  ["02 Feb", "Sede Centro", "Vacunación", "Contributivo", 18000, "Atendida"],
-  ["02 Feb", "Sede Norte", "Vacunación", "Contributivo", 18000, "Atendida"],
-  ["02 Feb", "Sede Norte", "Vacunación", "Contributivo", 36000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Nebulización", "Contributivo", 32000, "Cancelada"],
-  ["02 Feb", "Sede Norte", "Curación", "Subsidiado", 28000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Nebulización", "Contributivo", 32000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Consulta de enfermería", "Contributivo", 35000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Limpieza dental", "Contributivo", 60000, "Atendida"],
-  ["02 Feb", "Sede Centro", "Vacunación", "Contributivo", 18000, "Atendida"],
-  ["03 Mar", "Sede Centro", "Consulta de enfermería", "Subsidiado", 35000, "Atendida"],
-  ["03 Mar", "Sede Norte", "Nebulización", "Contributivo", 32000, "Cancelada"],
-  ["03 Mar", "Sede Centro", "Consulta de enfermería", "Subsidiado", 35000, "Atendida"],
-  ["03 Mar", "Sede Centro", "Curación", "Contributivo", 28000, "Atendida"],
-  ["03 Mar", "Sede Norte", "Consulta de enfermería", "Subsidiado", 35000, "Cancelada"],
-  ["03 Mar", "Sede Centro", "Limpieza dental", "Contributivo", 60000, "Atendida"],
-  ["03 Mar", "Sede Norte", "Curación", "Contributivo", 28000, "Atendida"],
-  ["03 Mar", "Sede Norte", "Curación", "Contributivo", 28000, "Atendida"],
-  ["03 Mar", "Sede Centro", "Limpieza dental", "Particular", 60000, "Atendida"],
-  ["03 Mar", "Sede Norte", "Nebulización", "Contributivo", 64000, "Cancelada"],
-  ["03 Mar", "Sede Norte", "Nebulización", "Contributivo", 64000, "Atendida"],
-  ["03 Mar", "Sede Centro", "Limpieza dental", "Contributivo", 120000, "Atendida"],
-];
 
 /** Turnos para las funciones condicionales. */
 const TURNOS: (string | number)[][] = [
@@ -76,16 +35,16 @@ const TURNOS: (string | number)[][] = [
 
 export const TICS_3: Leccion = {
   slug: "tics-3",
-  titulo: "Clase 3 · Funciones, gráficos y tablas dinámicas",
+  titulo: "Clase 3 · Funciones",
   descripcion:
-    "Quiz de la clase 2, referencias y $, SUMA a CONTARA, SI, CONTAR.SI, SUMAR.SI y .CONJUNTO, CONCATENAR, REDONDEAR, HOY, SI.ERROR, errores, BUSCARV/BUSCARX, gráficos, tablas dinámicas y el Entregable 3.",
+    "Quiz de la clase 2, referencias y $, tablas con nombre, SUMA a CONTARA, SI, CONTAR.SI, SUMAR.SI y .CONJUNTO, CONCATENAR, REDONDEAR, HOY, SI.ERROR, errores y BUSCARV/BUSCARX.",
   diapositivas: [
     // ───────────────────────── BIENVENIDA ─────────────────────────
     {
       tipo: "portada",
       seccion: "Bienvenida",
       titulo: "Que la hoja trabaje por ti",
-      subtitulo: "Clase 3 · Funciones, gráficos y tablas dinámicas",
+      subtitulo: "Clase 3 · Funciones",
       guia: "¡Hola! Esta es la clase 3, la que te perdiste. Como siempre: en cada diapositiva te explico en este recuadro lo que diría en clase. Es la clase más práctica del curso: ten Google Sheets abierto en otra pestaña (en el celular, la app Sheets). Al final pulsa «Terminar» para que me llegue tu reporte.",
       pie: "Hoy la hoja de cálculo deja de ser una tabla y se vuelve una calculadora que piensa.",
       mostrarAcceso: true,
@@ -107,11 +66,8 @@ export const TICS_3: Leccion = {
         { hora: "10:35", tema: "Utilidad y errores: CONCATENAR, REDONDEAR, HOY, SI.ERROR", icono: "🧰" },
         { hora: "11:10", tema: "BUSCARV y BUSCARX", icono: "🔎" },
         { hora: "12:00", tema: "Almuerzo", icono: "🍽️", pausa: true },
-        { hora: "12:45", tema: "Gráficos: ¿cuál uso?", icono: "📊" },
-        { hora: "13:35", tema: "Tablas dinámicas", icono: "🧩" },
-        { hora: "14:15", tema: "Gráfico dinámico y control de filtros", icono: "🎛️" },
-        { hora: "14:30", tema: "Entregable 3: Panel de atenciones", icono: "📋" },
-        { hora: "14:50", tema: "Cierre", icono: "👋" },
+        { hora: "12:45", tema: "Práctica: todas las funciones en tu hoja", icono: "🧮" },
+        { hora: "14:30", tema: "Quiz de la clase 3 (Q10) y cierre", icono: "👋" },
       ],
       notas: "Si vas atrasado, recorta el checklist de Sheets de cada bloque (que lo terminen en casa) pero no las simulaciones: ahí se aprende la lógica.",
     },
@@ -120,7 +76,7 @@ export const TICS_3: Leccion = {
       seccion: "Bienvenida",
       modo: "ritmo",
       titulo: "Tu ruta para esta clase",
-      guia: "Calcula unas seis horas y media. No tienes que hacerlo de una sentada: sal y vuelve cuando quieras, la plataforma recuerda dónde ibas.",
+      guia: "Calcula unas cinco horas. No tienes que hacerlo de una sentada: sal y vuelve cuando quieras, la plataforma recuerda dónde ibas.",
       bloques: [
         { hora: "15 min", tema: "Repaso de la clase 2", icono: "🔁" },
         { hora: "20 min", tema: "Quiz de la clase 2 (Q10)", icono: "✅", externo: true },
@@ -130,9 +86,7 @@ export const TICS_3: Leccion = {
         { hora: "20 min", tema: "Varias condiciones: .CONJUNTO", icono: "🎯" },
         { hora: "35 min", tema: "Utilidad y errores", icono: "🧰" },
         { hora: "50 min", tema: "BUSCARV y BUSCARX", icono: "🔎" },
-        { hora: "50 min", tema: "Gráficos", icono: "📊" },
-        { hora: "55 min", tema: "Tablas dinámicas y control de filtros", icono: "🧩" },
-        { hora: "—", tema: "Entregable 3 (en casa)", icono: "📋" },
+        { hora: "20 min", tema: "Quiz de la clase 3 (Q10)", icono: "✅", externo: true },
       ],
     },
     {
@@ -224,25 +178,25 @@ export const TICS_3: Leccion = {
       actividad: "checklist",
       id: "archivos",
       titulo: "Prepara tus archivos de hoy",
-      intro: "Hoy trabajamos con dos hojas ya llenas de datos. Descárgalas y conviértelas en hojas de Google.",
-      guia: "Las tablas dinámicas y algunos menús solo funcionan bien en formato de Google, por eso el paso de «Guardar como Hojas de cálculo de Google». Te quedan dos archivos: uno original (.xlsx) y uno de Google; trabaja en el de Google.",
+      intro: "Hoy trabajamos con una hoja ya llena de datos. Descárgala y conviértela en hoja de Google.",
+      guia: "Algunos menús solo funcionan bien en formato de Google, por eso el paso de «Guardar como Hojas de cálculo de Google». Te quedan dos archivos: uno original (.xlsx) y uno de Google; trabaja en el de Google.",
       notas: "En Chromebook el .xlsx queda en Archivos › Descargas; en Windows y Mac, en Descargas; en el celular, en la app Archivos › Descargas. Si a alguien no le abre, que lo suba con Drive › + Nuevo › Subir archivo (en el celular, app Drive › + › Subir).",
-      archivos: [ARCHIVO_FUNCIONES, ARCHIVO_ATENCIONES],
+      archivos: [ARCHIVO_FUNCIONES],
       enlace: DRIVE,
       pasos: [
         {
           id: "descargar",
-          texto: "Descargué los dos archivos (quedan en Descargas)",
+          texto: "Descargué el archivo (queda en Descargas)",
           variantes: { celular: { ayuda: "Quedan en la carpeta Descargas del celular: en Android, app Archivos › Descargas; en iPhone, app Archivos › Descargas (o donde Safari los guarde)." } },
         },
         {
           id: "subir",
-          texto: "Los subí a TICs_Salud › Hojas de cálculo en mi Drive",
+          texto: "Lo subí a TICs_Salud › Hojas de cálculo en mi Drive",
           ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde la app Archivos.",
           variantes: {
             windows: { ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde el Explorador de archivos." },
             mac: { ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde el Finder." },
-            celular: { ayuda: "En la app Drive, entra a la carpeta › «+» (abajo a la derecha) › Subir › Descargas › escoge los dos." },
+            celular: { ayuda: "En la app Drive, entra a la carpeta › «+» (abajo a la derecha) › Subir › Descargas › escoge el archivo." },
           },
         },
         {
@@ -261,7 +215,6 @@ export const TICS_3: Leccion = {
           texto: "Le cambié el nombre a Apellido_Nombre_Funciones",
           variantes: { celular: { ayuda: "En la app Drive: ⋮ junto al archivo de Google (no el .xlsx) › Cambiar nombre." } },
         },
-        { id: "atenciones", texto: "Hice lo mismo con TICs3_Atenciones → Apellido_Nombre_Atenciones" },
         {
           id: "idioma",
           texto: "Revisé el idioma de mi hoja",
@@ -889,416 +842,14 @@ export const TICS_3: Leccion = {
       ],
     },
 
-    // ───────────────────────── GRÁFICOS ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "Gráficos",
-      numero: 6,
-      titulo: "Gráficos",
-      subtitulo: "Ver los datos de un vistazo",
-      icono: "📊",
-      guia: "Después del almuerzo, a dibujar. Un buen gráfico responde una pregunta en dos segundos; uno malo confunde más que la tabla.",
-    },
-    {
-      tipo: "visual",
-      seccion: "Gráficos",
-      eyebrow: "Antes de dibujar",
-      titulo: "Las partes de un gráfico",
-      guia: "Un buen gráfico responde una pregunta en dos segundos. Antes de hacerlo, piensa qué quieres que se vea: ¿cuál es el mayor?, ¿subió o bajó?, ¿cómo se reparte? Y conoce sus partes, porque así se llaman en el editor de Sheets.",
-      visual: "partes-grafico",
-      cierre: "Evita: efectos 3D, circulares con muchas porciones y ejes que no empiezan en 0.",
-    },
-    {
-      tipo: "visual",
-      seccion: "Gráficos",
-      eyebrow: "¿Cuál uso?",
-      titulo: "La pregunta escoge el gráfico",
-      guia: "Cuatro tipos resuelven casi todo. Columnas para comparar; barras cuando los nombres son largos; líneas para el tiempo; circular solo para partes de un todo y con pocas porciones.",
-      visual: "tipos-grafico",
-      cierre: "¿Columnas o líneas para meses? Si importa la tendencia (sube, baja), líneas.",
-    },
-    {
-      tipo: "actividad",
-      seccion: "Gráficos",
-      actividad: "grafico",
-      id: "graficos-elegir",
-      titulo: "Escoge el gráfico que responde",
-      intro: "Un editor de gráficos como el de Sheets. Para cada pregunta: escoge el tipo, las columnas y, si te lo piden, el título.",
-      guia: "La columna amarilla son las etiquetas (eje X) y la azul los valores. Prueba distintos tipos y mira cómo cambia el dibujo antes de insertar.",
-      datos: [
-        ["Servicio", "Atenciones", "Facturado"],
-        ["Consulta de enfermería", 42, 1470000],
-        ["Vacunación", 65, 1170000],
-        ["Curación", 28, 784000],
-        ["Limpieza dental", 19, 1140000],
-        ["Nebulización", 33, 1056000],
-      ],
-      retos: [
-        { texto: "¿Qué servicio tuvo más atenciones? Compáralos.", tipo: "columnas", etiquetas: 0, serie: 1, porque: "Las columnas comparan cantidades: se ve enseguida que Vacunación es la más alta." },
-        {
-          texto: "¿Cómo cambió lo facturado de enero a junio? Ponle título.",
-          tipo: "lineas",
-          etiquetas: 0,
-          serie: 2,
-          titulo: true,
-          datos: [
-            ["Mes", "Atenciones", "Facturado"],
-            ["Enero", 150, 4250000],
-            ["Febrero", 132, 3980000],
-            ["Marzo", 171, 4870000],
-            ["Abril", 165, 4610000],
-            ["Mayo", 188, 5320000],
-            ["Junio", 179, 5100000],
-          ],
-          porque: "Las líneas muestran la tendencia en el tiempo: se ve la caída de febrero y la subida hasta mayo.",
-        },
-        {
-          texto: "¿Cómo se reparten los pacientes por régimen?",
-          tipo: "circular",
-          etiquetas: 0,
-          serie: 1,
-          datos: [
-            ["Régimen", "Pacientes"],
-            ["Contributivo", 312],
-            ["Subsidiado", 205],
-            ["Particular", 83],
-          ],
-          porque: "Son partes de un total (todos los pacientes) y solo tres porciones: el circular es ideal.",
-        },
-        {
-          texto: "¿Qué medicamentos se vendieron más? Ojo: los nombres son largos. Ponle título.",
-          tipo: "barras",
-          etiquetas: 0,
-          serie: 1,
-          titulo: true,
-          datos: [
-            ["Medicamento", "Unidades vendidas"],
-            ["Acetaminofén 500 mg tabletas", 210],
-            ["Ibuprofeno 400 mg tabletas", 140],
-            ["Omeprazol 20 mg cápsulas", 95],
-            ["Loratadina 10 mg tabletas", 70],
-            ["Amoxicilina 500 mg cápsulas", 55],
-            ["Salbutamol inhalador 100 mcg", 22],
-          ],
-          porque: "Con nombres largos, las barras horizontales se leen sin torcer la cabeza.",
-        },
-      ],
-    },
-    {
-      tipo: "pregunta",
-      seccion: "Gráficos",
-      id: "p3-grafico",
-      pregunta: "Tomaste la temperatura de un paciente cada 4 horas durante dos días. ¿Qué gráfico muestra mejor cómo evolucionó?",
-      opciones: ["Circular", "Líneas", "Barras horizontales", "Ninguno: mejor la tabla"],
-      correcta: 1,
-      explicacion: "Es un cambio en el tiempo: las líneas dejan ver si la fiebre sube o baja.",
-    },
-    {
-      tipo: "tabla",
-      seccion: "Gráficos",
-      eyebrow: "En Google Sheets (y en Excel)",
-      titulo: "Crear un gráfico, paso a paso",
-      guia: "En Excel es casi igual: Insertar › Gráficos recomendados, y los ajustes salen al hacer clic en el gráfico.",
-      columnas: ["Paso", "En Google Sheets", "En la app del celular"],
-      filas: [
-        ["1. Selecciona", "Las columnas con sus encabezados. Para dos columnas separadas: Ctrl + clic", "Toca la primera celda y arrastra el punto azul. No hay Ctrl + clic: selecciona un bloque seguido"],
-        ["2. Inserta", "Insertar › Gráfico. Sheets propone uno", "«+» › Gráfico"],
-        ["3. Configura", "Editor › Configuración: Tipo de gráfico, Eje X y Serie", "Toca dos veces el gráfico › Editar gráfico › Tipo"],
-        ["4. Personaliza", "Editor › Personalizar › Títulos de gráficos y ejes, colores, etiquetas de datos", "Editar gráfico › Títulos, Leyenda"],
-        ["5. Acomoda", "Arrástralo y cámbiale el tamaño desde las esquinas. Doble clic para volver al editor", "Tócalo y arrástralo; el tamaño, desde las esquinas"],
-      ],
-    },
-    {
-      tipo: "actividad",
-      seccion: "Gráficos",
-      actividad: "checklist",
-      id: "sheets-graficos",
-      titulo: "Tus primeros gráficos",
-      intro: "En Apellido_Nombre_Funciones › Inventario.",
-      guia: "Si el gráfico sale raro, revisa en el editor qué columna quedó en el Eje X y cuál en la Serie: Sheets a veces adivina mal.",
-      enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
-      pasos: [
-        {
-          id: "barras",
-          texto: "Barras: Unidades por medicamento (selecciona A1:A13, Ctrl + clic en D1:D13)",
-          ayuda: "Insertar › Gráfico › Tipo de gráfico › Barras.",
-          variantes: {
-            celular: {
-              texto: "Barras: Unidades por medicamento (selecciona A1:D13)",
-              ayuda: "En el celular no hay Ctrl + clic. Selecciona A1:D13: Categoría y Presentación son texto, así que la única serie que se dibuja es Unidades. Luego «+» › Gráfico › Tipo › Barras. Si sale algo de más, revísalo en Editar gráfico.",
-            },
-          },
-        },
-        {
-          id: "titulo",
-          texto: "Ponle título y quita la leyenda (con una sola serie sobra)",
-          ayuda: "Editor › Personalizar › Títulos de gráficos y ejes · Leyenda › Ninguna.",
-          variantes: { celular: { ayuda: "Toca dos veces el gráfico › Editar gráfico › Títulos; y en Leyenda › Ninguna." } },
-        },
-        { id: "tabla", texto: "Arma una tabla pequeña: cada categoría y sus unidades con SUMAR.SI", ayuda: 'En L1 «Categoría», en M1 «Unidades». L2: Analgésico, M2: =SUMAR.SI($B$2:$B$13;L2;$D$2:$D$13) y cópiala.' },
-        {
-          id: "circular",
-          texto: "Circular con esa tabla: ¿cómo se reparten las unidades por categoría?",
-          variantes: { celular: { ayuda: "Selecciona la tablita (desde L1 hasta la última fila de M) › «+» › Gráfico › Tipo › Circular." } },
-        },
-      ],
-    },
-
-    // ───────────────────────── TABLAS DINÁMICAS ─────────────────────────
-    {
-      tipo: "seccion",
-      seccion: "Tablas dinámicas",
-      numero: 7,
-      titulo: "Tablas dinámicas",
-      subtitulo: "Cientos de filas resumidas en segundos",
-      icono: "🧩",
-      guia: "La herramienta favorita de quien trabaja con datos: sin escribir una sola fórmula, resumes cientos de filas como quieras.",
-    },
-    {
-      tipo: "contenido",
-      seccion: "Tablas dinámicas",
-      eyebrow: "¿Qué es?",
-      titulo: "Una tabla que se arma sola",
-      guia: "Imagina 160 atenciones y que tu jefe te pregunta cuánto facturó cada sede. Con fórmulas tendrías que escribir un SUMAR.SI por sede. Con una tabla dinámica arrastras dos campos y listo. Y si mañana te pregunta por servicio, cambias un campo.",
-      columnas: 3,
-      tarjetas: [
-        { icono: "⚡", titulo: "Sin fórmulas", texto: "Escoges qué agrupar y qué calcular; la hoja hace el resto." },
-        { icono: "🔄", titulo: "Se rearma", texto: "Cambias un campo y la tabla responde otra pregunta." },
-        { icono: "🛡️", titulo: "No toca tus datos", texto: "Se crea en otra hoja. Los datos originales quedan igual." },
-      ],
-      cierre: "Pregunta típica: ¿cuántas atenciones hubo por servicio y sede, solo de las atendidas?",
-    },
-    {
-      tipo: "visual",
-      seccion: "Tablas dinámicas",
-      eyebrow: "El editor",
-      titulo: "Las 4 zonas",
-      guia: "Todo el truco está en el editor: cuatro zonas. Filas y Columnas son los grupos; Valores es lo que se calcula; Filtros deja por fuera lo que no quieres ver. Sigue los colores: cada campo de los datos va a una zona y aparece en el resultado.",
-      visual: "zonas-dinamica",
-      cierre: "«Resumir por» cambia la operación: SUMA, CONTARA (contar), PROMEDIO, MAX, MIN. Un campo de texto solo se puede contar.",
-    },
-    {
-      tipo: "actividad",
-      seccion: "Tablas dinámicas",
-      actividad: "dinamica",
-      id: "dinamica-atenciones",
-      titulo: "Arma tu tabla dinámica",
-      intro: "36 atenciones de enero a marzo. Usa el editor de tablas dinámicas como en Sheets; algunos retos te piden leer un número de la tabla.",
-      guia: "Los retos se cumplen solos cuando el editor queda bien. Si te enredas, «💡 ¿Qué me falta?» te dice en qué zona mirar. Prueba el botón de gráfico cuando tengas Filas y Valores.",
-      datos: ATENCIONES,
-      retos: [
-        {
-          texto: "¿Cuántas atenciones hubo de cada servicio? Filas: Servicio · Valores: Servicio, resumido con CONTARA.",
-          filas: 2,
-          valores: { columna: 2, resumen: "CONTARA" },
-          pregunta: "¿Cuántas vacunaciones hubo?",
-          respuesta: 9,
-        },
-        { texto: "¿Cuánto se facturó en cada sede?", filas: 1, valores: { columna: 4, resumen: "SUMA" }, pregunta: "¿Cuánto facturó la Sede Norte?", respuesta: 528000 },
-        {
-          texto: "Cruza: servicios hacia abajo, sedes hacia la derecha, sumando el Valor.",
-          filas: 2,
-          columnas: 1,
-          valores: { columna: 4, resumen: "SUMA" },
-          pregunta: "¿Cuánto facturó Limpieza dental en la Sede Centro?",
-          respuesta: 420000,
-        },
-        { texto: "La misma tabla, pero solo con las atenciones «Atendida» (las canceladas no se cobran).", filas: 2, columnas: 1, valores: { columna: 4, resumen: "SUMA" }, filtro: { columna: 5, valores: ["Atendida"] } },
-        { texto: "¿Cómo va lo facturado mes a mes? Filas: Mes · Valores: Valor (SUMA). Mira también el gráfico.", filas: 0, valores: { columna: 4, resumen: "SUMA" }, pregunta: "¿Cuánto se facturó en marzo?", respuesta: 589000 },
-        { texto: "Cambia la operación: ¿cuál es el valor promedio por atención en cada régimen?", filas: 3, valores: { columna: 4, resumen: "PROMEDIO" }, pregunta: "¿Cuál es el promedio del régimen Subsidiado?", respuesta: 37100 },
-      ],
-    },
-    {
-      tipo: "contenido",
-      seccion: "Tablas dinámicas",
-      eyebrow: "Ojo",
-      titulo: "Dos cosas que confunden a todo el mundo",
-      guia: "La mayoría de problemas con tablas dinámicas vienen de datos mal organizados. Y lo segundo: la tabla dinámica ordena el texto alfabéticamente; por eso en tus datos el mes lleva número delante.",
-      columnas: 2,
-      tarjetas: [
-        { icono: "🧱", titulo: "Datos bien hechos", items: ["Una fila de encabezados, sin repetir nombres", "Sin filas ni columnas vacías en medio", "Un dato por celda (no «Centro/Norte»)", "Números como números, no como texto"] },
-        { icono: "🔤", titulo: "Orden alfabético", texto: "«Abril» sale antes que «Enero». Por eso usamos «01 Ene», «02 Feb»… o fechas de verdad (Sheets: clic derecho › Crear grupo de fechas)." },
-        { icono: "✋", titulo: "No escribas encima", texto: "La tabla dinámica se rearma sola y borra lo que le escribas. Si necesitas cuentas extra, hazlas al lado." },
-        { icono: "🔄", titulo: "Sheets vs. Excel", texto: "Sheets se actualiza solo cuando cambian los datos. En Excel hay que pulsar «Actualizar».", color: "amarilla" },
-      ],
-    },
-    {
-      tipo: "pregunta",
-      seccion: "Tablas dinámicas",
-      id: "p3-dinamica",
-      pregunta: "Quieres saber cuántas atenciones hubo por sede. ¿Qué pones en Valores?",
-      opciones: ["Sede, resumido con SUMA", "Cualquier campo de texto, resumido con CONTARA", "Valor, resumido con MAX", "Nada: con Filas basta"],
-      correcta: 1,
-      explicacion: "Contar atenciones = contar filas: cualquier campo que siempre esté lleno (Servicio, Sede…) resumido con CONTARA. SUMA de un texto da 0.",
-    },
-    {
-      tipo: "tabla",
-      seccion: "Tablas dinámicas",
-      eyebrow: "En Google Sheets (y en Excel)",
-      titulo: "Crear una tabla dinámica, paso a paso",
-      guia: "En Excel: Insertar › Tabla dinámica, y las cuatro zonas aparecen a la derecha para arrastrar los campos.",
-      columnas: ["Paso", "En Google Sheets"],
-      filas: [
-        ["1. Selecciona", "Toda la tabla con encabezados (clic en A1 y Ctrl + A)"],
-        ["2. Inserta", "Insertar › Tabla dinámica › Hoja nueva › Crear"],
-        ["3. Filas / Columnas", "En el editor, «Añadir» junto a Filas o Columnas y escoge el campo"],
-        ["4. Valores", "«Añadir» junto a Valores; en «Resumir por» escoge SUMA, COUNTA, AVERAGE…"],
-        ["5. Filtros", "«Añadir» junto a Filtros › Estado › desmarca lo que no quieras"],
-        ["¿Se cerró el editor?", "Haz clic en cualquier celda de la tabla dinámica: aparece el botón Editar"],
-      ],
-      cierre: "En la app de Sheets del celular no se crean ni se editan tablas dinámicas: usa Chrome en modo «Sitio de escritorio» o un computador.",
-    },
-    {
-      tipo: "actividad",
-      seccion: "Tablas dinámicas",
-      actividad: "checklist",
-      id: "sheets-dinamica",
-      titulo: "Tu primera tabla dinámica",
-      intro: "Abre Apellido_Nombre_Atenciones (160 atenciones de enero a junio).",
-      guia: "Haz una tabla dinámica nueva para cada pregunta o cambia los campos de la misma: las dos formas sirven.",
-      enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
-      pasos: [
-        {
-          id: "crear",
-          texto: "Selecciona los datos › Insertar › Tabla dinámica › Hoja nueva",
-          variantes: {
-            celular: {
-              texto: "Abre la hoja en Chrome en modo escritorio y crea la tabla dinámica (Insertar › Tabla dinámica › Hoja nueva)",
-              ayuda: "La app de Sheets no crea ni edita tablas dinámicas. En Chrome: abre sheets.google.com › ⋮ › Sitio de escritorio (en iPhone: ⋯ › Solicitar sitio de escritorio) y abre tu archivo. Se ve pequeño: acerca con dos dedos. Si no te funciona, esta actividad queda para cuando tengas un computador; la simulación anterior ya te enseñó cómo se arma.",
-            },
-          },
-        },
-        { id: "area", texto: "¿Cuántas atenciones por Área? Filas: Área · Valores: Servicio (COUNTA)" },
-        { id: "sede", texto: "¿Cuánto se facturó por Sede? Filas: Sede · Valores: Valor (SUM)" },
-        { id: "cruce", texto: "Cruza: Filas: Servicio · Columnas: Sede · Valores: Valor (SUM)" },
-        { id: "filtro", texto: "Filtros: Estado › deja solo «Atendida»" },
-      ],
-    },
-    {
-      tipo: "contenido",
-      seccion: "Tablas dinámicas",
-      eyebrow: "Mini panel",
-      titulo: "Gráfico dinámico y control de filtros",
-      guia: "Si haces un gráfico desde una tabla dinámica, el gráfico cambia cuando cambias la tabla. Y con un control de filtros, que en Excel se llama segmentación de datos, cualquiera puede filtrar con un clic sin abrir el editor. Tabla, gráfico y control juntos son un mini panel, como los que se ven en las reuniones.",
-      columnas: 3,
-      tarjetas: [
-        { icono: "📈", titulo: "Gráfico de la tabla dinámica", texto: "Clic dentro de la tabla dinámica › Insertar › Gráfico. Se actualiza solo." },
-        { icono: "🎛️", titulo: "Control de filtros", texto: "Datos › Agregar un control de filtros › escoge el campo (Sede). En Excel: Segmentación de datos." },
-        { icono: "🖥️", titulo: "Un mini panel", texto: "Tabla + gráfico + control en una hoja: cambias la sede y todo se mueve.", color: "amarilla" },
-      ],
-    },
-    {
-      tipo: "actividad",
-      seccion: "Tablas dinámicas",
-      actividad: "checklist",
-      id: "sheets-panel",
-      titulo: "Tu mini panel",
-      intro: "En Apellido_Nombre_Atenciones.",
-      guia: "Si el control de filtros no cambia el gráfico, revisa que el gráfico salga de la tabla dinámica y no de los datos.",
-      enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
-      pasos: [
-        {
-          id: "mes",
-          texto: "Tabla dinámica nueva: Filas: Mes · Valores: Valor (SUM)",
-          variantes: { celular: { ayuda: "Como la anterior, en Chrome con «Sitio de escritorio»: la app no crea tablas dinámicas. Si no te funciona, este mini panel queda para cuando tengas un computador." } },
-        },
-        {
-          id: "lineas",
-          texto: "Clic dentro de la tabla › Insertar › Gráfico › Líneas, con título",
-          variantes: { celular: { ayuda: "En la app sí puedes: selecciona la tabla dinámica › «+» › Gráfico › Tipo › Líneas; el título en Editar gráfico › Títulos." } },
-        },
-        {
-          id: "control",
-          texto: "Datos › Agregar un control de filtros › Sede",
-          variantes: { celular: { ayuda: "El control de filtros no está en la app: créalo y pruébalo en Chrome con «Sitio de escritorio», o déjalo para cuando tengas un computador." } },
-        },
-        { id: "probar", texto: "Escoge una sola sede en el control y mira cómo cambian la tabla y el gráfico" },
-      ],
-    },
-
-    // ───────────────────────── ENTREGABLE ─────────────────────────
-    {
-      tipo: "tarea",
-      seccion: "Entregable",
-      eyebrow: "Entregable 3 · Hacer",
-      titulo: "Panel de atenciones",
-      guia: "Este es el entregable de hojas de cálculo: junta todo lo de hoy. Empiézalo ya y termínalo en casa. Los datos son distintos a los de la clase, así que no sirve copiar: tienes que armar las fórmulas tú.",
-      entrega: "Próximo domingo, antes de las 7:00 a. m.",
-      intro: "Con el archivo TICs3_Entregable.xlsx (140 atenciones de las sedes Bogotá e Itagüí):",
-      preguntas: [
-        "En la hoja Atenciones, trae el nombre de cada profesional con BUSCARV o BUSCARX.",
-        "En la hoja Panel, responde las 9 preguntas con fórmulas (nada escrito a mano): CONTARA, SUMA, REDONDEAR(PROMEDIO), CONTAR.SI, el % de canceladas, SUMAR.SI por sede, CONTAR.SI.CONJUNTO y MAX.",
-        "Haz una tabla dinámica en una hoja nueva: atenciones por Servicio (filas) y Sede (columnas), contando.",
-        "En la hoja Panel, dos gráficos con título: líneas con lo facturado por mes y circular con las atenciones por régimen.",
-        "Bonus: formato condicional que pinte de rojo las atenciones «Cancelada».",
-      ],
-      formato: [
-        "Hoja de Google: TICs_Salud › Hojas de cálculo",
-        "Nombre: Apellido_Nombre_Panel",
-        "Archivo › Descargar › Microsoft Excel (.xlsx)",
-        "Subido en Q10 a «Entregable 3: Panel de atenciones»",
-      ],
-    },
-    {
-      tipo: "actividad",
-      seccion: "Entregable",
-      actividad: "checklist",
-      id: "entregable",
-      titulo: "Mi panel, paso a paso",
-      intro: "Marca cada paso cuando lo hagas. Si no terminas hoy, tienes hasta el próximo domingo.",
-      guia: "Marca solo lo que de verdad hiciste. Si lo terminas después, vuelve a esta diapositiva y marca lo que te faltaba; luego reenvía el reporte desde la última diapositiva.",
-      archivos: [ARCHIVO_ENTREGABLE],
-      enlace: DRIVE,
-      pasos: [
-        {
-          id: "preparar",
-          texto: "Lo subí a mi Drive, lo guardé como hoja de Google y lo llamé Apellido_Nombre_Panel",
-          variantes: { celular: { ayuda: "Igual que al inicio de la clase: app Drive › «+» › Subir; en la app Sheets, ⋮ › Guardar como Hojas de cálculo de Google; y en Drive, ⋮ › Cambiar nombre." } },
-        },
-        { id: "buscar", texto: "Columna Profesional con BUSCARV o BUSCARX (sin #N/A)" },
-        { id: "panel", texto: "Las 9 preguntas del Panel respondidas con fórmulas", ayuda: "Para el %: =B6/B3 (canceladas entre el total) con formato de porcentaje." },
-        {
-          id: "dinamica",
-          texto: "Tabla dinámica: Servicio × Sede, contando",
-          variantes: { celular: { ayuda: "La app no crea tablas dinámicas: hazla en Chrome con ⋮ › Sitio de escritorio (en iPhone: ⋯ › Solicitar sitio de escritorio) o en un computador." } },
-        },
-        {
-          id: "lineas",
-          texto: "Gráfico de líneas: facturado por mes, con título",
-          ayuda: "Primero una tabla dinámica Mes × Valor (SUM) y el gráfico desde ella.",
-          variantes: {
-            celular: { ayuda: "Primero una tabla dinámica Mes × Valor (SUM), en modo escritorio. Sin computador, otra opción: una tablita con cada mes y =SUMAR.SI, y el gráfico desde ella con «+» › Gráfico › Tipo › Líneas." },
-          },
-        },
-        {
-          id: "circular",
-          texto: "Gráfico circular: atenciones por régimen, con título",
-          variantes: { celular: { ayuda: "Una tablita con cada régimen y CONTAR.SI › selecciónala › «+» › Gráfico › Tipo › Circular; el título en Editar gráfico › Títulos." } },
-        },
-        {
-          id: "descargar",
-          texto: "Lo descargué en Excel (.xlsx)",
-          ayuda: "Archivo › Descargar › Microsoft Excel. Queda en Descargas.",
-          variantes: {
-            celular: { texto: "Lo guardé en Excel (.xlsx)", ayuda: "En la app Sheets: ⋮ › Compartir y exportar › Guardar como › Excel (.xlsx) (queda una copia en tu Drive). En iPhone: Enviar una copia › Excel › Guardar en Archivos." },
-          },
-        },
-        {
-          id: "q10",
-          texto: "Lo subí en Q10 a «Entregable 3: Panel de atenciones»",
-          variantes: { celular: { ayuda: "Entra a Q10 desde el navegador del celular. Al adjuntar el archivo, escoge el .xlsx desde Drive o desde Archivos." } },
-        },
-      ],
-    },
-
     // ───────────────────────── QUIZ (Q10) ─────────────────────────
     {
       tipo: "externo",
       seccion: "Quiz",
       eyebrow: "En casa",
       titulo: "Quiz de la clase 3",
-      guia: "El quiz de la clase 3 (funciones, gráficos y tablas dinámicas) está en Q10. Hazlo antes del próximo domingo, sin mirar la clase.",
-      notas: "Base en quices/quiz4_funciones.md y quices/quiz3_graficos_tablas_dinamicas.md. Si sobra tiempo, puede hacerse aquí mismo.",
+      guia: "El quiz de la clase 3 (funciones) está en Q10. Hazlo antes del próximo domingo, sin mirar la clase.",
+      notas: "Base en quices/quiz4_funciones.md (las preguntas de gráficos y tablas dinámicas, quiz3_graficos_tablas_dinamicas.md, quedan para la clase 4). Si sobra tiempo, puede hacerse aquí mismo.",
       plataforma: "Q10",
       duracion: "20 minutos",
       pasos: [
@@ -1332,8 +883,7 @@ export const TICS_3: Leccion = {
         { icono: "🔢", tema: "Contar", pregunta: "¿Qué diferencia hay entre CONTAR y CONTARA?" },
         { icono: "🔀", tema: "Condicionales", pregunta: "¿Cómo cuentas los turnos cancelados? ¿Y los urgentes de Enfermería?" },
         { icono: "🔎", tema: "Buscar", pregunta: "¿Por qué BUSCARV lleva FALSO al final? ¿Qué ventaja tiene BUSCARX?" },
-        { icono: "📊", tema: "Gráficos", pregunta: "¿Qué gráfico usas para ver la facturación mes a mes? ¿Y para el reparto por régimen?" },
-        { icono: "🧩", tema: "Tablas dinámicas", pregunta: "¿Cuáles son las 4 zonas y qué va en cada una?" },
+        { icono: "▦", tema: "Tablas", pregunta: "¿Qué ventaja tiene escribir Turnos[Estado] en vez de $D$2:$D$9?" },
       ],
     },
     {
@@ -1341,14 +891,14 @@ export const TICS_3: Leccion = {
       seccion: "Cierre",
       modo: "vivo",
       titulo: "¡Gracias!",
-      proxima: "Próximo domingo, la última clase: inteligencia artificial y exposiciones. Suban el Entregable 3 y el quiz de la clase 3 a Q10 antes de las 7:00 a. m.",
+      proxima: "Próximo domingo, la última clase: gráficos, tablas dinámicas, inteligencia artificial y exposiciones. Hagan el quiz de la clase 3 en Q10 antes de las 7:00 a. m.",
     },
     {
       tipo: "terminar",
       seccion: "Cierre",
       modo: "ritmo",
       titulo: "¡Llegaste al final de la clase 3!",
-      proxima: "Sube el Entregable 3 y haz el quiz de la clase 3 en Q10 antes del próximo domingo a las 7:00 a. m.",
+      proxima: "Haz el quiz de la clase 3 en Q10 antes del próximo domingo a las 7:00 a. m. La próxima clase: gráficos, tablas dinámicas, IA y exposiciones.",
     },
   ],
 };
