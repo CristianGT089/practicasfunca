@@ -52,13 +52,13 @@ export default function Clasificar({
                 {bien ? "✅ " : mal ? "🔄 " : ""}
                 {item.texto}
               </span>
-              <span className="flex gap-1.5">
+              <span className="flex flex-wrap gap-1.5">
                 {categorias.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => responder(item, c.id)}
                     disabled={bien}
-                    className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
+                    className={`rounded-full px-3 py-2 text-sm font-semibold transition-colors pointer-coarse:min-h-11 pointer-coarse:px-4 ${
                       r === c.id
                         ? bien
                           ? "bg-emerald-600 text-white"

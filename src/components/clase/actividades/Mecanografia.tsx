@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { calcularPpm, NIVELES_MECANOGRAFIA, type IntentoMecanografia } from "@/lib/clase/mecanografia";
 import { useProgreso } from "../progreso";
+import { useDispositivo } from "@/lib/clase/dispositivo";
 
-type Datos = { intentos: IntentoMecanografia[]; ignorarTildes?: boolean };
+/** `omitidaEnCelular`: la vio en el celular y siguió sin hacerla (necesita teclado físico). */
+type Datos = { intentos: IntentoMecanografia[]; ignorarTildes?: boolean; omitidaEnCelular?: boolean };
 
 const sinTildes = (c: string) => c.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -43,6 +45,8 @@ export default function Mecanografia({ id }: { id: string }) {
   const { datos, guardar, cargado } = useProgreso<Datos>(id);
   const intentos = useMemo(() => datos?.intentos ?? [], [datos]);
   const ignorarTildes = !!datos?.ignorarTildes;
+  const celular = useDispositivo() === "celular";
+  const [practicarIgual, setPracticarIgual] = useState(false);
 
   // null = todavía no eligió: se retoma donde iba.
   const [posicion, setPosicion] = useState<{ nivel: number; texto: number } | null>(null);
@@ -120,7 +124,7 @@ export default function Mecanografia({ id }: { id: string }) {
       // Fija la posición: si no, al guardar el intento "dónde retomar" saltaría al siguiente texto.
       setPosicion({ nivel, texto });
       entrada.current?.blur();
-      guardar({ intentos: [...intentos, intento].slice(-80), ignorarTildes }, true);
+      guardar({ intentos: [...intentos, intento].slice(-80), ignorarTildes, omitidaEnCelular: datos?.omitidaEnCelular }, true);
     }
   }
 
@@ -137,6 +141,33 @@ export default function Mecanografia({ id }: { id: string }) {
   const recienAbierto = !!resultado && esUltimoTexto && siguienteAbierto && hechos.size === nivelActual.textos.length;
 
   if (!cargado) return <p className="text-slate-500">Cargando tu progreso…</p>;
+
+  if (celular && !practicarIgual)
+    return (
+      <div className="flex flex-col gap-3 rounded-3xl border-2 border-gold-500/50 bg-gold-50 p-4 sm:p-6">
+        <p className="font-heading text-lg font-bold text-blue-950">⌨️ Esta práctica necesita un teclado físico</p>
+        <p className="text-slate-700">
+          La mecanografía es escribir con los diez dedos sin mirar. Con el pulgar no se practica lo mismo, y el corrector del celular cambia palabras y te marcaría errores que no son tuyos.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <li>Hazla cuando tengas un computador: en FUNCA, en una biblioteca o en un café internet. Entras con tu usuario y sigues donde ibas.</li>
+          <li>Mientras tanto, en el celular aprovecha el dictado por voz (🎤 del teclado): escribe por ti en Docs y WhatsApp.</li>
+          <li>Repasa la técnica: índices en la F y la J (tienen una rayita), espalda recta y la vista en la pantalla.</li>
+        </ul>
+        <div className="flex flex-wrap gap-2">
+          {datos?.omitidaEnCelular ? (
+            <p className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-emerald-800">✓ Ya puedes seguir con la clase. Te queda pendiente para el computador.</p>
+          ) : (
+            <button className="btn-primario" onClick={() => guardar({ intentos, ignorarTildes, omitidaEnCelular: true })}>
+              Entendido, la hago en un computador
+            </button>
+          )}
+          <button className="btn-suave" onClick={() => setPracticarIgual(true)}>
+            Tengo teclado conectado: practicar aquí
+          </button>
+        </div>
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -164,7 +195,7 @@ export default function Mecanografia({ id }: { id: string }) {
           <input
             type="checkbox"
             checked={ignorarTildes}
-            onChange={(e) => guardar({ intentos, ignorarTildes: e.target.checked })}
+            onChange={(e) => guardar({ intentos, ignorarTildes: e.target.checked, omitidaEnCelular: datos?.omitidaEnCelular })}
             className="h-4 w-4 accent-blue-800"
           />
           Ignorar tildes y ñ

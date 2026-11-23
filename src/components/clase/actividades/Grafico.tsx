@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RetoGrafico, TipoGrafico } from "@/lib/clase/tipos";
 import { letraColumna, mostrarNumero } from "@/lib/clase/formulas";
 import { useProgreso } from "../progreso";
@@ -37,6 +37,21 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
   const [serie, setSerie] = useState(() => columnaFinal(base));
   const [titulo, setTitulo] = useState("");
   const [mensaje, setMensaje] = useState<{ bien: boolean; texto: string } | null>(null);
+  // Celular y tableta: editor y gráfico no caben a la vista a la vez, se alternan con pestañas.
+  // «cambio» marca la pestaña del gráfico cuando se tocó el editor y el dibujo ya no es el que se vio.
+  const [vista, setVista] = useState<"editor" | "grafico">("editor");
+  const [cambio, setCambio] = useState(false);
+  const verVista = (v: "editor" | "grafico") => {
+    setVista(v);
+    if (v === "grafico") setCambio(false);
+  };
+  /** Envuelve un cambio del editor para avisar en la pestaña «Gráfico». */
+  const editar =
+    <T,>(fn: (v: T) => void) =>
+    (v: T) => {
+      fn(v);
+      setCambio(true);
+    };
 
   const numericas = encabezados.map((_, c) => filas.every((f) => typeof f[c] === "number"));
   const valores = filas.map((f) => (typeof f[serie] === "number" ? (f[serie] as number) : 0));
@@ -49,6 +64,8 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
     const t = retos[i ?? (actual === -1 ? retos.length - 1 : actual)]?.datos ?? base;
     setSerie(columnaFinal(t));
     setTitulo("");
+    setCambio(false);
+    setVista("editor");
   }
 
   function insertar() {
@@ -69,18 +86,17 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
     const n = new Set(hechos).add(indice);
     guardar({ hechos: [...n], fallos: datos?.fallos ?? 0 }, retos.every((_, i) => n.has(i)));
     setVisto(indice); // el gráfico resuelto queda a la vista hasta pulsar «Siguiente reto»
+    verVista("grafico");
     setMensaje({ bien: true, texto: `¡Muy bien! ${reto.porque ?? ""}` });
   }
 
   return (
     <div className="flex flex-col">
       <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className={`flex-1 rounded-2xl px-4 py-3 font-heading text-lg font-bold ${hechos.has(indice) ? "bg-emerald-50 text-emerald-800" : "bg-blue-900 text-white"}`}>
-            {hechos.has(indice) ? "✅ " : "📊 "}
-            {reto.texto}
-          </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <RetoFijo key={indice} texto={`${hechos.has(indice) ? "✅ " : "📊 "}${reto.texto}`} clase={hechos.has(indice) ? "bg-emerald-50 text-emerald-800" : "bg-blue-900 text-white"} />
           <div className="flex items-center gap-1">
+            <span className="mr-1 text-xs font-semibold text-blue-900">Retos</span>
             {retos.map((_, i) => (
               <button
                 key={i}
@@ -89,8 +105,8 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
                   setMensaje(null);
                 }}
                 disabled={!hechos.has(i) && i !== actual}
-                title={`Reto ${i + 1}`}
-                className={`h-7 w-7 rounded-full text-xs font-bold ${i === indice ? "ring-2 ring-blue-900" : ""} ${
+                aria-label={`Reto ${i + 1}${hechos.has(i) ? " (resuelto)" : i === actual ? " (el que sigue)" : " (bloqueado)"}`}
+                className={`h-7 w-7 rounded-full pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:text-sm text-xs font-bold ${i === indice ? "ring-2 ring-blue-900" : ""} ${
                   hechos.has(i) ? "bg-emerald-500 text-white" : i === actual ? "bg-gold-500 text-blue-900" : "bg-slate-200 text-slate-400"
                 }`}
               >
@@ -100,8 +116,8 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <p className={`min-h-6 flex-1 text-sm font-semibold ${mensaje ? (mensaje.bien ? "text-emerald-700" : "text-rose-700") : "text-slate-500"}`} aria-live="polite">
-            {mensaje?.texto ?? "Arma el gráfico en el editor de la derecha y pulsa «Insertar gráfico»."}
+          <p className={`flex-1 text-[13px] font-semibold leading-snug sm:min-h-6 sm:text-sm ${mensaje ? (mensaje.bien ? "text-emerald-700" : "text-rose-700") : "text-slate-500"}`} aria-live="polite">
+            {mensaje?.texto ?? "Arma el gráfico en el editor y pulsa «Insertar gráfico»."}
           </p>
           {mensaje?.bien && actual !== -1 && actual !== indice && (
             <button
@@ -109,17 +125,35 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
                 reiniciar(null);
                 setMensaje(null);
               }}
-              className="btn-primario !px-3 !py-1.5 text-sm"
+              className="btn-primario !px-3 !py-1.5 text-sm pointer-coarse:min-h-10"
             >
               Siguiente reto →
             </button>
           )}
         </div>
+        <div role="tablist" className="flex rounded-full bg-white p-1 text-sm font-semibold shadow ring-1 ring-slate-200 lg:hidden">
+          {(["editor", "grafico"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={vista === v}
+              onClick={() => verVista(v)}
+              className={`min-h-10 flex-1 rounded-full px-3 ${vista === v ? "bg-blue-900 text-white" : "text-slate-600"}`}
+            >
+              {v === "editor" ? "Editor y datos" : "Gráfico"}
+              {v === "grafico" && cambio && vista !== "grafico" && (
+                <span className="ml-1.5 rounded-full bg-gold-500 px-1.5 py-0.5 text-[11px] text-blue-900">cambió</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Desde lg: datos y gráfico a la izquierda, editor a la derecha. Más angosto, las pestañas
+          muestran el editor (con los datos debajo) o el gráfico. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_290px]">
-        <div className="flex flex-col gap-3">
-          <div className="overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow">
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-3">
+          <div className={`overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow max-lg:order-2 ${vista === "editor" ? "" : "max-lg:hidden"}`}>
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
@@ -150,16 +184,18 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
               </tbody>
             </table>
           </div>
-          {tipo ? (
-            <GraficoSVG tipo={tipo} etiquetas={nombres} valores={valores} titulo={titulo} nombreSerie={String(encabezados[serie])} />
-          ) : (
-            <div className="grid min-h-48 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
-              Escoge un tipo de gráfico en el editor para ver cómo queda.
-            </div>
-          )}
+          <div className={`max-lg:order-3 ${vista === "grafico" ? "" : "max-lg:hidden"}`}>
+            {tipo ? (
+              <GraficoSVG tipo={tipo} etiquetas={nombres} valores={valores} titulo={titulo} nombreSerie={String(encabezados[serie])} />
+            ) : (
+              <div className="grid min-h-48 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
+                Escoge un tipo de gráfico en el editor para ver cómo queda.
+              </div>
+            )}
+          </div>
         </div>
 
-        <aside className="flex flex-col gap-3 self-start rounded-2xl border border-slate-300 bg-white p-4 shadow">
+        <aside className={`flex flex-col gap-3 self-start rounded-2xl border border-slate-300 bg-white p-4 shadow max-lg:order-1 ${vista === "editor" ? "" : "max-lg:hidden"}`}>
           <p className="font-heading font-bold text-blue-900">Editor de gráficos</p>
           <div>
             <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Tipo de gráfico</p>
@@ -167,9 +203,9 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
               {TIPOS_GRAFICO.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => setTipo(t.id)}
+                  onClick={() => editar(setTipo)(t.id)}
                   aria-pressed={tipo === t.id}
-                  className={`rounded-xl border-2 px-2 py-2 text-sm font-semibold ${tipo === t.id ? "border-blue-700 bg-blue-50 text-blue-900" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
+                  className={`rounded-xl border-2 px-2 py-2 text-sm font-semibold pointer-coarse:min-h-11 ${tipo === t.id ? "border-blue-700 bg-blue-50 text-blue-900" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
                 >
                   <span className="mr-1" aria-hidden>
                     {t.icono}
@@ -184,7 +220,11 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
               <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-gold-100 align-middle" />
               Eje X (etiquetas)
             </span>
-            <select value={etiquetas} onChange={(e) => setEtiquetas(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 px-2 py-1.5">
+            <select
+              value={etiquetas}
+              onChange={(e) => editar(setEtiquetas)(Number(e.target.value))}
+              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
+            >
               {encabezados.map((h, c) => (
                 <option key={c} value={c}>
                   {letraColumna(c)} · {h}
@@ -197,7 +237,11 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
               <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-blue-200 align-middle" />
               Serie (valores)
             </span>
-            <select value={serie} onChange={(e) => setSerie(Number(e.target.value))} className="w-full rounded-lg border border-slate-300 px-2 py-1.5">
+            <select
+              value={serie}
+              onChange={(e) => editar(setSerie)(Number(e.target.value))}
+              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
+            >
               {encabezados.map((h, c) => (
                 <option key={c} value={c}>
                   {letraColumna(c)} · {h}
@@ -207,13 +251,55 @@ export default function Grafico({ id, datos: base, retos }: { id: string; datos:
           </label>
           <label className="text-sm">
             <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Personalizar › Título</span>
-            <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Escribe un título" className="w-full rounded-lg border border-slate-300 px-2 py-1.5" />
+            <input
+              value={titulo}
+              onChange={(e) => editar(setTitulo)(e.target.value)}
+              placeholder="Escribe un título"
+              enterKeyHint="done"
+              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
+            />
           </label>
           <button onClick={insertar} className="btn-cta mt-1">
             Insertar gráfico
           </button>
+          {tipo && (
+            <button onClick={() => verVista("grafico")} className="btn-suave text-sm lg:hidden">
+              Ver cómo va el gráfico
+            </button>
+          )}
         </aside>
       </div>
     </div>
+  );
+}
+
+/** El reto del bloque fijo: en el celular a lo sumo dos líneas, y se despliega al tocarlo. */
+function RetoFijo({ texto, clase }: { texto: string; clase: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [cortado, setCortado] = useState(false);
+  const caja = useRef<HTMLSpanElement>(null);
+  // ¿El recorte a dos líneas esconde parte del texto? (solo entonces se ofrece «Ver todo»).
+  useEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const medir = () => setCortado(el.scrollHeight > el.clientHeight + 1);
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  const desplegable = cortado || abierto;
+  return (
+    <button
+      type="button"
+      onClick={() => desplegable && setAbierto((a) => !a)}
+      aria-expanded={desplegable ? abierto : undefined}
+      className={`min-w-0 flex-1 basis-60 cursor-default rounded-2xl px-3 py-2 text-left font-heading text-base font-bold leading-snug sm:px-4 sm:py-3 sm:text-lg ${clase} ${desplegable ? "max-sm:cursor-pointer" : ""}`}
+    >
+      <span ref={caja} className={abierto ? "block" : "line-clamp-2 sm:line-clamp-none"}>
+        {texto}
+      </span>
+      {desplegable && <span className="mt-0.5 block text-xs font-semibold opacity-75 sm:hidden">{abierto ? "Ver menos ▴" : "Ver todo el reto ▾"}</span>}
+    </button>
   );
 }

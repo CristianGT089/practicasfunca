@@ -15,7 +15,13 @@ export type Tarjeta = {
 
 export type ItemClasificar = { id: string; texto: string; correcta: string };
 
-export type PasoChecklist = { id: string; texto: string; ayuda?: string };
+export type PasoChecklist = {
+  id: string;
+  texto: string;
+  ayuda?: string;
+  /** Otra redacción del paso para un equipo (p. ej. en el celular se hace desde la app de Drive). */
+  variantes?: Partial<Record<"celular" | "mac" | "windows" | "chromebook", { texto?: string; ayuda?: string }>>;
+};
 
 /** Reto de la interfaz simulada: tocar la parte de la ventana que se pide. */
 export type RetoInterfaz = { zona: string; pista: string; explicacion?: string };
@@ -58,6 +64,8 @@ export type RetoFormula = {
    * "E2:E6". Se revisa cada copia: sirve para enseñar las referencias fijas con $.
    */
   copiar?: string;
+  /** Exige usar una referencia de tabla (Inventario[Unidades]) de las `tablas` de la actividad. */
+  exigeTabla?: boolean;
 };
 
 export type TipoGrafico = "columnas" | "barras" | "lineas" | "circular";
@@ -221,6 +229,11 @@ export type Diapositiva = DiapositivaBase &
         /** Qué ventana se simula. */
         app: "docs" | "sheets";
         retos: RetoInterfaz[];
+        /**
+         * Retos para la app de Docs o Sheets del celular (se muestra en vez de la ventana de
+         * computador cuando el estudiante entra desde el celular). Las zonas empiezan con «m-».
+         */
+        retosCelular?: RetoInterfaz[];
       }
     | {
         tipo: "actividad";
@@ -262,6 +275,11 @@ export type Diapositiva = DiapositivaBase &
         intro?: string;
         /** La hoja desde A1 (la fila 1 son los encabezados). */
         datos: (string | number)[][];
+        /**
+         * Tablas con nombre dentro de la hoja (como «Convertir en tabla» de Sheets), p. ej.
+         * `{ nombre: "Turnos", rango: "A1:F9" }`: así se puede escribir `Turnos[Estado]`.
+         */
+        tablas?: { nombre: string; rango: string }[];
         retos: RetoFormula[];
       }
     | {

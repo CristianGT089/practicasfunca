@@ -22,7 +22,7 @@ export default function Pregunta(props: Props) {
       <span className="inline-flex items-center gap-2 rounded-full bg-blue-800 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
         💭 Pregunta rápida · no tiene nota
       </span>
-      <h2 className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-blue-900 sm:text-5xl">{props.pregunta}</h2>
+      <h2 className="mt-3 break-words font-heading text-2xl font-extrabold tracking-tight text-blue-900 min-[400px]:text-3xl sm:text-5xl">{props.pregunta}</h2>
       {props.sesionPresentador ? <Compilado {...props} sesionId={props.sesionPresentador} /> : <Votar {...props} />}
     </div>
   );
@@ -40,7 +40,7 @@ function Votar({ id, opciones, correcta, explicacion }: Props) {
 
   return (
     <div className="mt-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {opciones.map((o, i) => {
           const esElegida = elegida === i;
           const esCorrecta = revelada && hayCorrecta && i === correcta;
@@ -60,7 +60,7 @@ function Votar({ id, opciones, correcta, explicacion }: Props) {
               onClick={() => guardar({ opcion: i }, true)}
               disabled={revelada}
               aria-pressed={esElegida}
-              className={`flex items-center gap-4 rounded-3xl border-2 px-5 py-4 text-left text-xl font-semibold transition-all disabled:cursor-default ${estilo} ${
+              className={`flex items-center gap-3 rounded-3xl border-2 px-4 py-3.5 text-left text-lg font-semibold transition-all disabled:cursor-default sm:gap-4 sm:px-5 sm:py-4 sm:text-xl ${estilo} ${
                 esElegida && !revelada ? "scale-[1.02]" : ""
               }`}
             >
@@ -71,7 +71,7 @@ function Votar({ id, opciones, correcta, explicacion }: Props) {
               >
                 {esCorrecta ? "✓" : esError ? "✗" : LETRAS[i]}
               </span>
-              <span className="flex-1">{o}</span>
+              <span className="min-w-0 flex-1 break-words">{o}</span>
               {revelada && esElegida && <span className="shrink-0 text-xs font-bold uppercase tracking-wider opacity-70">Tu respuesta</span>}
             </button>
           );

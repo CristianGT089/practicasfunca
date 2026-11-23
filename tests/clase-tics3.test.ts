@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TICS_3 } from "../src/lib/clase/lecciones/tics3";
-import { celdaAIndices, celdasDeRango, desplazar, evaluar, type Hoja } from "../src/lib/clase/formulas";
+import { celdaAIndices, celdasDeRango, desplazar, evaluar, usaTablas, type Hoja } from "../src/lib/clase/formulas";
 import { calcularDinamica, faltaEnDinamica, type ConfigDinamica } from "../src/lib/clase/dinamica";
 
 test("clase 3: ids únicos", () => {
@@ -18,7 +18,7 @@ test("clase 3: cada solución de fórmulas calcula sin error, también al copiar
       for (const celda of r.copiar ? celdasDeRango(r.copiar) : [r.celda]) {
         const c = celdaAIndices(celda)!;
         const f = desplazar(r.solucion, c.fila - origen.fila, c.col - origen.col);
-        const v = evaluar(f, hoja);
+        const v = evaluar(f, hoja, { tablas: d.tablas, celda });
         assert.notEqual(v, null, `${d.id} ${celda}: ${f}`);
         while (hoja.length <= c.fila) hoja.push([]);
         hoja[c.fila][c.col] = v;
@@ -36,6 +36,17 @@ test("clase 3: las respuestas de la tabla dinámica salen de la tabla", () => {
       if (r.respuesta === undefined) continue;
       const t = calcularDinamica(d.datos, c);
       assert.ok(t.celdas.flat().some((x) => x !== null && Math.abs(x - r.respuesta!) < 0.5), `${r.texto} → ${r.respuesta}`);
+    }
+  }
+});
+
+test("clase 3: los retos que exigen tabla tienen tabla y la solución la usa", () => {
+  for (const d of TICS_3.diapositivas) {
+    if (d.tipo !== "actividad" || d.actividad !== "formulas") continue;
+    for (const r of d.retos) {
+      if (!r.exigeTabla) continue;
+      assert.ok(d.tablas?.length, `${d.id} ${r.celda}: no tiene tablas`);
+      assert.ok(usaTablas(r.solucion).tabla, `${d.id} ${r.celda}: la solución no usa la tabla`);
     }
   }
 });

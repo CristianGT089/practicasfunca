@@ -41,6 +41,9 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   escalan con el ancho y se recorren con scroll, con el reto fijo arriba (`sticky top-0`). En
   monitores anchos crece (ancho/1390, máx. 2) y el zoom del presentador (A−/A+) se multiplica.
   Revisado a 1366×768 (Chromebook): ninguna presentación de las clases 1–3 necesita scroll.
+  En pantallas de menos de 640 px (celular) las presentaciones **no se encogen**: zoom 1 y scroll;
+  `pregunta` y `terminar` nunca se encogen. En celular se pasa de diapositiva deslizando de lado
+  (solo en presentaciones) y el pie se oculta mientras se escribe en una caja de texto.
 - Los quices van en Q10: en la lección solo se anuncian con una diapositiva `externo` (y en la
   clase a tu ritmo, un checklist «¿Hiciste el quiz?»).
 - Mecanografía progresiva: cada nivel tiene sus textos en orden («Texto 2 de 5»); el siguiente nivel
@@ -69,6 +72,47 @@ asistencia). Se da por desconectado a quien lleva 20 s sin consultar.
   clase en vivo y repaso; `ritmo:<recorridoId>` = una clase a tu ritmo. Así cada clase a tu ritmo
   tiene sus propios resultados: no se mezcla con la clase en vivo ni con otra asignación de la
   misma lección. No depende de la sesión: si se desconecta o practica en casa lo retoma.
+
+## Cualquier equipo: celular, Chromebook, Windows, Mac
+
+Muchos estudiantes no tienen computador y siguen la clase desde el celular. La plataforma detecta
+el equipo (`src/lib/clase/dispositivo.ts`: `useDispositivo()`, por el navegador; el estudiante lo
+corrige con el chip de la cabecera y queda en `localStorage`) y adapta:
+
+- **Atajos:** en Mac las diapositivas cambian Ctrl → ⌘ y Alt → ⌥ Option (`adaptarAtajos`, salvo
+  textos de un sistema concreto). Las tablas que comparan sistemas resaltan la columna «tu equipo».
+- **Checklists:** cada paso puede traer `variantes` por equipo (`celular`, `mac`, `windows`,
+  `chromebook`) con su texto y su ayuda (p. ej. la app de Sheets en vez de los menús de escritorio).
+- **Actividades:** la práctica de atajos tiene versión para cada sistema y, en el celular, un quiz
+  de qué hace cada atajo + tareas con pulsación larga + gestos del celular. La mecanografía avisa
+  que necesita teclado físico y deja seguir (`omitidaEnCelular`, no bloquea la clase a tu ritmo;
+  el reporte lo muestra). La interfaz simula la **app** de Docs/Sheets del celular (`retosCelular`).
+- **Pantallas pequeñas:** las presentaciones no se encogen (zoom 1 y scroll), las simulaciones usan
+  pestañas (editor | resultado) por debajo de `lg`, blancos ≥ 40 px con `pointer-coarse:`, campos
+  de 16 px (iOS no hace zoom) y nada depende solo de hover.
+- **El docente ve el equipo** de cada estudiante (📱/💻/🪟/🍎) en «Progreso» y en el reporte de la
+  clase a tu ritmo (`AsistenciaClase.dispositivo`, `RecorridoClase.dispositivo`; la lista de
+  equipos sin React está en `src/lib/clase/equipos.ts` para las rutas de la API).
+
+## Asistente de fórmulas (como el de Sheets)
+
+`actividades/Formulas.tsx` + `actividades/formulas/BarraFormulas.tsx`:
+
+- **Autocompletar** al escribir `=SU` (funciones en español o inglés y nombres de tablas; Tab,
+  Enter o toque para elegir) y, dentro de `Tabla[`, las columnas.
+- **Tarjeta de ayuda** de la función donde está el cursor: sintaxis con el argumento actual
+  resaltado, ejemplo, ejemplo de salud, resumen y cada argumento. Catálogo en
+  `src/lib/clase/catalogoFunciones.ts`; la lógica del cursor en `src/lib/clase/editorFormula.ts`.
+- **Referencias de colores** en la barra y en la hoja; **vista previa** del resultado; botón **Σ**
+  para insertar funciones; en el celular, **fila de símbolos** (= ( ) ; : " $ …).
+- Clic/toque en una celda agrega su nombre (y reemplaza la recién agregada, como Sheets); arrastrar
+  con el mouse arma el rango; en el celular: celda, «:» y la otra celda. Tocar la letra de una
+  columna agrega la columna de la tabla o sus datos (B2:B9).
+- **Pistas por niveles:** qué función → sintaxis con huecos → respuesta.
+- **Tablas con nombre:** la actividad declara `tablas: [{ nombre: "Turnos", rango: "A1:F9" }]` y el
+  motor entiende `Turnos[Estado]`, la tabla entera (`Profesionales`) y `Turnos[@Estado]` (Excel;
+  al acertar se avisa que Google Sheets no lo tiene). No se corren al copiar. `exigeTabla` en un
+  reto obliga a usarlas.
 
 ## Pensado para Chromebooks
 

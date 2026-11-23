@@ -1,12 +1,13 @@
 "use client";
 
+import { dispositivoActual } from "@/lib/clase/dispositivo";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leccionPorSlug } from "@/lib/clase/lecciones";
 import type { Leccion } from "@/lib/clase/tipos";
 import { requisitoPendiente } from "@/lib/clase/requisitos";
 import { ContextoRecorrido, ProveedorProgreso, useProgresos } from "@/components/clase/progreso";
-import Visor from "@/components/clase/Visor";
+import Visor, { BotonSalir } from "@/components/clase/Visor";
 
 type Recorrido = {
   id: string;
@@ -93,7 +94,7 @@ function Recorrer({ leccion, inicial, nombre }: { leccion: Leccion; inicial: Rec
         fetch(`/api/clase/ritmo/${inicial.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diapositiva: i }),
+          body: JSON.stringify({ diapositiva: i, dispositivo: dispositivoActual() }),
           keepalive: true,
         })
           .then((r) => setConexion(r.ok))
@@ -144,11 +145,11 @@ function Recorrer({ leccion, inicial, nombre }: { leccion: Leccion; inicial: Rec
       Sin conexión. Revisa el Wi-Fi: lo que hiciste está guardado y sigues donde ibas al reconectar.
     </div>
   ) : confirmar !== null && d.tipo === "actividad" ? (
-    <div className="flex flex-wrap items-center justify-center gap-3 bg-gold-100 px-4 py-3 text-sm text-blue-950">
+    <div className="flex max-h-[40dvh] flex-wrap items-center justify-center gap-2 overflow-y-auto bg-gold-100 px-3 py-2 text-sm text-blue-950 sm:gap-3 sm:px-4 sm:py-3">
       <span>
         Aún no terminas <b>«{d.titulo}»</b>. Si sigues, al profe le llega como pendiente (puedes volver después).
       </span>
-      <button onClick={() => setConfirmar(null)} className="btn-cta !py-1.5">
+      <button onClick={() => setConfirmar(null)} className="btn-cta !py-1.5 pointer-coarse:min-h-10">
         Seguir intentando
       </button>
       <button
@@ -156,18 +157,23 @@ function Recorrer({ leccion, inicial, nombre }: { leccion: Leccion; inicial: Rec
           setAceptadas((s) => new Set(s).add(d.id));
           mover(confirmar);
         }}
-        className="btn-suave !py-1.5"
+        className="btn-suave !py-1.5 pointer-coarse:min-h-10"
       >
         Continuar de todas formas
       </button>
     </div>
   ) : verMensaje && inicial.mensaje ? (
-    <div className="flex flex-wrap items-start justify-center gap-3 bg-blue-50 px-4 py-3 text-blue-950">
-      <div className="max-w-3xl">
+    <div className="flex items-start justify-center gap-2 bg-blue-50 px-3 py-2 text-blue-950 sm:gap-3 sm:px-4 sm:py-3">
+      {/* Un mensaje largo no tapa la diapositiva: se lee con scroll. */}
+      <div className="max-h-[35dvh] min-w-0 max-w-3xl flex-1 overflow-y-auto sm:flex-none">
         <p className="text-xs font-bold uppercase tracking-wider text-blue-500">Mensaje de {inicial.docente}</p>
-        <p className="whitespace-pre-line">{inicial.mensaje}</p>
+        <p className="whitespace-pre-line break-words">{inicial.mensaje}</p>
       </div>
-      <button onClick={() => setVerMensaje(false)} className="rounded-full px-2 py-1 text-slate-500 hover:bg-blue-100" aria-label="Cerrar mensaje">
+      <button
+        onClick={() => setVerMensaje(false)}
+        className="grid min-h-8 min-w-8 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-blue-100 pointer-coarse:min-h-10 pointer-coarse:min-w-10"
+        aria-label="Cerrar mensaje"
+      >
         ✕
       </button>
     </div>
@@ -186,22 +192,27 @@ function Recorrer({ leccion, inicial, nombre }: { leccion: Leccion; inicial: Rec
         arriba={
           <>
             {terminadoEn ? (
-              <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">✓ Reporte enviado</span>
+              <span className="whitespace-nowrap rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                ✓ <span className="hidden min-[400px]:inline">Reporte </span>enviado
+              </span>
             ) : (
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">A tu ritmo</span>
+              <span className="whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">A tu ritmo</span>
             )}
             {inicial.mensaje && (
-              <button onClick={() => setVerMensaje((v) => !v)} className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-100 hover:bg-white/10">
-                📨 Mensaje del profe
+              <button
+                onClick={() => setVerMensaje((v) => !v)}
+                aria-label="Mensaje del profe"
+                aria-expanded={verMensaje}
+                className="inline-flex min-h-8 min-w-8 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold text-blue-100 hover:bg-white/10 sm:px-2.5 pointer-coarse:min-h-10 pointer-coarse:min-w-10"
+              >
+                <span aria-hidden>📨</span>
+                <span className="hidden sm:inline">Mensaje del profe</span>
               </button>
             )}
             {nombre && <span className="hidden text-sm text-blue-100 md:inline">{nombre}</span>}
-            <button onClick={() => router.push("/panel")} className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-100 hover:bg-white/10">
-              Salir
-            </button>
+            <BotonSalir onClick={() => router.push("/panel")} />
           </>
         }
-        abajo={falta ? <span className="text-sm font-semibold text-blue-700">🔒 {falta}</span> : null}
       />
     </ContextoRecorrido.Provider>
   );

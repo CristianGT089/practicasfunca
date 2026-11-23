@@ -4,6 +4,7 @@ import { prisma } from "@/lib/nucleo/prisma";
 import { leccionPorSlug } from "@/lib/clase/lecciones";
 import { requisitoPendiente } from "@/lib/clase/requisitos";
 import { contextoRitmo } from "@/lib/clase/servidor";
+import { esDispositivo } from "@/lib/clase/equipos";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -73,7 +74,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   const hecho = await prisma.recorridoClase.update({
     where: { id: r.id },
-    data: { diapositiva, maxima: Math.max(r.maxima, diapositiva), iniciadoEn: r.iniciadoEn ?? new Date() },
+    data: {
+      diapositiva,
+      maxima: Math.max(r.maxima, diapositiva),
+      iniciadoEn: r.iniciadoEn ?? new Date(),
+      ...(esDispositivo(body?.dispositivo) ? { dispositivo: body.dispositivo } : {}),
+    },
   });
   return NextResponse.json({ diapositiva: hecho.diapositiva, maxima: hecho.maxima });
 }

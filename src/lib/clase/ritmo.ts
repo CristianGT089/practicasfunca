@@ -126,7 +126,7 @@ export function armarReporte(leccion: Leccion, progresos: Progreso[]): Reporte {
         const precision = Math.round(intentos.reduce((s, i) => s + i.precision, 0) / intentos.length);
         mecanografia = { nivel: nivel?.nombre ?? "—", textos, mejorPpm: mejor.ppm, precision };
         detalle = `${textos} textos · llegó a ${nivel?.nombre.split(" · ")[0] ?? "—"} · mejor ${mejor.ppm} ppm · ${precision}% de precisión`;
-      } else detalle = "No terminó ningún texto";
+      } else detalle = datos.omitidaEnCelular ? "📱 La dejó para un computador (entró desde el celular)" : "No terminó ningún texto";
     }
     actividades.push({
       id: d.id,
@@ -187,6 +187,7 @@ export async function reporteDeAsignacion(asignacionId: string, slug: string) {
       terminadoEn: r.terminadoEn,
       ultimaVez: r.actualizadoEn,
       revisado: r.revisado,
+      dispositivo: r.dispositivo,
       reporte: armarReporte(
         leccion,
         progresos.filter((p) => p.contexto === contextoRitmo(r.id))

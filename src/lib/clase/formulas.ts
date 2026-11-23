@@ -11,6 +11,16 @@
 export type Valor = number | string | boolean | null;
 export type Hoja = Valor[][];
 
+/**
+ * Una tabla con nombre dentro de la hoja (como «Formato › Convertir en tabla» en Sheets): la
+ * primera fila de `rango` son los encabezados y el resto, los datos. Con ella se escribe
+ * `Turnos[Estado]` en vez de `$D$2:$D$9`: no hay que contar filas ni poner $ al copiar.
+ */
+export type TablaHoja = { nombre: string; rango: string };
+
+/** Opciones de `evaluar`: las tablas de la hoja y la celda donde va la fórmula (para `[@Columna]`). */
+export type OpcionesEvaluar = { tablas?: TablaHoja[]; celda?: string };
+
 /** Nombre que escribe el estudiante → nombre canónico (en español). */
 const FUNCIONES: Record<string, string> = {
   SUMA: "SUMA",
@@ -110,7 +120,13 @@ export class ErrorCelda extends ErrorFormula {
   }
 }
 
-type Token = { t: "num" | "str" | "ref" | "fn" | "op" | "(" | ")" | "sep" | ":"; v: string };
+type Token =
+  | { t: "num" | "str" | "ref" | "fn" | "op" | "(" | ")" | "sep" | ":"; v: string }
+  /** Referencia de tabla: `Turnos[Estado]`, `Turnos[@Estado]`, `[@Estado]` o `Turnos[#Todo]`. */
+  | { t: "tabla"; v: string; tabla: string; columna: string; fila: boolean };
+
+/** `Turnos[Estado]`, `Turnos[@Estado]`, `[@Estado]` o `Turnos[[#Esta fila];[Estado]]` (Excel). */
+const REF_TABLA = /^([A-Za-zÁÉÍÓÚáéíóúÑñ_][\wÁÉÍÓÚáéíóúÑñ.]*)?\[(?:\[#(?:esta fila|this row)\][;,]\s*\[([^\[\]]+)\]|(@?)([^\[\]]*))\]/i;
 
 function tokenizar(f: string): Token[] {
   const tokens: Token[] = [];
@@ -129,6 +145,16 @@ function tokenizar(f: string): Token[] {
       i += fin + 2;
       continue;
     }
+    const tabla = REF_TABLA.exec(resto);
+    if (tabla) {
+      const fila = !!tabla[2] || tabla[3] === "@";
+      const columna = (tabla[2] ?? tabla[4]).trim();
+      if (!tabla[1] && !fila) throw new ErrorFormula(`Falta el nombre de la tabla antes de «[${columna}]», por ejemplo Turnos[${columna || "Estado"}]`);
+      tokens.push({ t: "tabla", v: tabla[0], tabla: tabla[1] ?? "", columna, fila });
+      i += tabla[0].length;
+      continue;
+    }
+    if (c === "[" || c === "]") throw new ErrorFormula("Los corchetes van pegados al nombre de la tabla: Turnos[Estado]");
     const num = /^\d+(\.\d+)?/.exec(resto);
     if (num) {
       tokens.push({ t: "num", v: num[0] });
@@ -137,7 +163,7 @@ function tokenizar(f: string): Token[] {
     }
     if (/^\$?[A-Za-z]{1,2}\s*:\s*\$?[A-Za-z]{1,2}(?![A-Za-z\d])/.test(resto))
       throw new ErrorFormula("En esta hoja usa el rango con números de fila, por ejemplo C2:C7 en vez de C:C");
-    const pal = /^\$?[A-Za-zÁÉÍÓÚáéíóúÑñ]+(\.[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*\$?\d*/.exec(resto);
+    const pal = /^\$?[A-Za-zÁÉÍÓÚáéíóúÑñ_]+(\.[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*\$?\d*(?:_[\wÁÉÍÓÚáéíóúÑñ]*)*/.exec(resto);
     if (pal) {
       const v = pal[0].toUpperCase();
       if (/^\$?[A-Z]{1,2}\$?\d+$/.test(v)) tokens.push({ t: "ref", v });
@@ -166,12 +192,37 @@ type Nodo =
   | { k: "bool"; v: boolean }
   | { k: "ref"; ref: string }
   | { k: "rango"; a: string; b: string }
+  | { k: "tabla"; tabla: string; columna: string; fila: boolean; escrito: string }
+  /** Un nombre suelto (sin paréntesis): puede ser una tabla entera, p. ej. BUSCARV(B2; Profesionales; 2; FALSO). */
+  | { k: "nombre"; v: string }
   | { k: "fn"; nombre: string; escrito: string; args: Nodo[] }
   | { k: "bin"; op: string; a: Nodo; b: Nodo }
   | { k: "neg"; a: Nodo };
 
+/**
+ * Agrega los «)» que faltan al final, como hace Sheets al pulsar Enter: =SUMA(B2:B7 → =SUMA(B2:B7).
+ * No cuenta los paréntesis que van dentro de textos entre comillas ni de corchetes de tabla.
+ */
+export function completarParentesis(formula: string): string {
+  let abiertos = 0;
+  let enTexto = false;
+  let enCorchete = false;
+  for (const c of formula) {
+    if (enTexto) {
+      if (c === '"' || c === "”" || c === "“") enTexto = false;
+    } else if (enCorchete) {
+      if (c === "]") enCorchete = false;
+    } else if (c === '"' || c === "“" || c === "”") enTexto = true;
+    else if (c === "[") enCorchete = true;
+    else if (c === "(") abiertos++;
+    else if (c === ")" && abiertos > 0) abiertos--;
+  }
+  // Si quedó un texto sin cerrar, no se adivina: que el error lo diga.
+  return enTexto || abiertos === 0 ? formula : formula.trimEnd() + ")".repeat(abiertos);
+}
+
 function analizar(formula: string): Nodo {
-  const tokens = tokenizar(formula.trim().replace(/^=/, ""));
+  const tokens = tokenizar(completarParentesis(formula.trim()).replace(/^=/, ""));
   if (!tokens.length) throw new ErrorFormula("La fórmula está vacía");
   let pos = 0;
   const ver = () => tokens[pos];
@@ -224,6 +275,7 @@ function analizar(formula: string): Nodo {
   function primario(): Nodo {
     const t = tomar();
     if (!t) throw new ErrorFormula("La fórmula quedó incompleta");
+    if (t.t === "tabla") return { k: "tabla", tabla: t.tabla, columna: t.columna, fila: t.fila, escrito: t.v };
     if (t.t === "num") return { k: "num", v: Number(t.v) };
     if (t.t === "str") return { k: "str", v: t.v };
     if (t.t === "ref") {
@@ -238,7 +290,8 @@ function analizar(formula: string): Nodo {
     if (t.t === "fn") {
       if (ver()?.t !== "(") {
         if (t.v in BOOLEANOS) return { k: "bool", v: BOOLEANOS[t.v] };
-        throw new ErrorCelda("#¿NOMBRE?", `No entiendo «${t.v}». Si es un texto, va entre comillas: "${t.v.toLowerCase()}". Si es una función, le faltan los paréntesis.`);
+        // Puede ser el nombre de una tabla: se resuelve al evaluar, cuando se conocen las tablas.
+        return { k: "nombre", v: t.v };
       }
       const nombre = FUNCIONES[t.v];
       if (!nombre) throw new ErrorCelda("#¿NOMBRE?", `No conozco la función «${t.v}». Revisa cómo se escribe.`);
@@ -351,8 +404,8 @@ function cumpleCriterio(v: Valor, criterio: Valor): boolean {
  * Evalúa una fórmula (con o sin «=» al inicio) sobre la hoja. Devuelve el valor de la celda o
  * lanza ErrorFormula (no se pudo leer) / ErrorCelda (#N/A, #¡DIV/0!…) con un mensaje para el estudiante.
  */
-export function evaluar(formula: string, hoja: Hoja): Valor {
-  const raiz = analizar(formula);
+export function evaluar(formula: string, hoja: Hoja, opciones: OpcionesEvaluar = {}): Valor {
+  const raiz = resolverTablas(analizar(formula), hoja, opciones);
   type Matriz = Valor[][];
 
   const celda = (ref: string): Valor => {
@@ -395,6 +448,9 @@ export function evaluar(formula: string, hoja: Hoja): Valor {
         return -numero(n.a);
       case "fn":
         return funcion(n);
+      case "tabla":
+      case "nombre":
+        throw new ErrorFormula("Referencia de tabla sin resolver");
       case "bin": {
         if (n.op === "&") return aTexto(escalar(n.a)) + aTexto(escalar(n.b));
         if (["=", "<>", "<", ">", "<=", ">="].includes(n.op)) {
@@ -597,6 +653,92 @@ export function evaluar(formula: string, hoja: Hoja): Valor {
   return v;
 }
 
+const mismoNombre = (a: string, b: string) => sinTildes(a) === sinTildes(b);
+
+/** La tabla por su nombre (sin importar mayúsculas ni tildes). */
+export function buscarTabla(nombre: string, tablas: TablaHoja[] = []): TablaHoja | undefined {
+  return tablas.find((t) => mismoNombre(t.nombre, nombre));
+}
+
+/** Encabezados de una tabla, con la columna (letra) de cada uno. */
+export function columnasDeTabla(tabla: TablaHoja, hoja: Hoja): { nombre: string; col: number }[] {
+  const r = normalizarRango(tabla.rango);
+  if (!r) return [];
+  const [ini, fin] = r.split(":").map((x) => celdaAIndices(x)!);
+  const out: { nombre: string; col: number }[] = [];
+  for (let c = ini.col; c <= fin.col; c++) out.push({ nombre: aTexto(hoja[ini.fila]?.[c] ?? null), col: c });
+  return out;
+}
+
+/** El rango de datos de una tabla (sin encabezados), entera o de una columna: "B2:B9". */
+export function rangoDeTabla(tabla: TablaHoja, hoja: Hoja, columna?: string): string {
+  const r = normalizarRango(tabla.rango)!;
+  const [ini, fin] = r.split(":").map((x) => celdaAIndices(x)!);
+  if (!columna || /^#(todo|all|datos|data)$/i.test(columna)) return `${nombreCelda(ini.fila + 1, ini.col)}:${nombreCelda(fin.fila, fin.col)}`;
+  const cols = columnasDeTabla(tabla, hoja);
+  const c = cols.find((x) => mismoNombre(x.nombre, columna));
+  if (!c)
+    throw new ErrorCelda("#¡REF!", `La tabla ${tabla.nombre} no tiene la columna «${columna}». Sus columnas son: ${cols.map((x) => x.nombre).join(", ")}.`);
+  return `${nombreCelda(ini.fila + 1, c.col)}:${nombreCelda(fin.fila, c.col)}`;
+}
+
+/** Cambia las referencias de tabla por los rangos que representan. */
+function resolverTablas(n: Nodo, hoja: Hoja, op: OpcionesEvaluar): Nodo {
+  const tablas = op.tablas ?? [];
+  const sinTabla = (nombre: string) =>
+    new ErrorCelda(
+      "#¿NOMBRE?",
+      tablas.length
+        ? `No hay una tabla llamada «${nombre}». ${tablas.length === 1 ? "La tabla de esta hoja es" : "Las tablas de esta hoja son"}: ${tablas.map((t) => t.nombre).join(", ")}.`
+        : `No entiendo «${nombre}». Si es un texto, va entre comillas: "${nombre.toLowerCase()}". Si es una función, le faltan los paréntesis.`,
+    );
+  switch (n.k) {
+    case "nombre": {
+      const t = buscarTabla(n.v, tablas);
+      if (!t) throw sinTabla(n.v);
+      const [a, b] = rangoDeTabla(t, hoja).split(":");
+      return { k: "rango", a, b };
+    }
+    case "tabla": {
+      let t = n.tabla ? buscarTabla(n.tabla, tablas) : undefined;
+      // [@Columna] sin nombre: la tabla donde está la celda de la fórmula.
+      if (!n.tabla) {
+        const c = op.celda ? celdaAIndices(op.celda) : null;
+        t = tablas.find((x) => {
+          const r = normalizarRango(x.rango);
+          if (!r || !c) return false;
+          const [i, f] = r.split(":").map((y) => celdaAIndices(y)!);
+          return c.fila > i.fila && c.fila <= f.fila && c.col >= i.col && c.col <= f.col + 1;
+        });
+        if (!t) throw new ErrorCelda("#¡REF!", `[@${n.columna}] solo funciona en una celda dentro de la tabla. Escribe el nombre de la tabla: Tabla[@${n.columna}].`);
+      }
+      if (!t) throw sinTabla(n.tabla);
+      const [a, b] = rangoDeTabla(t, hoja, n.columna).split(":");
+      if (!n.fila) return { k: "rango", a, b };
+      const c = op.celda ? celdaAIndices(op.celda) : null;
+      const ini = celdaAIndices(a)!;
+      const fin = celdaAIndices(b)!;
+      if (!c || c.fila < ini.fila || c.fila > fin.fila)
+        throw new ErrorCelda("#¡VALOR!", `${n.escrito} trae el dato de la misma fila, así que solo sirve en una fila de la tabla.`);
+      return { k: "ref", ref: nombreCelda(c.fila, ini.col) };
+    }
+    case "fn":
+      return { ...n, args: n.args.map((x) => resolverTablas(x, hoja, op)) };
+    case "bin":
+      return { ...n, a: resolverTablas(n.a, hoja, op), b: resolverTablas(n.b, hoja, op) };
+    case "neg":
+      return { ...n, a: resolverTablas(n.a, hoja, op) };
+    default:
+      return n;
+  }
+}
+
+/** ¿Usa referencias de tabla (Turnos[Estado])? ¿Y la de la fila actual ([@Estado]), que Google Sheets no tiene? */
+export function usaTablas(formula: string): { tabla: boolean; fila: boolean } {
+  const f = sinTextos(formula);
+  return { tabla: /[\wÁÉÍÓÚáéíóúÑñ.]\[|\[@/.test(f), fila: /\[@|#(esta fila|this row)/i.test(f) };
+}
+
 /** Nombres (en español y en inglés) de una función. */
 function nombresDe(funcion: string): string[] {
   const canon = FUNCIONES[funcion.toUpperCase()] ?? funcion.toUpperCase();
@@ -636,8 +778,12 @@ export function argumentosDe(formula: string, funcion: string): number | null {
 }
 
 /** ¿Usa al menos una referencia a celda (y no solo números escritos a mano)? */
-export function usaReferencias(formula: string): boolean {
-  return /(^|[^A-Za-z.$])\$?[A-Z]{1,2}\$?\d+/i.test(sinTextos(formula).replace(/^=/, ""));
+export function usaReferencias(formula: string, tablas: TablaHoja[] = []): boolean {
+  const f = sinTextos(formula).replace(/^=/, "").replace(/\[[^\]]*\]/g, "[]");
+  if (/(^|[^A-Za-z.$_\d])\$?[A-Z]{1,2}\$?\d+(?![\w])/i.test(f) || usaTablas(formula).tabla) return true;
+  // Una tabla entera por su nombre: =BUSCARV(…; Profesionales; 2; FALSO).
+  const palabras = f.match(/[A-Za-zÁÉÍÓÚáéíóúÑñ_][\wÁÉÍÓÚáéíóúÑñ]*(?!\s*\()/g) ?? [];
+  return palabras.some((p) => !!buscarTabla(p, tablas));
 }
 
 /** ¿Tiene alguna referencia fija con $ (B$7, $B$7)? */
@@ -651,7 +797,7 @@ export function usaAbsoluta(formula: string): boolean {
  */
 export function desplazar(formula: string, filas: number, cols: number): string {
   return formula
-    .split(/(["“][^"“”]*["”])/)
+    .split(/(["“][^"“”]*["”]|\[[^\]]*\])/)
     .map((parte, i) =>
       i % 2
         ? parte

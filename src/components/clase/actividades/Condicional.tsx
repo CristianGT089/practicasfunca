@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RetoCondicional } from "@/lib/clase/tipos";
 import { letraColumna } from "@/lib/clase/formulas";
 import { useProgreso } from "../progreso";
@@ -63,6 +63,8 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
   const [pestana, setPestana] = useState<"unico" | "escala">("unico");
   const [borrador, setBorrador] = useState<Regla>({ columna: 0, condicion: "menor", valor: "", color: "rojo" });
   const [mensaje, setMensaje] = useState<{ bien: boolean; texto: string } | null>(null);
+  // Celular y tableta: el panel y la tabla no caben juntos, se alternan con pestañas.
+  const [vista, setVista] = useState<"reglas" | "tabla">("reglas");
 
   const rango = (c: number) => `${letraColumna(c)}2:${letraColumna(c)}${filas.length + 1}`;
 
@@ -71,6 +73,7 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
     if (regla.condicion !== "escala" && regla.valor.trim() === "") return setMensaje({ bien: false, texto: "Escribe el valor de la condición (por ejemplo 50)." });
     const nuevas = [...reglas, regla];
     setReglas(nuevas);
+    setVista("tabla");
     const desc =
       regla.condicion === "escala"
         ? `Pusiste una escala de colores en ${rango(regla.columna)} (${encabezados[regla.columna]}).`
@@ -98,21 +101,31 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
   return (
     <div className="flex flex-col">
       <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-[var(--background)] px-1 pb-2 pt-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className={`flex-1 rounded-2xl px-4 py-3 font-heading text-lg font-bold ${reto ? "bg-blue-900 text-white" : "bg-emerald-50 text-emerald-800"}`}>
-            {reto ? `🎨 ${reto.texto}` : "🎉 ¡Completaste todos los retos! Puedes seguir probando reglas."}
-          </div>
-          <span className="text-sm font-semibold text-blue-900">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <RetoFijo
+            key={actual}
+            texto={reto ? `🎨 ${reto.texto}` : "🎉 ¡Completaste todos los retos! Puedes seguir probando reglas."}
+            clase={reto ? "bg-blue-900 text-white" : "bg-emerald-50 text-emerald-800"}
+          />
+          <span className="shrink-0 text-sm font-semibold text-blue-900">
             {hechos.size} de {retos.length}
           </span>
         </div>
-        <p className={`min-h-6 text-sm font-semibold ${mensaje ? (mensaje.bien ? "text-emerald-700" : "text-rose-700") : "text-slate-500"}`} aria-live="polite">
-          {mensaje?.texto ?? "Arma la regla en el panel de la derecha y pulsa «Listo». La tabla se pinta sola."}
+        <p className={`text-[13px] font-semibold leading-snug sm:min-h-6 sm:text-sm ${mensaje ? (mensaje.bien ? "text-emerald-700" : "text-rose-700") : "text-slate-500"}`} aria-live="polite">
+          {mensaje?.texto ?? "Arma la regla en el panel de reglas y pulsa «Listo». La tabla se pinta sola."}
         </p>
+        <Pestanas
+          vista={vista}
+          setVista={setVista}
+          opciones={[
+            { id: "reglas", nombre: `Reglas${reglas.length ? ` (${reglas.length})` : ""}` },
+            { id: "tabla", nombre: "Tabla" },
+          ]}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow">
+        <div className={`overflow-x-auto rounded-2xl border border-slate-300 bg-white shadow lg:block ${vista === "tabla" ? "" : "hidden"}`}>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
@@ -161,14 +174,14 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
           </table>
         </div>
 
-        <aside className="self-start rounded-2xl border border-slate-300 bg-white p-4 text-sm shadow">
+        <aside className={`self-start rounded-2xl border border-slate-300 bg-white p-4 text-sm shadow lg:block ${vista === "reglas" ? "" : "hidden"}`}>
           <p className="font-heading font-bold text-slate-800">Reglas de formato condicional</p>
-          <div className="mt-3 flex rounded-full bg-slate-100 p-1 text-xs font-semibold">
+          <div className="mt-3 flex rounded-full bg-slate-100 p-1 text-xs font-semibold pointer-coarse:text-sm">
             {(["unico", "escala"] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPestana(p)}
-                className={`flex-1 rounded-full px-2 py-1.5 ${pestana === p ? "bg-white text-[#0B57D0] shadow" : "text-slate-600"}`}
+                className={`flex-1 rounded-full px-2 py-1.5 pointer-coarse:min-h-10 ${pestana === p ? "bg-white text-[#0B57D0] shadow" : "text-slate-600"}`}
               >
                 {p === "unico" ? "Color único" : "Escala de colores"}
               </button>
@@ -179,7 +192,7 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
             <select
               value={borrador.columna}
               onChange={(e) => setBorrador({ ...borrador, columna: Number(e.target.value) })}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 font-mono text-sm"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 font-mono text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
             >
               {encabezados.map((h, c) => (
                 <option key={c} value={c}>
@@ -195,7 +208,7 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
                 <select
                   value={borrador.condicion}
                   onChange={(e) => setBorrador({ ...borrador, condicion: e.target.value as Condicion })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
                 >
                   {CONDICIONES.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -209,7 +222,8 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
                 onChange={(e) => setBorrador({ ...borrador, valor: e.target.value })}
                 onKeyDown={(e) => e.key === "Enter" && listo()}
                 placeholder="Valor o fórmula"
-                className="mt-2 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                enterKeyHint="done"
+                className="mt-2 block w-full rounded-lg border border-slate-300 px-2 py-1.5 text-base pointer-coarse:min-h-11 pointer-fine:text-sm"
               />
               <p className="mt-3 text-xs font-semibold text-slate-600">Estilo de formato</p>
               <div className="mt-1 flex gap-2">
@@ -217,7 +231,7 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
                   <button
                     key={k}
                     onClick={() => setBorrador({ ...borrador, color: k })}
-                    className={`h-8 flex-1 rounded-lg text-xs font-semibold ${COLORES[k].muestra} ${borrador.color === k ? "ring-2 ring-[#0B57D0] ring-offset-1" : ""}`}
+                    className={`h-8 flex-1 rounded-lg text-xs font-semibold pointer-coarse:h-11 pointer-coarse:text-sm ${COLORES[k].muestra} ${borrador.color === k ? "ring-2 ring-[#0B57D0] ring-offset-1" : ""}`}
                   >
                     {COLORES[k].nombre}
                   </button>
@@ -234,19 +248,19 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
               </p>
             </div>
           )}
-          <button onClick={listo} className="mt-4 w-full rounded-full bg-[#0B57D0] py-2 font-semibold text-white hover:bg-[#0842A0]">
+          <button onClick={listo} className="mt-4 w-full rounded-full bg-[#0B57D0] py-2 font-semibold pointer-coarse:min-h-11 text-white hover:bg-[#0842A0]">
             Listo
           </button>
           {reglas.length > 0 && (
             <ul className="mt-4 flex flex-col gap-1.5 border-t border-slate-200 pt-3">
               {reglas.map((r, i) => (
-                <li key={i} className="flex items-center gap-2 text-xs">
+                <li key={i} className="flex items-center gap-2 text-xs pointer-coarse:text-sm">
                   <span className={`h-5 w-5 shrink-0 rounded ${r.condicion === "escala" ? "bg-gradient-to-r from-white to-[#57BB8A] ring-1 ring-slate-200" : COLORES[r.color].muestra}`} />
                   <span className="min-w-0 flex-1">
                     <span className="font-mono">{rango(r.columna)}</span>{" "}
                     {r.condicion === "escala" ? "escala de colores" : `${CONDICIONES.find((c) => c.id === r.condicion)!.nombre.toLowerCase()} ${r.valor}`}
                   </span>
-                  <button onClick={() => setReglas(reglas.filter((_, j) => j !== i))} aria-label="Borrar regla" className="rounded px-1 hover:bg-slate-100">
+                  <button onClick={() => setReglas(reglas.filter((_, j) => j !== i))} aria-label="Borrar regla" className="grid h-8 w-8 shrink-0 place-items-center rounded hover:bg-slate-100 pointer-coarse:h-10 pointer-coarse:w-10">
                     🗑
                   </button>
                 </li>
@@ -255,6 +269,56 @@ export default function Condicional({ id, datos: tabla, retos }: { id: string; d
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** El reto del bloque fijo: en el celular a lo sumo dos líneas, y se despliega al tocarlo. */
+function RetoFijo({ texto, clase }: { texto: string; clase: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [cortado, setCortado] = useState(false);
+  const caja = useRef<HTMLSpanElement>(null);
+  // ¿El recorte a dos líneas esconde parte del texto? (solo entonces se ofrece «Ver todo»).
+  useEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const medir = () => setCortado(el.scrollHeight > el.clientHeight + 1);
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  const desplegable = cortado || abierto;
+  return (
+    <button
+      type="button"
+      onClick={() => desplegable && setAbierto((a) => !a)}
+      aria-expanded={desplegable ? abierto : undefined}
+      className={`min-w-0 flex-1 cursor-default rounded-2xl px-3 py-2 text-left font-heading text-base font-bold leading-snug sm:px-4 sm:py-3 sm:text-lg ${clase} ${desplegable ? "max-sm:cursor-pointer" : ""}`}
+    >
+      <span ref={caja} className={abierto ? "block" : "line-clamp-2 sm:line-clamp-none"}>
+        {texto}
+      </span>
+      {desplegable && <span className="mt-0.5 block text-xs font-semibold opacity-75 sm:hidden">{abierto ? "Ver menos ▴" : "Ver todo el reto ▾"}</span>}
+    </button>
+  );
+}
+
+/** Pestañas para alternar panel y tabla en pantallas pequeñas (desde lg se ven los dos lado a lado). */
+function Pestanas<T extends string>({ vista, setVista, opciones }: { vista: T; setVista: (v: T) => void; opciones: { id: T; nombre: string }[] }) {
+  return (
+    <div role="tablist" className="flex rounded-full bg-white p-1 text-sm font-semibold shadow ring-1 ring-slate-200 lg:hidden">
+      {opciones.map((o) => (
+        <button
+          key={o.id}
+          role="tab"
+          aria-selected={vista === o.id}
+          onClick={() => setVista(o.id)}
+          className={`min-h-10 flex-1 rounded-full px-3 ${vista === o.id ? "bg-blue-900 text-white" : "text-slate-600"}`}
+        >
+          {o.nombre}
+        </button>
+      ))}
     </div>
   );
 }

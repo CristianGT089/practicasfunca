@@ -86,7 +86,7 @@ export const TICS_3: Leccion = {
       seccion: "Bienvenida",
       titulo: "Que la hoja trabaje por ti",
       subtitulo: "Clase 3 · Funciones, gráficos y tablas dinámicas",
-      guia: "¡Hola! Esta es la clase 3, la que te perdiste. Como siempre: en cada diapositiva te explico en este recuadro lo que diría en clase. Es la clase más práctica del curso: ten Google Sheets abierto en otra pestaña. Al final pulsa «Terminar» para que me llegue tu reporte.",
+      guia: "¡Hola! Esta es la clase 3, la que te perdiste. Como siempre: en cada diapositiva te explico en este recuadro lo que diría en clase. Es la clase más práctica del curso: ten Google Sheets abierto en otra pestaña (en el celular, la app Sheets). Al final pulsa «Terminar» para que me llegue tu reporte.",
       pie: "Hoy la hoja de cálculo deja de ser una tabla y se vuelve una calculadora que piensa.",
       mostrarAcceso: true,
       notas: "Mientras llegan: que entren a la plataforma y abran Sheets en otra pestaña. A las 7:20 arranca el quiz de la clase 2 en Q10.",
@@ -147,7 +147,7 @@ export const TICS_3: Leccion = {
         { icono: "🧑‍🏫", titulo: "Te explico en cada paso", texto: "El recuadro de arriba de cada diapositiva es lo que yo diría en clase. Léelo primero." },
         { icono: "➡️", titulo: "Avanzas en orden", texto: "Con «Siguiente» o la flecha →. Puedes volver atrás, pero no saltarte diapositivas." },
         { icono: "💭", titulo: "Preguntas rápidas", texto: "No tienen nota, pero hay que responderlas para seguir. Enseguida ves si acertaste y por qué." },
-        { icono: "🎮", titulo: "Actividades", texto: "Unas se hacen aquí (simulamos Sheets) y otras en tu Chromebook. Si pasas sin terminar una, me queda como pendiente." },
+        { icono: "🎮", titulo: "Actividades", texto: "Unas se hacen aquí (simulamos Sheets) y otras en tu equipo, computador o celular. Si pasas sin terminar una, me queda como pendiente." },
         { icono: "💾", titulo: "Se guarda solo", texto: "Puedes salir y volver otro día: sigues donde ibas." },
         { icono: "📨", titulo: "Al final, «Terminar»", texto: "Así me llega tu reporte: qué hiciste, qué te faltó y cómo te fue.", color: "amarilla" },
       ],
@@ -200,7 +200,7 @@ export const TICS_3: Leccion = {
       plataforma: "Q10",
       duracion: "20 minutos",
       pasos: [
-        "Abran Q10 en una pestaña nueva (Ctrl + T) con su usuario de FUNCA.",
+        "Abran Q10 en una pestaña nueva (Ctrl + T; en el celular, el botón de pestañas de Chrome › +) con su usuario de FUNCA.",
         "Busquen el quiz de la clase 2 del curso de TICs.",
         "Respondan solos: Docs en equipo, celdas, ordenar, filtrar y formato condicional.",
         "Al terminar, vuelvan a esta pestaña.",
@@ -226,16 +226,50 @@ export const TICS_3: Leccion = {
       titulo: "Prepara tus archivos de hoy",
       intro: "Hoy trabajamos con dos hojas ya llenas de datos. Descárgalas y conviértelas en hojas de Google.",
       guia: "Las tablas dinámicas y algunos menús solo funcionan bien en formato de Google, por eso el paso de «Guardar como Hojas de cálculo de Google». Te quedan dos archivos: uno original (.xlsx) y uno de Google; trabaja en el de Google.",
-      notas: "En Chromebook el .xlsx queda en Archivos › Descargas. Si a alguien no le abre, que lo suba con Drive › + Nuevo › Subir archivo.",
+      notas: "En Chromebook el .xlsx queda en Archivos › Descargas; en Windows y Mac, en Descargas; en el celular, en la app Archivos › Descargas. Si a alguien no le abre, que lo suba con Drive › + Nuevo › Subir archivo (en el celular, app Drive › + › Subir).",
       archivos: [ARCHIVO_FUNCIONES, ARCHIVO_ATENCIONES],
       enlace: DRIVE,
       pasos: [
-        { id: "descargar", texto: "Descargué los dos archivos (quedan en Descargas)" },
-        { id: "subir", texto: "Los subí a TICs_Salud › Hojas de cálculo en mi Drive", ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde la app Archivos." },
-        { id: "google", texto: "Abrí TICs3_Funciones y usé Archivo › Guardar como Hojas de cálculo de Google", ayuda: "Arriba, junto al nombre, dice «.XLSX» mientras no lo conviertas. La copia de Google se abre sola en otra pestaña." },
-        { id: "nombre", texto: "Le cambié el nombre a Apellido_Nombre_Funciones" },
+        {
+          id: "descargar",
+          texto: "Descargué los dos archivos (quedan en Descargas)",
+          variantes: { celular: { ayuda: "Quedan en la carpeta Descargas del celular: en Android, app Archivos › Descargas; en iPhone, app Archivos › Descargas (o donde Safari los guarde)." } },
+        },
+        {
+          id: "subir",
+          texto: "Los subí a TICs_Salud › Hojas de cálculo en mi Drive",
+          ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde la app Archivos.",
+          variantes: {
+            windows: { ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde el Explorador de archivos." },
+            mac: { ayuda: "En Drive, entra a la carpeta › + Nuevo › Subir archivo › Descargas. También puedes arrastrarlos desde el Finder." },
+            celular: { ayuda: "En la app Drive, entra a la carpeta › «+» (abajo a la derecha) › Subir › Descargas › escoge los dos." },
+          },
+        },
+        {
+          id: "google",
+          texto: "Abrí TICs3_Funciones y usé Archivo › Guardar como Hojas de cálculo de Google",
+          ayuda: "Arriba, junto al nombre, dice «.XLSX» mientras no lo conviertas. La copia de Google se abre sola en otra pestaña.",
+          variantes: {
+            celular: {
+              texto: "Abrí TICs3_Funciones en la app Sheets y lo guardé como hoja de Google",
+              ayuda: "⋮ › Guardar como Hojas de cálculo de Google (en algunas versiones está dentro de Compartir y exportar). Si tu app no lo trae, hazlo en Chrome con ⋮ › Sitio de escritorio: Archivo › Guardar como Hojas de cálculo de Google.",
+            },
+          },
+        },
+        {
+          id: "nombre",
+          texto: "Le cambié el nombre a Apellido_Nombre_Funciones",
+          variantes: { celular: { ayuda: "En la app Drive: ⋮ junto al archivo de Google (no el .xlsx) › Cambiar nombre." } },
+        },
         { id: "atenciones", texto: "Hice lo mismo con TICs3_Atenciones → Apellido_Nombre_Atenciones" },
-        { id: "idioma", texto: "Revisé el idioma de mi hoja", ayuda: "Archivo › Configuración › Configuración regional. Con Colombia las funciones van en español y se separan con «;». Con Estados Unidos van en inglés y con «,». Las dos sirven." },
+        {
+          id: "idioma",
+          texto: "Revisé el idioma de mi hoja",
+          ayuda: "Archivo › Configuración › Configuración regional. Con Colombia las funciones van en español y se separan con «;». Con Estados Unidos van en inglés y con «,». Las dos sirven.",
+          variantes: {
+            celular: { ayuda: "En la app no siempre está la configuración regional. Haz la prueba: escribe =SU en una celda; si te propone SUMA, va en español y con «;»; si te propone SUM, va en inglés y con «,». Las dos sirven." },
+          },
+        },
       ],
     },
 
@@ -296,7 +330,7 @@ export const TICS_3: Leccion = {
       titulo: "Relativas y absolutas: el signo $",
       guia: "Cuando arrastras el cuadrito azul, la hoja corre las referencias: D2 se vuelve D3, D4… Casi siempre es lo que quieres. Pero si todas las filas deben dividir entre el mismo total, ese total no se puede mover: lo fijas con el signo pesos. Mira la diferencia entre los dos cuadros.",
       visual: "copiar",
-      cierre: "Truco: con el cursor sobre la referencia, F4 pone los $ (en Chromebook: 🔍 + 4).",
+      cierre: "Truco: con el cursor sobre la referencia, F4 pone los $ (en Chromebook: 🔍 + 4; en el celular, escríbelos a mano).",
     },
     {
       tipo: "actividad",
@@ -337,6 +371,21 @@ export const TICS_3: Leccion = {
       correcta: 2,
       explicacion: "B2 es relativa y baja a B3; $F$1 está fijada y no se mueve.",
     },
+    {
+      tipo: "contenido",
+      seccion: "Fórmulas",
+      eyebrow: "Tablas con nombre",
+      titulo: "Turnos[Estado]: sin contar filas y sin $",
+      intro: "Si conviertes tus datos en una tabla y le pones nombre, en vez de $D$2:$D$31 escribes Turnos[Estado]. Se lee mejor, no se corre al copiar y crece sola cuando agregas filas.",
+      guia: "Esta es la forma más cómoda de trabajar: Formato › Convertir en tabla (Ctrl + Alt + T) y le pones un nombre, por ejemplo Turnos. Desde ahí, al escribir =SUMA(Turnos[ la hoja te muestra las columnas para que elijas. Ojo con una diferencia: en Excel también existe [@Valor] para «el valor de esta fila», pero Google Sheets todavía no lo tiene; en Sheets, para la misma fila sigue escribiendo D2.",
+      columnas: 3,
+      tarjetas: [
+        { icono: "▦", titulo: "1. Convierte en tabla", items: ["Selecciona una celda de tus datos", "Formato › Convertir en tabla (Ctrl + Alt + T)", "Arriba a la izquierda, cámbiale el nombre: Turnos"] },
+        { icono: "✍️", titulo: "2. Escribe el nombre", items: ["=SUMA(Turnos[Valor])", '=CONTAR.SI(Turnos[Estado]; "Cancelado")', "=BUSCARX(B2; Profesionales[Código]; Profesionales[Cargo])"] },
+        { icono: "💡", titulo: "Ventajas", items: ["No hay que contar hasta qué fila llega", "No necesita $: no se corre al copiar", "Si agregas un paciente, la fórmula lo incluye"], color: "amarilla" },
+      ],
+      cierre: "En las simulaciones de hoy puedes usar las dos formas: B2:B7 o Inventario[Unidades]. Algunos retos te piden la tabla.",
+    },
 
     // ───────────────────────── RESUMEN ─────────────────────────
     {
@@ -371,7 +420,7 @@ export const TICS_3: Leccion = {
       actividad: "formulas",
       id: "formulas-resumen",
       titulo: "La hoja hace las cuentas",
-      intro: "Escribe cada fórmula en la barra y pulsa Enter. Fíjate en el Suero oral: dice «Agotado», que es texto.",
+      intro: "Los datos son la tabla Inventario. Escribe = y el nombre de la función: la barra te ayuda. Fíjate en el Suero oral: dice «Agotado», que es texto.",
       guia: "Mientras escribes, puedes hacer clic en una celda para agregar su nombre a la fórmula, como en Sheets. Mira qué pasa con «Agotado» en SUMA, en CONTAR y en CONTARA.",
       datos: [
         ["Medicamento", "Unidades", "Precio"],
@@ -389,13 +438,27 @@ export const TICS_3: Leccion = {
         ["Con unidades (número)"],
         ["Medicamentos en la lista"],
       ],
+      tablas: [{ nombre: "Inventario", rango: "A1:C7" }],
       retos: [
         { celda: "B9", texto: "Suma todas las unidades.", solucion: "=SUMA(B2:B7)", funcion: "SUMA", pista: "=SUMA(B2:B7). El texto «Agotado» no se suma." },
-        { celda: "C10", texto: "Saca el precio promedio.", solucion: "=PROMEDIO(C2:C7)", funcion: "PROMEDIO", pista: "=PROMEDIO( y el rango de los precios )" },
+        {
+          celda: "C10",
+          texto: "Saca el precio promedio, esta vez con la tabla: Inventario[Precio].",
+          solucion: "=PROMEDIO(Inventario[Precio])",
+          funcion: "PROMEDIO",
+          exigeTabla: true,
+          pista: "=PROMEDIO(Inventario[Precio]). Escribe Inventario[ y elige la columna de la lista.",
+        },
         { celda: "C11", texto: "¿Cuál es el precio más alto?", solucion: "=MAX(C2:C7)", funcion: "MAX" },
         { celda: "B12", texto: "¿Cuál es la menor cantidad de unidades?", solucion: "=MIN(B2:B7)", funcion: "MIN" },
         { celda: "B13", texto: "¿Cuántos tienen las unidades escritas como número?", solucion: "=CONTAR(B2:B7)", funcion: "CONTAR", pista: "=CONTAR(B2:B7). Da 5: «Agotado» es texto." },
-        { celda: "B14", texto: "¿Cuántos medicamentos hay en la lista? Cuenta los nombres.", solucion: "=CONTARA(A2:A7)", funcion: "CONTARA", pista: "=CONTARA(A2:A7). CONTAR daría 0: los nombres son texto." },
+        {
+          celda: "B14",
+          texto: "¿Cuántos medicamentos hay en la lista? Cuenta los nombres.",
+          solucion: "=CONTARA(A2:A7)",
+          funcion: "CONTARA",
+          pista: "=CONTARA(A2:A7) o =CONTARA(Inventario[Medicamento]). CONTAR daría 0: los nombres son texto.",
+        },
       ],
     },
     {
@@ -417,10 +480,29 @@ export const TICS_3: Leccion = {
       guia: "Lo mismo de las simulaciones, en Sheets de verdad y con más filas. Si al copiar el porcentaje te sale #¡DIV/0!, te faltó el $.",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "total", texto: "G2: =D2*E2 y cópiala hasta G13 con el cuadrito azul" },
+        {
+          id: "total",
+          texto: "G2: =D2*E2 y cópiala hasta G13 con el cuadrito azul",
+          variantes: {
+            celular: { texto: "G2: =D2*E2 y cópiala hasta G13", ayuda: "En la app no hay cuadrito para arrastrar: toca G2 › Copiar; selecciona G3:G13 (toca G3 y arrastra el punto azul hasta G13) › mantén el dedo › Pegar. Las referencias se corren solas." },
+          },
+        },
         { id: "suma", texto: "G14: la suma de la columna Total" },
-        { id: "porcentaje", texto: "H2: =G2/$G$14, cópiala hasta H13 y ponle formato de porcentaje", ayuda: "Botón % de la barra de herramientas, o Formato › Número › Porcentaje." },
+        {
+          id: "porcentaje",
+          texto: "H2: =G2/$G$14, cópiala hasta H13 y ponle formato de porcentaje",
+          ayuda: "Botón % de la barra de herramientas, o Formato › Número › Porcentaje.",
+          variantes: { celular: { ayuda: "Cópiala como la anterior (Copiar y Pegar). El porcentaje: selecciona H2:H13 › botón «A» › Celda › Formato de número › Porcentaje. El $ está en el teclado de símbolos (?123)." } },
+        },
         { id: "resumen", texto: "En el resumen (columna B, debajo de la tabla): SUMA, PROMEDIO, MAX, MIN, CONTAR y CONTARA" },
+        {
+          id: "tabla",
+          texto: "Convierte los datos en tabla y llámala Inventario; en una celda libre prueba =SUMA(Inventario[Unidades])",
+          ayuda: "Clic en una celda de los datos › Formato › Convertir en tabla (Ctrl + Alt + T). El nombre se cambia arriba a la izquierda de la tabla. Al escribir Inventario[ te salen las columnas.",
+          variantes: {
+            celular: { ayuda: "«Convertir en tabla» no está en la app de Sheets. Hazlo en Chrome con ⋮ › Sitio de escritorio (en iPhone: ⋯ › Solicitar sitio de escritorio) › Formato › Convertir en tabla, o deja este paso para cuando tengas un computador." },
+          },
+        },
         { id: "cambiar", texto: "Cambia las unidades de un medicamento y mira cómo se recalcula todo" },
       ],
     },
@@ -477,6 +559,7 @@ export const TICS_3: Leccion = {
       intro: "La agenda de turnos del día. Resuelve los retos en orden.",
       guia: 'Recuerda: los textos entre comillas ("Cancelado") y los números sin comillas, salvo en los criterios de CONTAR.SI con comparación (">30000").',
       datos: TURNOS,
+      tablas: [{ nombre: "Turnos", rango: "A1:F9" }],
       retos: [
         {
           celda: "F2",
@@ -487,7 +570,14 @@ export const TICS_3: Leccion = {
           pista: '=SI(D2="Cancelado";"Revisar";"OK")',
         },
         { celda: "B11", texto: "¿Cuántos turnos están cancelados?", solucion: '=CONTAR.SI(D2:D9;"Cancelado")', funcion: "CONTAR.SI", pista: '=CONTAR.SI(D2:D9;"Cancelado")' },
-        { celda: "B12", texto: "¿Cuántos turnos valen más de 30.000?", solucion: '=CONTAR.SI(E2:E9;">30000")', funcion: "CONTAR.SI", pista: 'El criterio va entre comillas: ">30000" (sin punto de miles).' },
+        {
+          celda: "B12",
+          texto: "¿Cuántos turnos valen más de 30.000? Hazlo con la tabla: Turnos[Valor].",
+          solucion: '=CONTAR.SI(Turnos[Valor];">30000")',
+          funcion: "CONTAR.SI",
+          exigeTabla: true,
+          pista: 'El criterio va entre comillas: ">30000" (sin punto de miles). =CONTAR.SI(Turnos[Valor];">30000")',
+        },
         {
           celda: "B13",
           texto: "¿Cuánto suman los turnos de Enfermería?",
@@ -518,8 +608,9 @@ export const TICS_3: Leccion = {
       id: "formulas-conjunto",
       titulo: "Dos condiciones a la vez",
       intro: "Los mismos turnos. Ahora con dos condiciones.",
-      guia: "Escríbelas por parejas: rango, criterio; rango, criterio. Si te da #¡VALOR!, revisa que todos los rangos vayan de la fila 2 a la 9.",
+      guia: "Escríbelas por parejas: rango, criterio; rango, criterio. Si te da #¡VALOR!, revisa que todos los rangos vayan de la fila 2 a la 9. Con la tabla no tienes ese problema: Turnos[Área], Turnos[Prioridad]… siempre tienen las mismas filas.",
       datos: TURNOS,
+      tablas: [{ nombre: "Turnos", rango: "A1:F9" }],
       retos: [
         {
           celda: "B14",
@@ -631,6 +722,7 @@ export const TICS_3: Leccion = {
         [],
         ["Precio promedio"],
       ],
+      tablas: [{ nombre: "Inventario", rango: "A1:H6" }],
       retos: [
         {
           celda: "F2",
@@ -658,16 +750,29 @@ export const TICS_3: Leccion = {
       id: "sheets-condicionales",
       titulo: "En tu hoja: condicionales y utilidad",
       intro: "Sigue en Apellido_Nombre_Funciones.",
-      guia: "Todo esto ya lo practicaste en las simulaciones. En la columna J, ponle formato de número (no de fecha) si te muestra una fecha rara.",
+      guia: "Todo esto ya lo practicaste en las simulaciones. En la columna J, ponle formato de número (no de fecha) si te muestra una fecha rara. En el celular, el «;», las comillas y el < están en el teclado de símbolos (?123).",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "estado", texto: 'Inventario › I2: =SI(D2<50;"Pedir";"OK") y cópiala hasta I13' },
-        { id: "dias", texto: "Inventario › J2: =F2-HOY() y cópiala hasta J13", ayuda: "Si aparece una fecha: Formato › Número › Número." },
+        {
+          id: "estado",
+          texto: 'Inventario › I2: =SI(D2<50;"Pedir";"OK") y cópiala hasta I13',
+          variantes: { celular: { ayuda: "Para copiarla: toca I2 › Copiar; selecciona I3:I13 › mantén el dedo › Pegar." } },
+        },
+        {
+          id: "dias",
+          texto: "Inventario › J2: =F2-HOY() y cópiala hasta J13",
+          ayuda: "Si aparece una fecha: Formato › Número › Número.",
+          variantes: { celular: { ayuda: "Cópiala con Copiar y Pegar. Si aparece una fecha: botón «A» › Celda › Formato de número › Número." } },
+        },
         { id: "contarsi", texto: "Resumen: Antibióticos (CONTAR.SI), Unidades de analgésicos (SUMAR.SI) y Tabletas con menos de 50 unidades (CONTAR.SI.CONJUNTO)" },
         { id: "redondear", texto: "Resumen: precio promedio redondeado con REDONDEAR(PROMEDIO(…);0)" },
         { id: "turnos", texto: "Turnos: debajo de la tabla, cuenta los cancelados y los urgentes de Enfermería" },
         { id: "concatenar", texto: "Turnos › columna I: une paciente y área con CONCATENAR o &" },
-        { id: "condicional", texto: "Bonus: formato condicional que pinte de rojo los «Pedir» y los días para vencer menores que 30" },
+        {
+          id: "condicional",
+          texto: "Bonus: formato condicional que pinte de rojo los «Pedir» y los días para vencer menores que 30",
+          variantes: { celular: { ayuda: "Selecciona el rango › botón «A» › Formato condicional (El texto es exactamente «Pedir»; Es menor que 30)." } },
+        },
       ],
     },
 
@@ -713,7 +818,7 @@ export const TICS_3: Leccion = {
       id: "formulas-buscar",
       titulo: "Trae el nombre y el cargo",
       intro: "A la izquierda, los turnos con el código del profesional. A la derecha (F:H), la tabla de profesionales. Las fórmulas se copian hasta la fila 6.",
-      guia: "Como la fórmula se copia hacia abajo, la tabla de profesionales tiene que quedarse quieta: fíjala con $. Prueba primero sin $ y mira qué pasa en las últimas filas.",
+      guia: "Como la fórmula se copia hacia abajo, la tabla de profesionales tiene que quedarse quieta: en BUSCARV la fijas con $ (prueba primero sin $ y mira qué pasa en las últimas filas). En el segundo reto usas la tabla con nombre: Profesionales[Código] no se corre, así que no necesita $.",
       datos: [
         ["Paciente", "Código", "Profesional", "Cargo", "", "Código", "Nombre", "Cargo"],
         ["Yuliana Cárdenas", "P03", "", "", "", "P01", "Laura Méndez", "Enfermera jefe"],
@@ -721,6 +826,10 @@ export const TICS_3: Leccion = {
         ["Carolina Espitia", "P01", "", "", "", "P03", "Diana Rojas", "Auxiliar de enfermería"],
         ["Jhon Fredy Ríos", "P04", "", "", "", "P04", "Julián Ortiz", "Regente de farmacia"],
         ["Marta Gómez", "P02", "", "", "", "P05", "Marcela Peña", "Médica general"],
+      ],
+      tablas: [
+        { nombre: "Turnos", rango: "A1:D6" },
+        { nombre: "Profesionales", rango: "F1:H6" },
       ],
       retos: [
         {
@@ -734,10 +843,11 @@ export const TICS_3: Leccion = {
         {
           celda: "D2",
           copiar: "D2:D6",
-          texto: "Con BUSCARX, trae el cargo: busca el código en F2:F6 y devuelve H2:H6.",
-          solucion: "=BUSCARX(B2;$F$2:$F$6;$H$2:$H$6)",
+          texto: "Con BUSCARX y la tabla Profesionales, trae el cargo: busca el código en Profesionales[Código] y devuelve Profesionales[Cargo].",
+          solucion: "=BUSCARX(B2;Profesionales[Código];Profesionales[Cargo])",
           funcion: "BUSCARX",
-          pista: "=BUSCARX(B2;$F$2:$F$6;$H$2:$H$6)",
+          exigeTabla: true,
+          pista: "=BUSCARX(B2;Profesionales[Código];Profesionales[Cargo]). Fíjate: no necesita $.",
         },
       ],
     },
@@ -760,8 +870,21 @@ export const TICS_3: Leccion = {
       guia: "Para referirte a otra hoja, escribe la fórmula hasta la tabla, haz clic en la pestaña Profesionales, selecciona el rango y vuelve con Enter: Sheets escribe Profesionales!A2:D9 por ti. Luego ponle los $.",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "buscarv", texto: "Turnos › H2: =BUSCARV(G2;Profesionales!$A$2:$D$9;2;FALSO) y cópiala hasta H31" },
-        { id: "buscarx", texto: "Turnos › columna J: el cargo con BUSCARX", ayuda: "=BUSCARX(G2;Profesionales!$A$2:$A$9;Profesionales!$C$2:$C$9)" },
+        {
+          id: "buscarv",
+          texto: "Turnos › H2: =BUSCARV(G2;Profesionales!$A$2:$D$9;2;FALSO) y cópiala hasta H31",
+          variantes: {
+            celular: { ayuda: "En el celular es más fácil escribir Profesionales!$A$2:$D$9 a mano que tocar la otra pestaña. Para copiarla: toca H2 › Copiar; selecciona H3:H31 › mantén el dedo › Pegar." },
+          },
+        },
+        {
+          id: "buscarx",
+          texto: "Turnos › columna J: el cargo con BUSCARX",
+          ayuda: "Más fácil con tabla: en la pestaña Profesionales, Formato › Convertir en tabla y llámala Profesionales. Luego =BUSCARX(G2;Profesionales[Código];Profesionales[Cargo]). Sin tabla: =BUSCARX(G2;Profesionales!$A$2:$A$9;Profesionales!$C$2:$C$9)",
+          variantes: {
+            celular: { ayuda: "En la app no se puede «Convertir en tabla», así que hazla sin tabla: =BUSCARX(G2;Profesionales!$A$2:$A$9;Profesionales!$C$2:$C$9) y cópiala hacia abajo con Copiar y Pegar." },
+          },
+        },
         { id: "prueba", texto: "Cambia un código por P99 y mira el #N/A; luego arréglalo con el 4.º argumento de BUSCARX o con SI.ERROR" },
       ],
     },
@@ -876,13 +999,13 @@ export const TICS_3: Leccion = {
       eyebrow: "En Google Sheets (y en Excel)",
       titulo: "Crear un gráfico, paso a paso",
       guia: "En Excel es casi igual: Insertar › Gráficos recomendados, y los ajustes salen al hacer clic en el gráfico.",
-      columnas: ["Paso", "En Google Sheets"],
+      columnas: ["Paso", "En Google Sheets", "En la app del celular"],
       filas: [
-        ["1. Selecciona", "Las columnas con sus encabezados. Para dos columnas separadas: Ctrl + clic"],
-        ["2. Inserta", "Insertar › Gráfico. Sheets propone uno"],
-        ["3. Configura", "Editor › Configuración: Tipo de gráfico, Eje X y Serie"],
-        ["4. Personaliza", "Editor › Personalizar › Títulos de gráficos y ejes, colores, etiquetas de datos"],
-        ["5. Acomoda", "Arrástralo y cámbiale el tamaño desde las esquinas. Doble clic para volver al editor"],
+        ["1. Selecciona", "Las columnas con sus encabezados. Para dos columnas separadas: Ctrl + clic", "Toca la primera celda y arrastra el punto azul. No hay Ctrl + clic: selecciona un bloque seguido"],
+        ["2. Inserta", "Insertar › Gráfico. Sheets propone uno", "«+» › Gráfico"],
+        ["3. Configura", "Editor › Configuración: Tipo de gráfico, Eje X y Serie", "Toca dos veces el gráfico › Editar gráfico › Tipo"],
+        ["4. Personaliza", "Editor › Personalizar › Títulos de gráficos y ejes, colores, etiquetas de datos", "Editar gráfico › Títulos, Leyenda"],
+        ["5. Acomoda", "Arrástralo y cámbiale el tamaño desde las esquinas. Doble clic para volver al editor", "Tócalo y arrástralo; el tamaño, desde las esquinas"],
       ],
     },
     {
@@ -895,10 +1018,29 @@ export const TICS_3: Leccion = {
       guia: "Si el gráfico sale raro, revisa en el editor qué columna quedó en el Eje X y cuál en la Serie: Sheets a veces adivina mal.",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "barras", texto: "Barras: Unidades por medicamento (selecciona A1:A13, Ctrl + clic en D1:D13)", ayuda: "Insertar › Gráfico › Tipo de gráfico › Barras." },
-        { id: "titulo", texto: "Ponle título y quita la leyenda (con una sola serie sobra)", ayuda: "Editor › Personalizar › Títulos de gráficos y ejes · Leyenda › Ninguna." },
+        {
+          id: "barras",
+          texto: "Barras: Unidades por medicamento (selecciona A1:A13, Ctrl + clic en D1:D13)",
+          ayuda: "Insertar › Gráfico › Tipo de gráfico › Barras.",
+          variantes: {
+            celular: {
+              texto: "Barras: Unidades por medicamento (selecciona A1:D13)",
+              ayuda: "En el celular no hay Ctrl + clic. Selecciona A1:D13: Categoría y Presentación son texto, así que la única serie que se dibuja es Unidades. Luego «+» › Gráfico › Tipo › Barras. Si sale algo de más, revísalo en Editar gráfico.",
+            },
+          },
+        },
+        {
+          id: "titulo",
+          texto: "Ponle título y quita la leyenda (con una sola serie sobra)",
+          ayuda: "Editor › Personalizar › Títulos de gráficos y ejes · Leyenda › Ninguna.",
+          variantes: { celular: { ayuda: "Toca dos veces el gráfico › Editar gráfico › Títulos; y en Leyenda › Ninguna." } },
+        },
         { id: "tabla", texto: "Arma una tabla pequeña: cada categoría y sus unidades con SUMAR.SI", ayuda: 'En L1 «Categoría», en M1 «Unidades». L2: Analgésico, M2: =SUMAR.SI($B$2:$B$13;L2;$D$2:$D$13) y cópiala.' },
-        { id: "circular", texto: "Circular con esa tabla: ¿cómo se reparten las unidades por categoría?" },
+        {
+          id: "circular",
+          texto: "Circular con esa tabla: ¿cómo se reparten las unidades por categoría?",
+          variantes: { celular: { ayuda: "Selecciona la tablita (desde L1 hasta la última fila de M) › «+» › Gráfico › Tipo › Circular." } },
+        },
       ],
     },
 
@@ -941,7 +1083,7 @@ export const TICS_3: Leccion = {
       actividad: "dinamica",
       id: "dinamica-atenciones",
       titulo: "Arma tu tabla dinámica",
-      intro: "36 atenciones de enero a marzo. Usa el editor de la derecha como en Sheets; algunos retos te piden leer un número de la tabla.",
+      intro: "36 atenciones de enero a marzo. Usa el editor de tablas dinámicas como en Sheets; algunos retos te piden leer un número de la tabla.",
       guia: "Los retos se cumplen solos cuando el editor queda bien. Si te enredas, «💡 ¿Qué me falta?» te dice en qué zona mirar. Prueba el botón de gráfico cuando tengas Filas y Valores.",
       datos: ATENCIONES,
       retos: [
@@ -1004,6 +1146,7 @@ export const TICS_3: Leccion = {
         ["5. Filtros", "«Añadir» junto a Filtros › Estado › desmarca lo que no quieras"],
         ["¿Se cerró el editor?", "Haz clic en cualquier celda de la tabla dinámica: aparece el botón Editar"],
       ],
+      cierre: "En la app de Sheets del celular no se crean ni se editan tablas dinámicas: usa Chrome en modo «Sitio de escritorio» o un computador.",
     },
     {
       tipo: "actividad",
@@ -1015,7 +1158,16 @@ export const TICS_3: Leccion = {
       guia: "Haz una tabla dinámica nueva para cada pregunta o cambia los campos de la misma: las dos formas sirven.",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "crear", texto: "Selecciona los datos › Insertar › Tabla dinámica › Hoja nueva" },
+        {
+          id: "crear",
+          texto: "Selecciona los datos › Insertar › Tabla dinámica › Hoja nueva",
+          variantes: {
+            celular: {
+              texto: "Abre la hoja en Chrome en modo escritorio y crea la tabla dinámica (Insertar › Tabla dinámica › Hoja nueva)",
+              ayuda: "La app de Sheets no crea ni edita tablas dinámicas. En Chrome: abre sheets.google.com › ⋮ › Sitio de escritorio (en iPhone: ⋯ › Solicitar sitio de escritorio) y abre tu archivo. Se ve pequeño: acerca con dos dedos. Si no te funciona, esta actividad queda para cuando tengas un computador; la simulación anterior ya te enseñó cómo se arma.",
+            },
+          },
+        },
         { id: "area", texto: "¿Cuántas atenciones por Área? Filas: Área · Valores: Servicio (COUNTA)" },
         { id: "sede", texto: "¿Cuánto se facturó por Sede? Filas: Sede · Valores: Valor (SUM)" },
         { id: "cruce", texto: "Cruza: Filas: Servicio · Columnas: Sede · Valores: Valor (SUM)" },
@@ -1045,9 +1197,21 @@ export const TICS_3: Leccion = {
       guia: "Si el control de filtros no cambia el gráfico, revisa que el gráfico salga de la tabla dinámica y no de los datos.",
       enlace: { href: "https://docs.google.com/spreadsheets/", texto: "Abrir Google Sheets" },
       pasos: [
-        { id: "mes", texto: "Tabla dinámica nueva: Filas: Mes · Valores: Valor (SUM)" },
-        { id: "lineas", texto: "Clic dentro de la tabla › Insertar › Gráfico › Líneas, con título" },
-        { id: "control", texto: "Datos › Agregar un control de filtros › Sede" },
+        {
+          id: "mes",
+          texto: "Tabla dinámica nueva: Filas: Mes · Valores: Valor (SUM)",
+          variantes: { celular: { ayuda: "Como la anterior, en Chrome con «Sitio de escritorio»: la app no crea tablas dinámicas. Si no te funciona, este mini panel queda para cuando tengas un computador." } },
+        },
+        {
+          id: "lineas",
+          texto: "Clic dentro de la tabla › Insertar › Gráfico › Líneas, con título",
+          variantes: { celular: { ayuda: "En la app sí puedes: selecciona la tabla dinámica › «+» › Gráfico › Tipo › Líneas; el título en Editar gráfico › Títulos." } },
+        },
+        {
+          id: "control",
+          texto: "Datos › Agregar un control de filtros › Sede",
+          variantes: { celular: { ayuda: "El control de filtros no está en la app: créalo y pruébalo en Chrome con «Sitio de escritorio», o déjalo para cuando tengas un computador." } },
+        },
         { id: "probar", texto: "Escoge una sola sede en el control y mira cómo cambian la tabla y el gráfico" },
       ],
     },
@@ -1086,14 +1250,44 @@ export const TICS_3: Leccion = {
       archivos: [ARCHIVO_ENTREGABLE],
       enlace: DRIVE,
       pasos: [
-        { id: "preparar", texto: "Lo subí a mi Drive, lo guardé como hoja de Google y lo llamé Apellido_Nombre_Panel" },
+        {
+          id: "preparar",
+          texto: "Lo subí a mi Drive, lo guardé como hoja de Google y lo llamé Apellido_Nombre_Panel",
+          variantes: { celular: { ayuda: "Igual que al inicio de la clase: app Drive › «+» › Subir; en la app Sheets, ⋮ › Guardar como Hojas de cálculo de Google; y en Drive, ⋮ › Cambiar nombre." } },
+        },
         { id: "buscar", texto: "Columna Profesional con BUSCARV o BUSCARX (sin #N/A)" },
         { id: "panel", texto: "Las 9 preguntas del Panel respondidas con fórmulas", ayuda: "Para el %: =B6/B3 (canceladas entre el total) con formato de porcentaje." },
-        { id: "dinamica", texto: "Tabla dinámica: Servicio × Sede, contando" },
-        { id: "lineas", texto: "Gráfico de líneas: facturado por mes, con título", ayuda: "Primero una tabla dinámica Mes × Valor (SUM) y el gráfico desde ella." },
-        { id: "circular", texto: "Gráfico circular: atenciones por régimen, con título" },
-        { id: "descargar", texto: "Lo descargué en Excel (.xlsx)", ayuda: "Archivo › Descargar › Microsoft Excel. Queda en Descargas." },
-        { id: "q10", texto: "Lo subí en Q10 a «Entregable 3: Panel de atenciones»" },
+        {
+          id: "dinamica",
+          texto: "Tabla dinámica: Servicio × Sede, contando",
+          variantes: { celular: { ayuda: "La app no crea tablas dinámicas: hazla en Chrome con ⋮ › Sitio de escritorio (en iPhone: ⋯ › Solicitar sitio de escritorio) o en un computador." } },
+        },
+        {
+          id: "lineas",
+          texto: "Gráfico de líneas: facturado por mes, con título",
+          ayuda: "Primero una tabla dinámica Mes × Valor (SUM) y el gráfico desde ella.",
+          variantes: {
+            celular: { ayuda: "Primero una tabla dinámica Mes × Valor (SUM), en modo escritorio. Sin computador, otra opción: una tablita con cada mes y =SUMAR.SI, y el gráfico desde ella con «+» › Gráfico › Tipo › Líneas." },
+          },
+        },
+        {
+          id: "circular",
+          texto: "Gráfico circular: atenciones por régimen, con título",
+          variantes: { celular: { ayuda: "Una tablita con cada régimen y CONTAR.SI › selecciónala › «+» › Gráfico › Tipo › Circular; el título en Editar gráfico › Títulos." } },
+        },
+        {
+          id: "descargar",
+          texto: "Lo descargué en Excel (.xlsx)",
+          ayuda: "Archivo › Descargar › Microsoft Excel. Queda en Descargas.",
+          variantes: {
+            celular: { texto: "Lo guardé en Excel (.xlsx)", ayuda: "En la app Sheets: ⋮ › Compartir y exportar › Guardar como › Excel (.xlsx) (queda una copia en tu Drive). En iPhone: Enviar una copia › Excel › Guardar en Archivos." },
+          },
+        },
+        {
+          id: "q10",
+          texto: "Lo subí en Q10 a «Entregable 3: Panel de atenciones»",
+          variantes: { celular: { ayuda: "Entra a Q10 desde el navegador del celular. Al adjuntar el archivo, escoge el .xlsx desde Drive o desde Archivos." } },
+        },
       ],
     },
 

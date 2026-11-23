@@ -41,12 +41,12 @@ export async function sesionActivaPara(usuario: Usuario): Promise<EstadoSesion |
 }
 
 /** Registra que el estudiante sigue conectado y en qué diapositiva va. */
-export async function registrarAsistencia(sesionId: string, usuarioId: string, diapositiva: number, siguiendo: boolean) {
+export async function registrarAsistencia(sesionId: string, usuarioId: string, diapositiva: number, siguiendo: boolean, dispositivo?: string) {
   const ahora = new Date();
   await prisma.asistenciaClase.upsert({
     where: { sesionId_usuarioId: { sesionId, usuarioId } },
-    create: { sesionId, usuarioId, diapositiva, siguiendo },
-    update: { diapositiva, siguiendo, ultimaVez: ahora },
+    create: { sesionId, usuarioId, diapositiva, siguiendo, dispositivo },
+    update: { diapositiva, siguiendo, ultimaVez: ahora, ...(dispositivo ? { dispositivo } : {}) },
   });
 }
 
@@ -90,6 +90,7 @@ export async function participantesDeSesion(sesionId: string, grupoId: string | 
         vino: !!a,
         diapositiva: a?.diapositiva ?? null,
         siguiendo: a?.siguiendo ?? true,
+        dispositivo: a?.dispositivo ?? null,
         completadas: progresos.filter((x) => x.usuarioId === p.id && x.completado).map((x) => x.actividad),
         empezadas: progresos.filter((x) => x.usuarioId === p.id).map((x) => x.actividad),
       };

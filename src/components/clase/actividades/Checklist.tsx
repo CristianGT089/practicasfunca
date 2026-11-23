@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { NodoArbol, PasoChecklist } from "@/lib/clase/tipos";
+import { adaptarAtajos, useDispositivo } from "@/lib/clase/dispositivo";
 import { useProgreso } from "../progreso";
 import Arbol from "../Arbol";
 
@@ -24,6 +25,13 @@ export default function Checklist({
   const { datos, guardar } = useProgreso<Datos>(id);
   const hechos = new Set(datos?.hechos ?? []);
   const [ayuda, setAyuda] = useState<string | null>(null);
+  const dispositivo = useDispositivo();
+  // Cada paso con la redacción de este equipo (si la lección la trae) y los atajos adaptados.
+  const vistos = pasos.map((p) => {
+    const v = dispositivo === "linux" ? undefined : p.variantes?.[dispositivo];
+    const ayudaPaso = v?.ayuda ?? p.ayuda;
+    return { ...p, texto: adaptarAtajos(v?.texto ?? p.texto, dispositivo), ayuda: ayudaPaso && adaptarAtajos(ayudaPaso, dispositivo) };
+  });
 
   function alternar(paso: string) {
     const nuevos = new Set(hechos);
@@ -35,24 +43,24 @@ export default function Checklist({
   const listos = pasos.filter((p) => hechos.has(p.id)).length;
 
   return (
-    <div className={`grid gap-5 ${arbol ? "lg:grid-cols-[1fr_260px]" : ""}`}>
-      <div className="flex flex-col gap-3">
+    <div className={`grid grid-cols-1 gap-5 ${arbol ? "lg:grid-cols-[minmax(0,1fr)_260px]" : ""}`}>
+      <div className="flex min-w-0 flex-col gap-3">
         {(enlace || archivos?.length) && (
           <div className="flex flex-wrap gap-2">
             {archivos?.map((a) => (
-              <a key={a.href} href={a.href} download className="btn-primario">
+              <a key={a.href} href={a.href} download className="btn-primario max-w-full">
                 ⬇ {a.texto}
               </a>
             ))}
             {enlace && (
-              <a href={enlace.href} target="_blank" rel="noopener noreferrer" className="btn-cta">
+              <a href={enlace.href} target="_blank" rel="noopener noreferrer" className="btn-cta max-w-full">
                 {enlace.texto} ↗
               </a>
             )}
           </div>
         )}
         <ol className="flex flex-col gap-2">
-          {pasos.map((p, i) => {
+          {vistos.map((p, i) => {
             const hecho = hechos.has(p.id);
             return (
               <li key={p.id} className={`rounded-2xl border-2 transition-colors ${hecho ? "border-emerald-300 bg-emerald-50" : "border-blue-200 bg-white"}`}>
@@ -61,14 +69,14 @@ export default function Checklist({
                     onClick={() => alternar(p.id)}
                     aria-pressed={hecho}
                     aria-label={hecho ? `Desmarcar paso ${i + 1}` : `Marcar paso ${i + 1} como hecho`}
-                    className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-sm font-bold transition-colors ${
+                    className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-sm font-bold transition-colors pointer-coarse:mt-0 pointer-coarse:h-10 pointer-coarse:w-10 ${
                       hecho ? "border-emerald-500 bg-emerald-500 text-white" : "border-blue-300 text-blue-700 hover:border-blue-600"
                     }`}
                   >
                     {hecho ? "✓" : i + 1}
                   </button>
-                  <div className="flex-1">
-                    <button onClick={() => alternar(p.id)} className={`text-left font-medium ${hecho ? "text-emerald-900" : "text-blue-950"}`}>
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => alternar(p.id)} className={`max-w-full break-words text-left font-medium pointer-coarse:min-h-10 ${hecho ? "text-emerald-900" : "text-blue-950"}`}>
                       {p.texto}
                     </button>
                     {p.ayuda && ayuda === p.id && <p className="mt-1 text-sm text-slate-600">{p.ayuda}</p>}
@@ -76,7 +84,8 @@ export default function Checklist({
                   {p.ayuda && (
                     <button
                       onClick={() => setAyuda(ayuda === p.id ? null : p.id)}
-                      className="shrink-0 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 hover:bg-blue-200"
+                      aria-expanded={ayuda === p.id}
+                      className="shrink-0 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 hover:bg-blue-200 pointer-coarse:min-h-10 pointer-coarse:px-3.5 pointer-coarse:text-sm"
                     >
                       {ayuda === p.id ? "Ocultar" : "¿Cómo?"}
                     </button>

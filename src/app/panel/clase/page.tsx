@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LECCIONES, leccionPorSlug } from "@/lib/clase/lecciones";
+import { dispositivoActual } from "@/lib/clase/dispositivo";
 import { ProveedorProgreso } from "@/components/clase/progreso";
-import Visor from "@/components/clase/Visor";
+import Visor, { BotonSalir } from "@/components/clase/Visor";
 
 type Sesion = { id: string; leccion: string; diapositiva: number; maxima: number; llamado: number; reveladas: string[]; total: number };
 
@@ -100,7 +101,12 @@ export default function ClaseEstudiante() {
       fetch("/api/clase/estado", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sesionId: estado.current.sesionId, diapositiva: estado.current.indice, siguiendo: estado.current.siguiendo }),
+        body: JSON.stringify({
+          sesionId: estado.current.sesionId,
+          diapositiva: estado.current.indice,
+          siguiendo: estado.current.siguiendo,
+          dispositivo: dispositivoActual(),
+        }),
       })
         .then((r) => {
           if (r.status === 401) router.replace("/");
@@ -147,11 +153,13 @@ export default function ClaseEstudiante() {
   ) : terminada ? (
     <div className="bg-blue-100 px-4 py-2 text-center text-sm font-semibold text-blue-900">La clase en vivo terminó. Puedes seguir repasando a tu ritmo.</div>
   ) : atrasado ? (
-    <div className="flex flex-wrap items-center justify-center gap-3 bg-gold-100 px-4 py-2 text-sm text-blue-950">
-      <span>
-        {siguiendo ? "El profe avanzó a la diapositiva" : "Vas por tu cuenta. El profe está en la diapositiva"} <b>{sesion!.diapositiva + 1}</b>.
+    <div className="flex items-center justify-between gap-2 bg-gold-100 px-3 py-1.5 text-sm text-blue-950 sm:justify-center sm:gap-3 sm:px-4 sm:py-2">
+      <span className="min-w-0">
+        <span className="sm:hidden">{siguiendo ? "El profe avanzó a la" : "El profe está en la"}</span>
+        <span className="hidden sm:inline">{siguiendo ? "El profe avanzó a la diapositiva" : "Vas por tu cuenta. El profe está en la diapositiva"}</span>{" "}
+        <b>{sesion!.diapositiva + 1}</b>.
       </span>
-      <button onClick={() => (setIndice(sesion!.diapositiva), setSiguiendo(true))} className="btn-cta !py-1.5">
+      <button onClick={() => (setIndice(sesion!.diapositiva), setSiguiendo(true))} className="btn-cta shrink-0 !px-4 !py-1.5 pointer-coarse:min-h-10">
         Ir con el profe →
       </button>
     </div>
@@ -170,17 +178,21 @@ export default function ClaseEstudiante() {
         arriba={
           <>
             {sesion ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
-                <span className={`h-2 w-2 rounded-full ${conexion ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-                {siguiendo && !atrasado ? "Siguiendo al profe" : "En vivo"}
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${conexion ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
+                {siguiendo && !atrasado ? (
+                  <>
+                    Siguiendo<span className="hidden min-[400px]:inline"> al profe</span>
+                  </>
+                ) : (
+                  "En vivo"
+                )}
               </span>
             ) : (
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">{ritmo ? "Vista previa · a tu ritmo" : "Modo repaso"}</span>
+              <span className="truncate whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">{ritmo ? "Vista previa · a tu ritmo" : "Modo repaso"}</span>
             )}
             {nombre && <span className="hidden text-sm text-blue-100 md:inline">{nombre}</span>}
-            <button onClick={() => router.push("/panel")} className="rounded-full px-2.5 py-1 text-xs font-semibold text-blue-100 hover:bg-white/10">
-              Salir
-            </button>
+            <BotonSalir onClick={() => router.push("/panel")} />
           </>
         }
       />

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Diapositiva as TipoDiapositiva, Tarjeta } from "@/lib/clase/tipos";
+import { adaptarAtajos, useDispositivo, type Dispositivo } from "@/lib/clase/dispositivo";
 import Arbol from "./Arbol";
 import Atajos from "./actividades/Atajos";
 import Checklist from "./actividades/Checklist";
@@ -19,6 +20,9 @@ import Visuales from "./Visuales";
 
 /** Pinta una diapositiva de la lección. La misma para el proyector y para el estudiante. */
 export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoDiapositiva; origen?: string; sesionPresentador?: string }) {
+  // Los atajos de los textos se adaptan al equipo del estudiante (en Mac, ⌘ en vez de Ctrl).
+  const dispositivo = useDispositivo();
+  const at = (texto: string) => adaptarAtajos(texto, dispositivo);
   switch (d.tipo) {
     case "portada":
       return (
@@ -27,9 +31,9 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
           <h1 className="mt-4 font-heading text-4xl font-extrabold tracking-tight text-blue-900 sm:text-6xl">{d.titulo}</h1>
           {d.subtitulo && <p className="mt-4 text-xl text-blue-700 sm:text-2xl">{d.subtitulo}</p>}
           {d.mostrarAcceso && origen && (
-            <div className="mt-8 rounded-3xl bg-blue-900 px-8 py-5 text-white">
-              <p className="text-sm text-blue-200">Entra desde tu Chromebook a</p>
-              <p className="font-mono text-2xl font-bold text-gold-400 sm:text-3xl">{origen.replace(/^https?:\/\//, "")}</p>
+            <div className="mt-8 max-w-full rounded-3xl bg-blue-900 px-5 py-5 text-white sm:px-8">
+              <p className="text-sm text-blue-200">{entraDesde(dispositivo, !!sesionPresentador)}</p>
+              <p className="break-all font-mono text-xl font-bold text-gold-400 sm:text-3xl">{origen.replace(/^https?:\/\//, "")}</p>
               <p className="text-sm text-blue-200">con el usuario y la contraseña que te doy</p>
             </div>
           )}
@@ -51,7 +55,7 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
       return (
         <div>
           <Titulo titulo={d.titulo} />
-          <ol className={`mt-5 grid gap-2 sm:grid-cols-2 ${d.bloques.length > 10 ? "lg:grid-cols-3" : ""}`}>
+          <ol className={`mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 ${d.bloques.length > 10 ? "lg:grid-cols-3" : ""}`}>
             {d.bloques.map((b, i) => (
               <li
                 key={i}
@@ -81,7 +85,7 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
       return (
         <div>
           <span className="eyebrow">{d.eyebrow}</span>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
             <div className="rounded-3xl bg-gradient-to-br from-blue-900 to-blue-700 p-7 text-white">
               <div className="grid h-20 w-20 place-items-center rounded-full bg-gold-500 font-heading text-3xl font-extrabold text-blue-900">
                 {d.nombre.split(" ").map((p) => p[0]).slice(0, 2).join("")}
@@ -90,7 +94,7 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
               <p className="mt-1 font-semibold text-gold-400">{d.cargo}</p>
               <p className="mt-4 text-lg leading-relaxed text-blue-100">{d.resumen}</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {d.datos.map((x) => (
                 <div key={x.titulo} className="tarjeta p-5">
                   <div className="text-3xl" aria-hidden>{x.icono}</div>
@@ -113,7 +117,7 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
               <div key={p.nombre} style={{ width: `${p.valor}%` }} className={["bg-gold-500", "bg-blue-600", "bg-blue-900"][i % 3]} />
             ))}
           </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
             {d.partes.map((p, i) => (
               <div key={p.nombre} className="tarjeta p-6">
                 <div className={`font-heading text-6xl font-extrabold ${["text-gold-600", "text-blue-600", "text-blue-900"][i % 3]}`}>{p.valor}%</div>
@@ -179,7 +183,9 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
         </div>
       );
 
-    case "tabla":
+    case "tabla": {
+      // Las celdas comparan sistemas: no se adaptan. Se resalta la columna del equipo del estudiante.
+      const suya = sesionPresentador ? -1 : d.columnas.findIndex((c) => nombraEquipo(c, dispositivo));
       return (
         <div>
           <Titulo eyebrow={d.eyebrow} titulo={d.titulo} intro={d.intro} />
@@ -188,7 +194,10 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
               <thead className="bg-blue-900 text-white">
                 <tr>
                   {d.columnas.map((c, i) => (
-                    <th key={i} className="px-4 py-2.5 font-heading font-semibold">{c}</th>
+                    <th key={i} className={`px-4 py-2.5 font-heading font-semibold ${i === suya ? "bg-blue-700" : ""}`}>
+                      {c}
+                      {i === suya && <span className="ml-2 whitespace-nowrap rounded-full bg-gold-500 px-2 py-0.5 align-middle text-[11px] font-bold text-blue-900">tu equipo</span>}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -196,7 +205,10 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
                 {d.filas.map((f, i) => (
                   <tr key={i} className="border-t border-blue-100 even:bg-blue-50/60">
                     {f.map((c, j) => (
-                      <td key={j} className={`px-4 py-2 text-base ${j === 0 || (d.columnas.length === 4 && j === 2 && d.columnas[0] === "Atajo") ? "font-mono font-bold text-blue-900" : "text-slate-800"}`}>
+                      <td
+                        key={j}
+                        className={`px-4 py-2 text-base ${j === 0 || (d.columnas.length === 4 && j === 2 && d.columnas[0] === "Atajo") ? "font-mono font-bold text-blue-900" : "text-slate-800"} ${j === suya ? "bg-gold-50" : ""}`}
+                      >
                         {c}
                       </td>
                     ))}
@@ -208,12 +220,13 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
           {d.cierre && <Cierre texto={d.cierre} />}
         </div>
       );
+    }
 
     case "arbol":
       return (
         <div>
           <Titulo eyebrow={d.eyebrow} titulo={d.titulo} intro={d.intro} />
-          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
             <div className="tarjeta p-6 text-lg">
               <Arbol nodo={d.raiz} />
             </div>
@@ -232,17 +245,17 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
       return (
         <div>
           <Titulo eyebrow={d.eyebrow} titulo={d.titulo} />
-          <div className="mt-5 grid gap-4 md:grid-cols-[220px_1fr]">
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
             <div className="flex flex-col items-center justify-center rounded-3xl bg-blue-900 p-6 text-center text-white">
               <span className="text-sm text-blue-200">Se hace en</span>
-              <span className="font-heading text-5xl font-extrabold text-gold-400">{d.plataforma}</span>
+              <span className="break-words font-heading text-4xl font-extrabold text-gold-400 sm:text-5xl">{d.plataforma}</span>
               <span className="mt-3 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">⏱ {d.duracion}</span>
             </div>
             <ol className="tarjeta flex flex-col gap-3 p-6">
               {d.pasos.map((p, i) => (
                 <li key={i} className="flex gap-3 text-lg text-slate-800">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-100 font-heading font-bold text-blue-800">{i + 1}</span>
-                  {p}
+                  {at(p)}
                 </li>
               ))}
               {d.enlace && (
@@ -259,24 +272,25 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
     case "actividad":
       return (
         <div>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          {/* En el celular, compacta: que la simulación aparezca cuanto antes. */}
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-4">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-gold-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-900">
+              <span className="inline-flex items-center gap-2 rounded-full bg-gold-500 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-blue-900 sm:px-3 sm:py-1 sm:text-xs">
                 ✋ Actividad · a tu ritmo
               </span>
-              <h2 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-blue-900">{d.titulo}</h2>
-              {d.intro && <p className="mt-1 text-slate-700">{d.intro}</p>}
+              <h2 className="mt-1.5 font-heading text-2xl font-extrabold leading-tight tracking-tight text-blue-900 sm:mt-2 sm:text-3xl">{at(d.titulo)}</h2>
+              {d.intro && <p className="mt-1 text-sm text-slate-700 sm:text-base">{at(d.intro)}</p>}
             </div>
           </div>
           {d.actividad === "clasificar" && <Clasificar id={d.id} categorias={d.categorias} items={d.items} />}
           {d.actividad === "checklist" && <Checklist id={d.id} pasos={d.pasos} enlace={d.enlace} archivos={d.archivos} arbol={d.arbol} />}
           {d.actividad === "atajos" && <Atajos id={d.id} />}
           {d.actividad === "mecanografia" && <Mecanografia id={d.id} />}
-          {d.actividad === "interfaz" && <Interfaz id={d.id} app={d.app} retos={d.retos} />}
+          {d.actividad === "interfaz" && <Interfaz id={d.id} app={d.app} retos={d.retos} retosCelular={d.retosCelular} />}
           {d.actividad === "celdas" && <Celdas id={d.id} retos={d.retos} datos={d.datos} columnas={d.columnas} filas={d.filas} />}
           {d.actividad === "ordenar" && <OrdenarFiltrar id={d.id} datos={d.datos} retos={d.retos} />}
           {d.actividad === "condicional" && <Condicional id={d.id} datos={d.datos} retos={d.retos} />}
-          {d.actividad === "formulas" && <Formulas id={d.id} datos={d.datos} retos={d.retos} />}
+          {d.actividad === "formulas" && <Formulas id={d.id} datos={d.datos} tablas={d.tablas} retos={d.retos} />}
           {d.actividad === "grafico" && <Grafico id={d.id} datos={d.datos} retos={d.retos} />}
           {d.actividad === "dinamica" && <Dinamica id={d.id} datos={d.datos} retos={d.retos} />}
         </div>
@@ -286,19 +300,19 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
       return (
         <div>
           <Titulo eyebrow={d.eyebrow} titulo={d.titulo} />
-          <div className="mt-4 grid gap-4 rounded-3xl bg-blue-950 p-5 text-white lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 lg:grid-cols-4 lg:border-r lg:border-white/15 lg:pr-6">
+          <div className="mt-4 grid grid-cols-1 gap-4 rounded-3xl bg-blue-950 p-5 text-white lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:gap-x-6 lg:grid-cols-4 lg:border-r lg:border-white/15 lg:pr-6">
               {d.ficha.map((f) => (
-                <div key={f.etiqueta}>
+                <div key={f.etiqueta} className="min-w-0">
                   <dt className="text-xs uppercase tracking-wider text-blue-300">{f.etiqueta}</dt>
-                  <dd className="whitespace-nowrap font-semibold">{f.valor}</dd>
+                  <dd className="break-words font-semibold sm:whitespace-nowrap">{f.valor}</dd>
                 </div>
               ))}
             </dl>
             <p className="leading-relaxed text-blue-100">{d.sinopsis}</p>
           </div>
           <p className="mt-4 font-heading font-bold text-blue-900">Mientras la ven, fíjense en…</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {d.observar.map((t) => (
               <TarjetaVista key={t.titulo} t={t} />
             ))}
@@ -316,7 +330,7 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
         <div>
           <Titulo eyebrow={d.eyebrow} titulo={d.titulo} />
           <p className="mt-3 inline-flex rounded-full bg-gold-500 px-4 py-1.5 font-heading font-bold text-blue-900">📅 Entrega: {d.entrega}</p>
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <div className="tarjeta p-5">
               <p className="text-slate-700">{d.intro}</p>
               <ol className="mt-3 flex flex-col gap-2">
@@ -359,14 +373,14 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
       return (
         <div>
           <Titulo titulo={d.titulo} />
-          <div className={`mt-5 grid gap-3 sm:grid-cols-2 ${d.preguntas.length > 4 ? "lg:grid-cols-3" : ""}`}>
+          <div className={`mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 ${d.preguntas.length > 4 ? "lg:grid-cols-3" : ""}`}>
             {d.preguntas.map((p) => (
               <div key={p.tema} className="tarjeta p-5">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl" aria-hidden>{p.icono}</span>
-                  <span className="font-heading text-xl font-bold text-blue-900">{p.tema}</span>
+                  <span className="font-heading text-xl font-bold text-blue-900">{at(p.tema)}</span>
                 </div>
-                <p className="mt-2 text-lg text-slate-800">{p.pregunta}</p>
+                <p className="mt-2 text-lg text-slate-800">{at(p.pregunta)}</p>
               </div>
             ))}
           </div>
@@ -386,7 +400,25 @@ export default function Diapositiva({ d, origen, sesionPresentador }: { d: TipoD
   }
 }
 
+/** Qué equipo nombra un encabezado de la tabla (para marcar «tu equipo»). */
+function nombraEquipo(columna: string, d: Dispositivo) {
+  if (d === "chromebook") return /Chromebook|Chrome ?OS/i.test(columna);
+  if (d === "windows") return /Windows/i.test(columna);
+  if (d === "mac") return /\bMac(OS)?\b/i.test(columna);
+  return false;
+}
+
+/** La portada dice desde dónde entrar. En el proyector, a todos (computador o celular). */
+function entraDesde(d: Dispositivo, proyector: boolean) {
+  if (proyector) return "Entra desde el computador o el celular a";
+  if (d === "celular") return "Entra desde el navegador del celular a";
+  if (d === "chromebook") return "Entra desde tu Chromebook a";
+  return "Entra desde tu computador a";
+}
+
 function Titulo({ eyebrow, titulo, intro }: { eyebrow?: string; titulo: string; intro?: string }) {
+  const dispositivo = useDispositivo();
+  [titulo, intro] = [adaptarAtajos(titulo, dispositivo), intro && adaptarAtajos(intro, dispositivo)];
   return (
     <div>
       {eyebrow && <span className="eyebrow">{eyebrow}</span>}
@@ -397,6 +429,7 @@ function Titulo({ eyebrow, titulo, intro }: { eyebrow?: string; titulo: string; 
 }
 
 function Cierre({ texto }: { texto: string }) {
+  texto = adaptarAtajos(texto, useDispositivo());
   return <p className="mt-5 border-l-4 border-gold-500 pl-4 text-lg font-semibold text-blue-800">{texto}</p>;
 }
 
@@ -407,7 +440,7 @@ function Rejilla({ tarjetas, columnas, compacta }: { tarjetas: Tarjeta[]; column
   const n = tarjetas.length;
   const ancho = !compacta && columnas === 2 && n >= 4 ? (n % 3 === 0 ? "lg:grid-cols-3" : n % 4 === 0 ? "lg:grid-cols-4" : "") : "";
   return (
-    <div className={`${compacta ? "" : "mt-5"} grid gap-3 ${COLUMNAS[columnas]} ${ancho}`}>
+    <div className={`${compacta ? "" : "mt-5"} grid grid-cols-1 gap-3 ${COLUMNAS[columnas]} ${ancho}`}>
       {tarjetas.map((t) => (
         <TarjetaVista key={t.titulo} t={t} />
       ))}
@@ -415,7 +448,10 @@ function Rejilla({ tarjetas, columnas, compacta }: { tarjetas: Tarjeta[]; column
   );
 }
 
-function TarjetaVista({ t, grande }: { t: Tarjeta; grande?: boolean }) {
+function TarjetaVista({ t: original, grande }: { t: Tarjeta; grande?: boolean }) {
+  const dispositivo = useDispositivo();
+  const at = (x: string) => adaptarAtajos(x, dispositivo);
+  const t = { ...original, titulo: at(original.titulo), texto: original.texto && at(original.texto), items: original.items?.map(at) };
   const fondo =
     t.color === "amarilla" ? "bg-gold-50 border-2 border-gold-500/50 rounded-3xl" : t.color === "navy" ? "bg-blue-900 text-white rounded-3xl" : "tarjeta";
   return (

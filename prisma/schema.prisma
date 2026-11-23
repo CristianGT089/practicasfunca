@@ -1327,6 +1327,8 @@ model AsistenciaClase {
   usuario     Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   diapositiva Int         @default(0)
   siguiendo   Boolean     @default(true)
+  // Desde qué equipo la sigue: celular, chromebook, windows, mac o linux (src/lib/clase/dispositivo.ts).
+  dispositivo String?
   primeraVez  DateTime    @default(now())
   ultimaVez   DateTime    @default(now())
 
@@ -1385,6 +1387,8 @@ model RecorridoClase {
   diapositiva   Int             @default(0)
   // La más lejana a la que llegó: puede volver atrás, pero no saltarse diapositivas.
   maxima        Int             @default(0)
+  // El último equipo desde el que la hizo (celular, chromebook, windows, mac o linux).
+  dispositivo   String?
   iniciadoEn    DateTime?
   terminadoEn   DateTime?
   // El docente ya abrió el reporte después de que terminó (para avisarle de los nuevos).

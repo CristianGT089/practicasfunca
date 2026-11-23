@@ -10,7 +10,10 @@ export function requisitoPendiente(d: Diapositiva, progreso: { datos: unknown } 
   if (d.tipo === "pregunta") return progreso ? null : "Responde la pregunta para seguir";
   if (d.tipo === "actividad" && d.actividad === "mecanografia") {
     const nivel = NIVELES_MECANOGRAFIA[0];
-    const intentos = (progreso?.datos as { intentos?: { nivel: string; texto: number }[] } | null)?.intentos ?? [];
+    const datos = progreso?.datos as { intentos?: { nivel: string; texto: number }[]; omitidaEnCelular?: boolean } | null;
+    // Desde el celular no se puede practicar con teclado físico: puede seguir y le queda pendiente.
+    if (datos?.omitidaEnCelular) return null;
+    const intentos = datos?.intentos ?? [];
     const hechos = new Set(intentos.filter((i) => i.nivel === nivel.id).map((i) => i.texto)).size;
     if (hechos < nivel.textos.length) return `Termina los ${nivel.textos.length} textos del Nivel 1 para seguir (llevas ${hechos})`;
   }

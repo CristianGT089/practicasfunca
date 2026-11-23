@@ -1,5 +1,6 @@
 "use client";
 
+import { DISPOSITIVOS } from "@/lib/clase/dispositivo";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { leccionPorSlug } from "@/lib/clase/lecciones";
@@ -25,6 +26,7 @@ type Participante = {
   vino: boolean;
   diapositiva: number | null;
   siguiendo: boolean;
+  dispositivo: string | null;
   completadas: string[];
   empezadas: string[];
 };
@@ -229,6 +231,11 @@ export default function Presentador({ params }: { params: Promise<{ id: string }
                 <div className="flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${p.conectado ? "bg-emerald-500" : p.vino ? "bg-amber-400" : "bg-slate-300"}`} title={p.conectado ? "Conectado" : p.vino ? "Se desconectó" : "No ha entrado"} />
                   <span className="truncate text-sm font-semibold text-blue-950">{p.nombre}</span>
+                  {p.dispositivo && (
+                    <span className="shrink-0 text-xs" title={`Entró desde: ${DISPOSITIVOS.find((d) => d.id === p.dispositivo)?.nombre ?? p.dispositivo}`}>
+                      {DISPOSITIVOS.find((d) => d.id === p.dispositivo)?.icono}
+                    </span>
+                  )}
                   <span className="ml-auto shrink-0 text-xs text-slate-500">
                     {p.diapositiva === null ? "—" : p.diapositiva === indice ? "aquí" : `en la ${p.diapositiva + 1}`}
                   </span>

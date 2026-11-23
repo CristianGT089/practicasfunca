@@ -1,5 +1,6 @@
 "use client";
 
+import { DISPOSITIVOS } from "@/lib/clase/dispositivo";
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Reporte } from "@/lib/clase/ritmo";
@@ -14,6 +15,7 @@ type Estudiante = {
   terminadoEn: string | null;
   ultimaVez: string;
   revisado: boolean;
+  dispositivo: string | null;
   reporte: Reporte;
 };
 type Datos = {
@@ -164,7 +166,10 @@ export default function ReporteARitmo({ params }: { params: Promise<{ id: string
                       {abiertoAqui ? "▾" : "▸"} {e.estudiante.nombre}
                       {nuevos.has(e.id) && <span className="ml-2 rounded-full bg-gold-500 px-2 py-0.5 text-[10px] font-bold text-blue-900">NUEVO</span>}
                     </span>
-                    <span className="block text-xs text-slate-500">{e.estudiante.usuario}</span>
+                    <span className="block text-xs text-slate-500">
+                      {e.estudiante.usuario}
+                      {e.dispositivo && ` · ${DISPOSITIVOS.find((d) => d.id === e.dispositivo)?.icono ?? ""} desde ${DISPOSITIVOS.find((d) => d.id === e.dispositivo)?.nombre.toLowerCase() ?? e.dispositivo}`}
+                    </span>
                   </span>
                   <span className="text-sm">
                     {e.terminadoEn ? (

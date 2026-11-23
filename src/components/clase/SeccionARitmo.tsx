@@ -107,7 +107,7 @@ export default function SeccionARitmo({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold text-slate-700">
               Lección
-              <select value={leccion} onChange={(e) => setLeccion(e.target.value)} className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2">
+              <select value={leccion} onChange={(e) => setLeccion(e.target.value)} className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-base font-normal sm:text-sm">
                 {lecciones.map((l) => (
                   <option key={l.slug} value={l.slug}>
                     {l.titulo}
@@ -117,7 +117,7 @@ export default function SeccionARitmo({
             </label>
             <label className="text-sm font-semibold text-slate-700">
               Grupo
-              <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)} className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2">
+              <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)} className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-base font-normal sm:text-sm">
                 {grupos.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.nombre} ({g.estudiantes})
@@ -131,16 +131,16 @@ export default function SeccionARitmo({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-slate-700">¿Quiénes la pueden hacer?</p>
               {candidatos && candidatos.length > 0 && (
-                <span className="flex gap-2 text-xs">
-                  <button onClick={() => setElegidos(new Set(candidatos.filter((c) => !c.vino).map((c) => c.id)))} className="font-semibold text-blue-700 hover:underline">
+                <span className="flex flex-wrap items-center gap-0.5 text-xs pointer-coarse:text-sm">
+                  <button onClick={() => setElegidos(new Set(candidatos.filter((c) => !c.vino).map((c) => c.id)))} className="rounded-full px-2 py-1 font-semibold text-blue-700 hover:bg-blue-50 hover:underline pointer-coarse:min-h-10 pointer-coarse:px-3">
                     Los que faltaron
                   </button>
                   <span className="text-slate-300">·</span>
-                  <button onClick={() => setElegidos(new Set(candidatos.map((c) => c.id)))} className="font-semibold text-blue-700 hover:underline">
+                  <button onClick={() => setElegidos(new Set(candidatos.map((c) => c.id)))} className="rounded-full px-2 py-1 font-semibold text-blue-700 hover:bg-blue-50 hover:underline pointer-coarse:min-h-10 pointer-coarse:px-3">
                     Todos
                   </button>
                   <span className="text-slate-300">·</span>
-                  <button onClick={() => setElegidos(new Set())} className="font-semibold text-blue-700 hover:underline">
+                  <button onClick={() => setElegidos(new Set())} className="rounded-full px-2 py-1 font-semibold text-blue-700 hover:bg-blue-50 hover:underline pointer-coarse:min-h-10 pointer-coarse:px-3">
                     Ninguno
                   </button>
                 </span>
@@ -151,7 +151,7 @@ export default function SeccionARitmo({
             {candidatos?.length === 0 && <p className="mt-2 text-sm text-amber-700">Este grupo no tiene estudiantes.</p>}
             <div className="mt-2 grid max-h-72 gap-1.5 overflow-y-auto sm:grid-cols-2">
               {candidatos?.map((c) => (
-                <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-3 py-2 text-sm hover:bg-blue-50">
+                <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-3 py-2 text-sm hover:bg-blue-50 pointer-coarse:min-h-11">
                   <input type="checkbox" checked={elegidos.has(c.id)} onChange={() => alternar(c.id)} className="h-4 w-4 accent-blue-800" />
                   <span className="min-w-0 flex-1 truncate font-semibold text-blue-950">{c.nombre}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.vino ? "bg-emerald-100 text-emerald-800" : "bg-gold-100 text-gold-700"}`}>
@@ -169,7 +169,7 @@ export default function SeccionARitmo({
               onChange={(e) => setMensaje(e.target.value)}
               rows={3}
               placeholder="Ej.: Tienes hasta el sábado a las 6 p. m. Para compartir tu carpeta de Drive usa mi correo: …"
-              className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 font-normal"
+              className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-base font-normal sm:text-sm"
             />
           </label>
 

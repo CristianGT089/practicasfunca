@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { argumentosDe, desplazar, ErrorCelda, ErrorFormula, evaluar, usaAbsoluta, usaFuncion, usaReferencias, type Hoja } from "../src/lib/clase/formulas";
+import { argumentosDe, completarParentesis, desplazar, ErrorCelda, ErrorFormula, evaluar, usaAbsoluta, usaFuncion, usaReferencias, type Hoja } from "../src/lib/clase/formulas";
 
 const hoja: Hoja = [
   ["Paciente", "Área", "Prioridad", "Estado", "Valor", "Código"],
@@ -62,7 +62,9 @@ test("errores y SI.ERROR", () => {
   assert.throws(() => e("=SUMAA(E2:E6)"), /#¿NOMBRE?/);
   assert.equal(e('=SI.ERROR(E2/E6;"Sin valor")'), "Sin valor");
   assert.equal(e('=IFERROR(E2/2;"x")'), 25000);
-  assert.throws(() => e('=SI(D2="Atendido";"ok"'), ErrorFormula);
+  // El «)» del final se completa solo, como en Sheets; un texto sin cerrar sí es error.
+  assert.equal(e('=SI(D2="Atendido";"ok"'), "ok");
+  assert.throws(() => e('=SI(D2="Atendido;"ok")'), ErrorFormula);
   assert.throws(() => e("=SUMA(E:E)"), /C2:C7/);
 });
 
@@ -96,4 +98,13 @@ test("ayudas para revisar: funciones, argumentos, referencias y $", () => {
   assert.equal(desplazar("=E2/$E$7", 2, 0), "=E4/$E$7");
   assert.equal(desplazar("=E2/E$7+$A3", 1, 1), "=F3/F$7+$A4");
   assert.equal(desplazar('=SI(D2="E2";BUSCARV(F2;A2:E6;2;FALSO);"")', 1, 0), '=SI(D3="E2";BUSCARV(F3;A3:E7;2;FALSO);"")');
+});
+
+test("el «)» del final no es obligatorio (como en Sheets)", () => {
+  assert.equal(e("=SUMA(E2:E6"), 110000);
+  assert.equal(e('=SI(D3="Cancelado";"Revisar";"OK"'), "Revisar");
+  assert.equal(e("=REDONDEAR(PROMEDIO(E2:E6"), 27500);
+  assert.equal(completarParentesis("=REDONDEAR(PROMEDIO(E2:E6);0"), "=REDONDEAR(PROMEDIO(E2:E6);0)");
+  assert.equal(completarParentesis('=SI(A2="(";1;0'), '=SI(A2="(";1;0)');
+  assert.equal(completarParentesis("=SUMA(E2:E6)"), "=SUMA(E2:E6)");
 });
